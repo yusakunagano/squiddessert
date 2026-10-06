@@ -1,0 +1,93 @@
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  color: #222;
+}
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}
+.bar h1 { margin: 0; font-size: 18px; }
+.bar .hint { margin: 0; font-size: 13px; color: #666; }
+
+#map { flex: 1; }
+.map-error { padding: 24px; line-height: 1.7; }
+
+/* 地図上の吹き出し */
+.bubble {
+  position: relative;
+  max-width: 200px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #bbb;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: pre-wrap;
+  margin-bottom: 8px;
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-bottom: 0;
+  border-top-color: inherit;
+}
+.bubble.mine { background: #e7f3ff; border-color: #1a73e8; }
+.bubble .del {
+  margin-left: 6px;
+  border: 0;
+  background: none;
+  color: #1a73e8;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+.bubble .del:hover { text-decoration: underline; }
+.bubble.vanish { animation: vanish .6s ease-in forwards; }
+@keyframes vanish {
+  to { opacity: 0; transform: scale(1.6); }
+}
+
+/* 投稿フォーム (InfoWindow 内) */
+.post-form { display: flex; flex-direction: column; gap: 6px; width: 240px; }
+.post-form textarea { width: 100%; height: 72px; resize: vertical; font: inherit; padding: 6px; }
+.post-form .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666; }
+.post-form button {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: #1a73e8;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.post-form button:disabled { opacity: .5; cursor: default; }
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(32, 33, 36, .9);
+  color: #fff;
+  font-size: 14px;
+  z-index: 10;
+  max-width: calc(100% - 32px);
+}

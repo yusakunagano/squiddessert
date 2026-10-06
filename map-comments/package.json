@@ -1,0 +1,15 @@
+{
+  "name": "map-comments",
+  "version": "0.1.0",
+  "description": "Google マップ上にコメントを残せるサービス。10個重なると消える。",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -64,24 +64,31 @@ h1 b { color: var(--nine); font-weight: 400; }
 .play { display: flex; gap: 14px; align-items: flex-start; justify-content: center; position: relative; }
 .board { display: grid; gap: 6px; touch-action: none; }
 .cell {
-  width: var(--cell); height: var(--cell); border-radius: 12px; border: 2px dashed var(--line);
-  background: var(--well); display: grid; place-items: center; padding: 0;
-  font-family: var(--display); font-size: calc(var(--cell) * .42); color: var(--ink);
+  width: var(--cell); height: var(--cell); border-radius: 12px; border: 2px solid var(--line);
+  background: var(--surface); display: grid; place-items: center; padding: 0; position: relative;
+  font-family: var(--display); font-size: calc(var(--cell) * .46); color: var(--ink);
   transition: transform .12s, border-color .12s, background .12s; cursor: pointer;
 }
-.cell.filled { border-style: solid; border-color: transparent; color: var(--on-tile); cursor: default; }
-.cell.pos { background: var(--plus); }
-.cell.neg { background: var(--minus); }
-.cell.hover { border-color: var(--nine); border-style: solid; transform: scale(1.06); }
-.cell.target { border-color: var(--plus); }
-.cell.pop { animation: pop .42s ease-in forwards; background: var(--nine); color: var(--on-tile); }
+.cell.hover { border-color: var(--nine); transform: scale(1.06); }
+.cell.target { border-color: var(--plus); border-style: dashed; }
+.cell.changed { animation: bump .32s ease-out; }
+@keyframes bump { 0% { transform: scale(.85); background: var(--well); } 100% { transform: scale(1); } }
+.cell .delta {
+  position: absolute; top: 2px; right: 6px; font-family: var(--body); font-weight: 800;
+  font-size: calc(var(--cell) * .2); animation: fadeup .7s ease-out forwards; pointer-events: none;
+}
+.cell .delta.pos { color: var(--plus); }
+.cell .delta.neg { color: var(--minus); }
+@keyframes fadeup { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-8px); } }
+.cell.pop { animation: pop .42s ease-in forwards; background: var(--nine); color: var(--on-tile); border-color: var(--nine); }
 @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.15); } 100% { transform: scale(.2); opacity: 0; } }
+.cell.fresh { animation: fresh .3s ease-out; }
+@keyframes fresh { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .sum {
   display: grid; place-items: center; font-variant-numeric: tabular-nums;
   font-size: .85rem; font-weight: 800; color: var(--muted); min-width: calc(var(--cell) * .5); min-height: calc(var(--cell) * .4);
 }
 .sum.hit { color: var(--nine); }
-.sum.miss { color: var(--minus); text-decoration: line-through; }
 
 .tray { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 16px; background: var(--surface); box-shadow: 0 2px 10px var(--shadow); touch-action: none; }
 .tray-label { font-size: .62rem; color: var(--muted); text-align: center; font-weight: 700; letter-spacing: .1em; }
@@ -166,7 +173,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   </div>
 
   <div class="controls">
-    <p class="hint" id="hint">右の数字をマスへドラッグ。横か縦の列の合計が 9 になると消えます。</p>
+    <p class="hint" id="hint">右の数字をマスへドラッグするとマスの数に足されます。横か縦の合計が 9 で列が消えます。</p>
     <button class="btn" id="resetBtn" type="button">リセット<small>−100</small></button>
   </div>
 </div>
@@ -175,11 +182,12 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   <div class="panel">
     <h2>合計を<b>9</b>にそろえよう</h2>
     <ul>
-      <li>右の数字タイルをマスにドラッグ（タップで選んでマスをタップでもOK）。</li>
-      <li>埋まった列の合計が <b>9</b> ならその列が消えて得点。</li>
+      <li>右の数字タイルをマスにドラッグすると、<b>マスの数に足されます</b>（タップで選んでマスをタップでもOK）。</li>
+      <li>10以上になったら1の位だけ残ります。3に5 → <b>8</b>、5に5 → <b>0</b>、8に3 → <b>1</b>。</li>
+      <li>横か縦の列の合計が <b>9</b> になると列が消えて得点。消えたマスには新しい数字が入ります。</li>
       <li>1回置いて<b>横と縦の2列が同時に9</b>になるとボーナス。</li>
-      <li>レベル2から<span class="neg-text">マイナスの数字</span>が登場、レベル3から <b>4×4</b> マス。</li>
-      <li>リセットは盤面をやり直せますが <span class="neg-text">−100点</span>。</li>
+      <li>レベル2から<span class="neg-text">マイナスの数字</span>が登場（0を下回ると9に戻ります。2に−3 → 9）。レベル3から <b>4×4</b> マス。</li>
+      <li>リセットで盤面の数字を全部入れ替えられますが <span class="neg-text">−100点</span>。</li>
       <li>制限時間 90 秒で何回 9 を作れるか挑戦。レベルアップで +10 秒。</li>
     </ul>
     <button class="btn primary" id="startBtn" type="button">スタート</button>
@@ -210,11 +218,12 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   const TRAY_SIZE = 4;
   const BEST_KEY = 'nine-game-best';
 
+  // seedMax: largest digit used when filling the board, kept small so 9 stays reachable.
   function levelCfg(lv) {
-    if (lv === 1) return { size: 3, min: 1, max: 7, negRate: 0 };
-    if (lv === 2) return { size: 3, min: -3, max: 8, negRate: .25 };
-    if (lv === 3) return { size: 4, min: -4, max: 8, negRate: .3 };
-    return { size: 4, min: -5, max: 9, negRate: .35 };
+    if (lv === 1) return { size: 3, min: 1, max: 9, negRate: 0, seedMax: 5 };
+    if (lv === 2) return { size: 3, min: -5, max: 9, negRate: .3, seedMax: 5 };
+    if (lv === 3) return { size: 4, min: -5, max: 9, negRate: .3, seedMax: 4 };
+    return { size: 4, min: -9, max: 9, negRate: .35, seedMax: 4 };
   }
 
   const $ = id => document.getElementById(id);
@@ -228,14 +237,10 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   function readBest() { try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch { return 0; } }
   function writeBest(v) { try { localStorage.setItem(BEST_KEY, String(v)); } catch {} }
 
-  function newState() {
-    const cfg = levelCfg(1);
-    return {
-      level: 1, cfg, grid: Array(cfg.size * cfg.size).fill(null), tray: [],
-      score: 0, nines: 0, bonuses: 0, resets: 0, linesInLevel: 0,
-      timeLeft: ROUND_TIME, running: false, busy: false, selected: null
-    };
-  }
+  const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  // Keep only the ones digit: 10 → 0, 11 → 1, and below 0 wraps back (−1 → 9).
+  const wrap = v => ((v % 10) + 10) % 10;
+  const fmt = v => (v < 0 ? '−' + Math.abs(v) : String(v));
 
   function lines(size) {
     const out = [];
@@ -243,24 +248,51 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     for (let c = 0; c < size; c++) out.push(Array.from({ length: size }, (_, r) => r * size + c));
     return out;
   }
+  const lineSum = (grid, line) => line.reduce((s, i) => s + grid[i], 0);
+  const hasNine = (grid, size) => lines(size).some(l => lineSum(grid, l) === 9);
 
-  const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  // Give the listed cells new digits, avoiding lines that already sum to 9.
+  function refill(grid, cells, cfg) {
+    for (let tries = 0; tries < 60; tries++) {
+      cells.forEach(i => (grid[i] = randInt(0, cfg.seedMax)));
+      if (!hasNine(grid, cfg.size)) return;
+    }
+  }
+
+  function newBoard(cfg) {
+    const grid = Array(cfg.size * cfg.size).fill(0);
+    refill(grid, grid.map((_, i) => i), cfg);
+    return grid;
+  }
+
+  function newState() {
+    const cfg = levelCfg(1);
+    return {
+      level: 1, cfg, grid: newBoard(cfg), tray: [],
+      score: 0, nines: 0, bonuses: 0, resets: 0, linesInLevel: 0,
+      timeLeft: ROUND_TIME, running: false, busy: false, selected: null
+    };
+  }
 
   function randomValue(cfg) {
     if (cfg.negRate && Math.random() < cfg.negRate) return randInt(cfg.min, -1);
-    return randInt(1, cfg.max);
+    return randInt(cfg.min > 0 ? cfg.min : 1, cfg.max);
   }
 
-  // Sometimes hand out the number that would finish a line, so the board stays playable.
+  // Sometimes hand out a number that would turn some line into 9, so the board stays playable.
   function newTile() {
     const { cfg, grid } = S;
-    if (Math.random() < .45) {
+    if (Math.random() < .5) {
       const options = [];
       for (const line of lines(cfg.size)) {
-        const empty = line.filter(i => grid[i] === null);
-        if (empty.length !== 1) continue;
-        const need = 9 - line.reduce((s, i) => s + (grid[i] ?? 0), 0);
-        if (need !== 0 && need >= cfg.min && need <= cfg.max) options.push(need);
+        const sum = lineSum(grid, line);
+        for (const i of line) {
+          const want = 9 - (sum - grid[i]);
+          if (want < 0 || want > 9 || want === grid[i]) continue;
+          const t = wrap(want - grid[i]);
+          if (t <= cfg.max) options.push(t);
+          if (cfg.negRate && t - 10 >= cfg.min) options.push(t - 10);
+        }
       }
       if (options.length) return options[randInt(0, options.length - 1)];
     }
@@ -268,8 +300,6 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   }
 
   function fillTray() { while (S.tray.length < TRAY_SIZE) S.tray.push(newTile()); }
-
-  const fmt = v => (v < 0 ? '−' + Math.abs(v) : String(v));
 
   function sizeCells() {
     const n = S.cfg.size;
@@ -282,36 +312,39 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     document.documentElement.style.setProperty('--cell', cell + 'px');
   }
 
-  function render() {
+  // fx: { changed, delta, pop: Set, fresh: Set }
+  function render(fx = {}) {
     const n = S.cfg.size, g = S.grid;
     boardEl.style.gridTemplateColumns = `repeat(${n}, var(--cell)) auto`;
     boardEl.innerHTML = '';
-    const lineSum = idxs => {
-      const vals = idxs.map(i => g[i]);
-      const full = vals.every(v => v !== null);
-      const sum = vals.reduce((s, v) => s + (v ?? 0), 0);
-      return { full, sum, any: vals.some(v => v !== null) };
-    };
-    const sumEl = info => {
+    const sumEl = line => {
+      const sum = lineSum(g, line);
       const d = document.createElement('div');
-      d.className = 'sum' + (info.full ? (info.sum === 9 ? ' hit' : ' miss') : '');
-      d.textContent = info.any ? fmt(info.sum) : '';
+      d.className = 'sum' + (sum === 9 ? ' hit' : '');
+      d.textContent = sum;
       return d;
     };
     for (let r = 0; r < n; r++) {
       for (let c = 0; c < n; c++) {
-        const i = r * n + c, v = g[i];
+        const i = r * n + c;
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'cell' + (v === null ? (S.selected !== null ? ' target' : '') : ' filled ' + (v < 0 ? 'neg' : 'pos'));
+        b.className = 'cell' + (S.selected !== null ? ' target' : '')
+          + (fx.pop?.has(i) ? ' pop' : fx.fresh?.has(i) ? ' fresh' : fx.changed === i ? ' changed' : '');
         b.dataset.idx = i;
-        b.textContent = v === null ? '' : fmt(v);
-        b.setAttribute('aria-label', v === null ? `空きマス ${r + 1}行${c + 1}列` : `${fmt(v)}`);
+        b.textContent = g[i];
+        b.setAttribute('aria-label', `${r + 1}行${c + 1}列 ${g[i]}`);
+        if (fx.changed === i && fx.delta !== undefined) {
+          const d = document.createElement('span');
+          d.className = 'delta ' + (fx.delta < 0 ? 'neg' : 'pos');
+          d.textContent = fx.delta < 0 ? fmt(fx.delta) : '+' + fx.delta;
+          b.appendChild(d);
+        }
         boardEl.appendChild(b);
       }
-      boardEl.appendChild(sumEl(lineSum(Array.from({ length: n }, (_, c) => r * n + c))));
+      boardEl.appendChild(sumEl(Array.from({ length: n }, (_, c) => r * n + c)));
     }
-    for (let c = 0; c < n; c++) boardEl.appendChild(sumEl(lineSum(Array.from({ length: n }, (_, r) => r * n + c))));
+    for (let c = 0; c < n; c++) boardEl.appendChild(sumEl(Array.from({ length: n }, (_, r) => r * n + c)));
     boardEl.appendChild(document.createElement('div'));
 
     trayEl.innerHTML = '<div class="tray-label">NEXT</div>';
@@ -320,7 +353,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       t.type = 'button';
       t.className = 'tile ' + (v < 0 ? 'neg' : 'pos') + (S.selected === i ? ' selected' : '');
       t.dataset.tray = i;
-      t.textContent = fmt(v);
+      t.textContent = v < 0 ? fmt(v) : '+' + v;
       t.setAttribute('aria-label', `数字 ${fmt(v)}`);
       trayEl.appendChild(t);
     });
@@ -337,10 +370,10 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     $('bestLabel').textContent = 'ベスト ' + readBest();
   }
 
-  function setHint(text, warn = false) {
-    hintEl.textContent = text;
-    hintEl.classList.toggle('warn', warn);
-    resetBtn.classList.toggle('pulse', warn);
+  function updateHint() {
+    hintEl.textContent = S.level >= 2
+      ? 'マイナスの数字で引き算もできます（0を下回ると9に戻る）。横か縦の合計が 9 で列が消えます。'
+      : '右の数字をマスへドラッグするとマスの数に足されます。10以上は1の位だけ残ります。';
   }
 
   function floatText(main, sub) {
@@ -352,8 +385,9 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   }
 
   function place(cellIdx, trayIdx) {
-    if (!S.running || S.busy || S.grid[cellIdx] !== null || S.tray[trayIdx] === undefined) return;
-    S.grid[cellIdx] = S.tray[trayIdx];
+    if (!S.running || S.busy || S.tray[trayIdx] === undefined) return;
+    const t = S.tray[trayIdx];
+    S.grid[cellIdx] = wrap(S.grid[cellIdx] + t);
     S.tray.splice(trayIdx, 1);
     S.selected = null;
 
@@ -363,12 +397,11 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       Array.from({ length: n }, (_, k) => r * n + k),
       Array.from({ length: n }, (_, k) => k * n + c)
     ];
-    const hits = candidates.filter(l => l.every(i => S.grid[i] !== null) && l.reduce((s, i) => s + S.grid[i], 0) === 9);
+    const hits = candidates.filter(l => lineSum(S.grid, l) === 9);
 
     if (!hits.length) {
       fillTray();
-      render();
-      checkStuck();
+      render({ changed: cellIdx, delta: t });
       return;
     }
 
@@ -382,21 +415,25 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     floatText(k >= 2 ? `ダブル9！ +${base + bonus}` : `NINE! +${base}`, bonus ? `ボーナス +${bonus}` : '');
     try { navigator.vibrate && navigator.vibrate(k >= 2 ? [30, 40, 30] : 25); } catch {}
 
-    const clear = new Set(hits.flat());
-    render();
-    clear.forEach(i => boardEl.querySelector(`[data-idx="${i}"]`)?.classList.add('pop'));
+    const cleared = new Set(hits.flat());
+    render({ pop: cleared });
     S.busy = true;
     setTimeout(() => {
-      clear.forEach(i => (S.grid[i] = null));
       S.busy = false;
       if (!S.running) return;
-      if (S.linesInLevel >= LINES_PER_LEVEL) levelUp();
+      let fresh = cleared;
+      if (S.linesInLevel >= LINES_PER_LEVEL && levelUp()) {
+        fresh = new Set(S.grid.map((_, i) => i));
+      } else {
+        refill(S.grid, [...cleared], S.cfg);
+      }
       fillTray();
-      render();
-      checkStuck();
+      render({ fresh });
+      updateHint();
     }, 420);
   }
 
+  // Returns true when the board was rebuilt (grid size changed).
   function levelUp() {
     S.level++;
     S.linesInLevel = 0;
@@ -404,34 +441,27 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     S.cfg = levelCfg(S.level);
     S.timeLeft += LEVEL_UP_TIME;
     if (S.cfg.size !== prevSize) {
-      S.grid = Array(S.cfg.size * S.cfg.size).fill(null);
+      S.grid = newBoard(S.cfg);
       S.tray = [];
       sizeCells();
       floatText(`LEVEL ${S.level}`, `4×4 マスに拡大！ +${LEVEL_UP_TIME}秒`);
-    } else {
-      floatText(`LEVEL ${S.level}`, (S.level === 2 ? 'マイナスの数字が登場！ ' : '') + `+${LEVEL_UP_TIME}秒`);
+      return true;
     }
-  }
-
-  function checkStuck() {
-    if (!S.running) return;
-    if (S.grid.every(v => v !== null)) setHint('マスが全部埋まりました。リセットで盤面をやり直せます（−100点）。', true);
-    else setHint(S.level >= 2
-      ? 'マイナスの数字で合計を減らせます。横か縦が 9 で消えます。'
-      : '右の数字をマスへドラッグ。横か縦の列の合計が 9 になると消えます。');
+    refill(S.grid, [], S.cfg);
+    floatText(`LEVEL ${S.level}`, (S.level === 2 ? 'マイナスの数字が登場！ ' : '') + `+${LEVEL_UP_TIME}秒`);
+    return false;
   }
 
   function resetBoard() {
     if (!S.running || S.busy) return;
     S.score -= RESET_PENALTY;
     S.resets++;
-    S.grid = Array(S.cfg.size * S.cfg.size).fill(null);
+    S.grid = newBoard(S.cfg);
     S.tray = [];
     S.selected = null;
     fillTray();
     floatText(`−${RESET_PENALTY}`, 'リセット');
-    render();
-    checkStuck();
+    render({ fresh: new Set(S.grid.map((_, i) => i)) });
   }
 
   function tick(last) {
@@ -448,8 +478,8 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     S.running = true;
     fillTray();
     sizeCells();
-    render();
-    checkStuck();
+    render({ fresh: new Set(S.grid.map((_, i) => i)) });
+    updateHint();
     $('startOverlay').hidden = true;
     $('endOverlay').hidden = true;
     tick(performance.now());
@@ -512,7 +542,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       drag.ghost.style.top = e.clientY + 'px';
       clearHover();
       const idx = cellAt(e.clientX, e.clientY);
-      if (idx !== null && S.grid[idx] === null) boardEl.querySelector(`[data-idx="${idx}"]`)?.classList.add('hover');
+      if (idx !== null) boardEl.querySelector(`[data-idx="${idx}"]`)?.classList.add('hover');
     }
   });
 
@@ -523,7 +553,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       suppressClick = true;
       const idx = cellAt(e.clientX, e.clientY);
       cancelDrag();
-      if (idx !== null && S.grid[idx] === null) place(idx, d.i);
+      if (idx !== null) place(idx, d.i);
     } else {
       cancelDrag();
     }
@@ -541,8 +571,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   boardEl.addEventListener('click', e => {
     const c = e.target.closest('.cell');
     if (!c || !S.running || S.selected === null) return;
-    const idx = Number(c.dataset.idx);
-    if (S.grid[idx] === null) place(idx, S.selected);
+    place(Number(c.dataset.idx), S.selected);
   });
 
   resetBtn.addEventListener('click', resetBoard);
@@ -550,10 +579,10 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   $('againBtn').addEventListener('click', startGame);
   window.addEventListener('resize', () => { if (S) { sizeCells(); } });
 
-  // Sample board behind the start screen, so the first view shows the game.
+  // Full sample board behind the start screen, so the first view shows the game.
   S = newState();
-  S.grid = [4, 3, null, 2, null, 6, null, 5, 1];
-  S.tray = [2, 5, 3, 1];
+  S.grid = [3, 1, 4, 2, 5, 0, 1, 2, 3];
+  S.tray = [5, 3, 6, 2];
   sizeCells();
   render();
 })();

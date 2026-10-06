@@ -173,7 +173,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   </div>
 
   <div class="controls">
-    <p class="hint" id="hint">右の数字をマスへドラッグするとマスの数に足されます。横か縦の合計が 9 で列が消えます。</p>
+    <p class="hint" id="hint">右の数字をマスへドラッグすると足し算。マスを指でなぞると隣と入れ替え。横か縦の合計 9 で列が消えます。</p>
     <button class="btn" id="resetBtn" type="button">リセット<small>−100</small></button>
   </div>
 </div>
@@ -184,8 +184,9 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     <ul>
       <li>右の数字タイルをマスにドラッグすると、<b>マスの数に足されます</b>（タップで選んでマスをタップでもOK）。</li>
       <li>10以上になったら1の位だけ残ります。3に5 → <b>8</b>、5に5 → <b>0</b>、8に3 → <b>1</b>。</li>
+      <li>マスを<b>上下左右に指でなぞると</b>、隣のマスと入れ替わります。</li>
       <li>横か縦の列の合計が <b>9</b> になると列が消えて得点。消えたマスには新しい数字が入ります。</li>
-      <li>1回置いて<b>横と縦の2列が同時に9</b>になるとボーナス。</li>
+      <li>1回の操作で<b>2列以上が同時に9</b>になるとボーナス。</li>
       <li>レベル2から<span class="neg-text">マイナスの数字</span>が登場（0を下回ると9に戻ります。2に−3 → 9）。レベル3から <b>4×4</b> マス。</li>
       <li>リセットで盤面の数字を全部入れ替えられますが <span class="neg-text">−100点</span>。</li>
       <li>制限時間 90 秒で何回 9 を作れるか挑戦。レベルアップで +10 秒。</li>
@@ -312,7 +313,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     document.documentElement.style.setProperty('--cell', cell + 'px');
   }
 
-  // fx: { changed, delta, pop: Set, fresh: Set }
+  // fx: { changed: Set, delta, deltaAt, pop: Set, fresh: Set }
   function render(fx = {}) {
     const n = S.cfg.size, g = S.grid;
     boardEl.style.gridTemplateColumns = `repeat(${n}, var(--cell)) auto`;
@@ -330,11 +331,11 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'cell' + (S.selected !== null ? ' target' : '')
-          + (fx.pop?.has(i) ? ' pop' : fx.fresh?.has(i) ? ' fresh' : fx.changed === i ? ' changed' : '');
+          + (fx.pop?.has(i) ? ' pop' : fx.fresh?.has(i) ? ' fresh' : fx.changed?.has(i) ? ' changed' : '');
         b.dataset.idx = i;
         b.textContent = g[i];
         b.setAttribute('aria-label', `${r + 1}行${c + 1}列 ${g[i]}`);
-        if (fx.changed === i && fx.delta !== undefined) {
+        if (fx.deltaAt === i) {
           const d = document.createElement('span');
           d.className = 'delta ' + (fx.delta < 0 ? 'neg' : 'pos');
           d.textContent = fx.delta < 0 ? fmt(fx.delta) : '+' + fx.delta;
@@ -373,7 +374,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   function updateHint() {
     hintEl.textContent = S.level >= 2
       ? 'マイナスの数字で引き算もできます（0を下回ると9に戻る）。横か縦の合計が 9 で列が消えます。'
-      : '右の数字をマスへドラッグするとマスの数に足されます。10以上は1の位だけ残ります。';
+      : '右の数字をドラッグで足し算（10以上は1の位）。マスを上下左右になぞると隣と入れ替わります。';
   }
 
   function floatText(main, sub) {
@@ -384,26 +385,31 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     setTimeout(() => f.remove(), 1250);
   }
 
-  function place(cellIdx, trayIdx) {
-    if (!S.running || S.busy || S.tray[trayIdx] === undefined) return;
-    const t = S.tray[trayIdx];
-    S.grid[cellIdx] = wrap(S.grid[cellIdx] + t);
-    S.tray.splice(trayIdx, 1);
-    S.selected = null;
-
+  function linesThrough(cellIdx) {
     const n = S.cfg.size;
     const r = Math.floor(cellIdx / n), c = cellIdx % n;
-    const candidates = [
+    return [
       Array.from({ length: n }, (_, k) => r * n + k),
       Array.from({ length: n }, (_, k) => k * n + c)
     ];
-    const hits = candidates.filter(l => lineSum(S.grid, l) === 9);
+  }
 
-    if (!hits.length) {
-      fillTray();
-      render({ changed: cellIdx, delta: t });
-      return;
+  const COMBO = ['', 'NINE!', 'ダブル9！', 'トリプル9！', 'クアッド9！'];
+
+  // Score every line through the touched cells that now sums to 9.
+  // Returns false when nothing cleared.
+  function resolve(cells) {
+    const seen = new Set();
+    const hits = [];
+    for (const i of cells) {
+      for (const l of linesThrough(i)) {
+        const key = l.join(',');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (lineSum(S.grid, l) === 9) hits.push(l);
+      }
     }
+    if (!hits.length) return false;
 
     const k = hits.length;
     const base = 100 * S.level * k;
@@ -412,7 +418,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     S.nines += k;
     S.linesInLevel += k;
     if (bonus) S.bonuses++;
-    floatText(k >= 2 ? `ダブル9！ +${base + bonus}` : `NINE! +${base}`, bonus ? `ボーナス +${bonus}` : '');
+    floatText(`${COMBO[Math.min(k, 4)]} +${base + bonus}`, bonus ? `ボーナス +${bonus}` : '');
     try { navigator.vibrate && navigator.vibrate(k >= 2 ? [30, 40, 30] : 25); } catch {}
 
     const cleared = new Set(hits.flat());
@@ -431,6 +437,31 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       render({ fresh });
       updateHint();
     }, 420);
+    return true;
+  }
+
+  function place(cellIdx, trayIdx) {
+    if (!S.running || S.busy || S.tray[trayIdx] === undefined) return;
+    const t = S.tray[trayIdx];
+    S.grid[cellIdx] = wrap(S.grid[cellIdx] + t);
+    S.tray.splice(trayIdx, 1);
+    S.selected = null;
+    if (!resolve([cellIdx])) {
+      fillTray();
+      render({ changed: new Set([cellIdx]), delta: t, deltaAt: cellIdx });
+    }
+  }
+
+  // Swap a cell with its neighbour in direction (dr, dc).
+  function swap(a, dr, dc) {
+    if (!S.running || S.busy) return;
+    const n = S.cfg.size;
+    const r = Math.floor(a / n) + dr, c = (a % n) + dc;
+    if (r < 0 || r >= n || c < 0 || c >= n) return;
+    const b = r * n + c;
+    [S.grid[a], S.grid[b]] = [S.grid[b], S.grid[a]];
+    S.selected = null;
+    if (!resolve([a, b])) render({ changed: new Set([a, b]) });
   }
 
   // Returns true when the board was rebuilt (grid size changed).
@@ -560,7 +591,39 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   });
   window.addEventListener('pointercancel', cancelDrag);
 
+  // ---- swipe on the board: swap a cell with its neighbour ----
+  let swipe = null;
+  let suppressBoardClick = false;
+  boardEl.addEventListener('pointerdown', e => {
+    const c = e.target.closest('.cell');
+    if (!c || !S.running || S.busy || drag) return;
+    suppressBoardClick = false;
+    swipe = { idx: Number(c.dataset.idx), x: e.clientX, y: e.clientY, id: e.pointerId };
+  });
+  window.addEventListener('pointermove', e => {
+    if (!swipe || e.pointerId !== swipe.id) return;
+    const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+    const need = Math.max(18, boardEl.querySelector('.cell').offsetWidth * .3);
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < need) return;
+    const [dr, dc] = Math.abs(dx) > Math.abs(dy) ? [0, Math.sign(dx)] : [Math.sign(dy), 0];
+    const idx = swipe.idx;
+    swipe = null;
+    suppressBoardClick = true;
+    swap(idx, dr, dc);
+  });
+  const endSwipe = () => { swipe = null; };
+  window.addEventListener('pointerup', endSwipe);
+  window.addEventListener('pointercancel', endSwipe);
+
   // Tap / keyboard: select a tile, then choose a cell.
+  // Arrow keys on a focused cell swap it with its neighbour.
+  boardEl.addEventListener('keydown', e => {
+    const c = e.target.closest('.cell');
+    const dir = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+    if (!c || !dir || !S.running) return;
+    e.preventDefault();
+    swap(Number(c.dataset.idx), dir[0], dir[1]);
+  });
   trayEl.addEventListener('click', e => {
     const t = e.target.closest('.tile');
     if (!t || !S.running || suppressClick) { suppressClick = false; return; }
@@ -570,6 +633,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   });
   boardEl.addEventListener('click', e => {
     const c = e.target.closest('.cell');
+    if (suppressBoardClick) { suppressBoardClick = false; return; }
     if (!c || !S.running || S.selected === null) return;
     place(Number(c.dataset.idx), S.selected);
   });

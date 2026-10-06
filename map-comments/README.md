@@ -1,50 +1,70 @@
 # マップコメント
 
-Google マップ上にコメントを残せるサービスです。
+Google マップ上にコメントを残せるサービスです。Firebase の無料プラン (Spark) だけで動きます。
 
 - 地図をクリックすると、その場所にコメントを置けます（140文字まで）。
-- 同じ場所（半径 30m 以内）にコメントが **10個重なると、まとめて消えます**。
+- 地図は約30m四方のマスに区切られていて、**同じマスに10個重なると、まとめて消えます**（10個目は残りません）。
+  クリックするとマスが青く表示され、「あと何個で消えるか」がわかります。
 - **自分のコメントは消せます**（吹き出しの「消す」ボタン）。他の人のコメントは消せません。
+- 他の人の投稿や、まとめて消えた結果はリアルタイムに反映されます。
 
-ログインはありません。最初に開いたときにブラウザごとの合言葉（ランダムな ID）を作って保存し、
-それで「自分のコメント」を見分けます。サーバーには合言葉のハッシュだけを保存します。
-ブラウザのデータを消すと、それまでのコメントは消せなくなります。
+ログイン画面はありません。Firebase の匿名ログインでブラウザごとにアカウントを作り、それで「自分のコメント」を見分けます。
+ブラウザのデータを消したり別の端末から開いたりすると、それまでのコメントは消せなくなります。
 
-## 動かし方
+## 仕組み
 
-Node.js 20 以上が必要です。追加のパッケージはありません。
+サーバーのプログラムはありません。ブラウザが Firestore に直接書き込み、
+不正な書き込みは `firestore.rules`（セキュリティルール）で防ぎます。
+
+| 場所 | 内容 |
+| --- | --- |
+| `comments/{id}` | コメント本体 `{ uid, text, lat, lng, cell, createdAt }` |
+| `cells/{cell}` | マスごとのコメント数 `{ count, last, vanished }` |
+
+- 置くとき: コメントを作り、同時にマスの `count` を1増やす。ルールは「位置とマスが合っているか」「数が正しく1増えているか」「10個目ではないか」を確認します。
+- 10個目を置くとき: マスのコメントを全部消して `count` を0に戻す。他人のコメントを消せるのは、このときだけです。
+- 自分のを消すとき: コメントを消し、マスの `count` を1減らす。
+
+## 公開するまで
+
+1. [Firebase コンソール](https://console.firebase.google.com/) でプロジェクトを作る（プランは Spark のままで OK）。
+2. **Authentication** → ログイン方法 → **匿名** を有効にする。
+3. **Firestore Database** を作成する（本番モード、ロケーションは `asia-northeast1` など）。
+4. プロジェクトの設定 → マイアプリ → ウェブアプリを追加し、表示された `firebaseConfig` を `public/config.js` に貼る。
+5. [Google Cloud Console](https://console.cloud.google.com/) で同じプロジェクトの **Maps JavaScript API** を有効にし、API キーを作って `public/config.js` の `googleMapsApiKey` に入れる。
+   キーは「HTTP リファラー」で公開先（`https://<プロジェクトID>.web.app/*` など）に制限してください。
+   Google Maps は Firebase とは別に Google Maps Platform の課金設定が必要ですが、毎月の無料枠があります。
+6. デプロイ:
+
+   ```sh
+   cd map-comments
+   npm install
+   npx firebase login
+   npx firebase use --add      # 作ったプロジェクトを選ぶ
+   npm run deploy              # Hosting と Firestore ルールを公開
+   ```
+
+   `https://<プロジェクトID>.web.app` で公開されます。
+
+## 手元で動かす
+
+Firebase エミュレータを使います（Java が必要）。`localhost` で開くと自動的にエミュレータにつながるので、本物のデータには触りません。
+地図の表示には `public/config.js` に Google Maps の API キーが必要です。
 
 ```sh
-cd map-comments
-GOOGLE_MAPS_API_KEY=あなたのキー npm start
-# → http://localhost:3000
+npm install
+npm run dev        # → http://localhost:5000
 ```
 
-API キーは Google Cloud Console で「Maps JavaScript API」を有効にして発行してください。
-
-### 設定（環境変数）
-
-| 変数 | 既定値 | 説明 |
-| --- | --- | --- |
-| `GOOGLE_MAPS_API_KEY` | なし | Google Maps の API キー（必須） |
-| `GOOGLE_MAPS_MAP_ID` | `DEMO_MAP_ID` | マップ ID（吹き出しマーカーに必要。本番では自分で作成したものを推奨） |
-| `OVERLAP_RADIUS_M` | `30` | この距離 (m) 以内を「重なっている」とみなす |
-| `OVERLAP_LIMIT` | `10` | 重なりがこの数に達したら消える |
-| `PORT` | `3000` | ポート番号 |
-| `DATA_FILE` | `data/comments.json` | 保存先ファイル |
-
 ## テスト
+
+エミュレータ上で、投稿・削除・10個で消える・不正な書き込みが拒否されることを確認します。
 
 ```sh
 npm test
 ```
 
-## API
+## 調整
 
-| メソッド | パス | 説明 |
-| --- | --- | --- |
-| GET | `/api/comments?south=&west=&north=&east=` | 範囲内のコメント一覧 |
-| POST | `/api/comments` | `{ lat, lng, text }` を投稿。`{ comment, removed }` を返す（`removed` は重なりで消えたコメントの ID） |
-| DELETE | `/api/comments/:id` | 自分のコメントを削除 |
-
-リクエストには `X-Owner-Token` ヘッダーでブラウザの合言葉を付けます。
+マスの大きさ (`CELL_DEG`) と消える個数 (`VANISH_LIMIT`) は `public/lib/grid.js` にあります。
+`firestore.rules` にも同じ値が書いてあるので、変えるときは両方を変えてください。

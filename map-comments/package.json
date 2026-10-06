@@ -1,15 +1,19 @@
 {
   "name": "map-comments",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Google マップ上にコメントを残せるサービス。10個重なると消える。",
   "private": true,
   "type": "module",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "test": "node --test test/*.test.js"
+    "dev": "firebase emulators:start --project demo-map-comments --only auth,firestore,hosting",
+    "test": "firebase emulators:exec --project demo-map-comments --only auth,firestore \"node --test test/*.test.js\"",
+    "deploy": "firebase deploy --only hosting,firestore"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "firebase": "^12.19.0",
+    "firebase-tools": "^15.32.1"
   }
 }

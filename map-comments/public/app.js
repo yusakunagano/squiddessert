@@ -1,32 +1,15 @@
-const TOKEN_KEY = 'map-comments:owner-token';
-const REFRESH_MS = 15000;
+import { initializeApp } from 'firebase/app';
+import { connectAuthEmulator, getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
+import { firebaseConfig, googleMapsApiKey, googleMapsMapId } from './config.js';
+import { MAX_TEXT_LENGTH, VANISH_LIMIT, cellBounds, cellOf } from './lib/grid.js';
+import { deleteComment, getCell, postComment, watchComments } from './lib/comments.js';
 
-// 自分のコメントを見分けるための秘密の合言葉 (このブラウザに保存)
-function ownerToken() {
-  let token = null;
-  try {
-    token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      token = crypto.randomUUID();
-      localStorage.setItem(TOKEN_KEY, token);
-    }
-  } catch {
-    token ??= crypto.randomUUID();
-  }
-  return token;
-}
-const TOKEN = ownerToken();
+// これより引いた地図ではコメントを読み込まない (読み込み量を抑えるため)
+const MIN_ZOOM = 14;
 
-async function api(path, options = {}) {
-  const res = await fetch(path, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', 'X-Owner-Token': TOKEN, ...options.headers },
-  });
-  if (res.status === 204) return null;
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
+// localhost で開いたときは Firebase エミュレータにつなぐ (npm run dev)
+const USE_EMULATOR = ['localhost', '127.0.0.1'].includes(location.hostname);
 
 let toastTimer;
 function toast(message) {
@@ -35,6 +18,10 @@ function toast(message) {
   el.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.hidden = true; }, 3500);
+}
+
+function showMapError(html) {
+  document.getElementById('map').innerHTML = `<div class="map-error">${html}</div>`;
 }
 
 function loadGoogleMaps(apiKey) {
@@ -49,29 +36,51 @@ function loadGoogleMaps(apiKey) {
   });
 }
 
-function showMapError(html) {
-  document.getElementById('map').innerHTML = `<div class="map-error">${html}</div>`;
+function initFirebase() {
+  const app = initializeApp(USE_EMULATOR ? { ...firebaseConfig, apiKey: 'emulator', projectId: 'demo-map-comments' } : firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  if (USE_EMULATOR) {
+    connectAuthEmulator(auth, `http://${location.hostname}:9099`, { disableWarnings: true });
+    connectFirestoreEmulator(db, location.hostname, 8080);
+  }
+  // ログイン画面は出さず、ブラウザごとの匿名アカウントで「自分のコメント」を見分ける
+  const uid = new Promise((resolve, reject) => {
+    const stop = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        stop();
+        resolve(user.uid);
+      } else {
+        signInAnonymously(auth).catch(reject);
+      }
+    });
+  });
+  return { db, uid };
 }
 
 async function main() {
-  const config = await api('/api/config');
   document.getElementById('rule').textContent =
-    `${config.overlapRadius}m 以内に ${config.overlapLimit} 個重なると、まとめて消えます。`;
+    `同じマス (約30m四方) に ${VANISH_LIMIT} 個重なると、まとめて消えます。`;
 
-  if (!config.mapsApiKey) {
-    showMapError('Google Maps の API キーが設定されていません。<br>'
-      + '環境変数 <code>GOOGLE_MAPS_API_KEY</code> を設定してサーバーを起動してください。');
+  if (!USE_EMULATOR && !firebaseConfig.projectId) {
+    showMapError('Firebase の設定がありません。<code>public/config.js</code> を書き換えてください。');
     return;
   }
-  await loadGoogleMaps(config.mapsApiKey);
+  if (!googleMapsApiKey) {
+    showMapError('Google Maps の API キーがありません。<code>public/config.js</code> を書き換えてください。');
+    return;
+  }
 
-  const { Map, InfoWindow } = await google.maps.importLibrary('maps');
+  const { db, uid: uidPromise } = initFirebase();
+  const [uid] = await Promise.all([uidPromise, loadGoogleMaps(googleMapsApiKey)]);
+
+  const { Map, InfoWindow, Rectangle } = await google.maps.importLibrary('maps');
   const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
 
   const map = new Map(document.getElementById('map'), {
     center: { lat: 35.681236, lng: 139.767125 }, // 東京駅
-    zoom: 16,
-    mapId: config.mapId,
+    zoom: 17,
+    mapId: googleMapsMapId,
     clickableIcons: false,
     gestureHandling: 'greedy',
   });
@@ -86,10 +95,11 @@ async function main() {
   const markers = new globalThis.Map();
 
   function bubbleFor(comment) {
+    const mine = comment.uid === uid;
     const el = document.createElement('div');
-    el.className = comment.mine ? 'bubble mine' : 'bubble';
+    el.className = mine ? 'bubble mine' : 'bubble';
     el.textContent = comment.text;
-    if (comment.mine) {
+    if (mine) {
       const del = document.createElement('button');
       del.className = 'del';
       del.type = 'button';
@@ -99,10 +109,10 @@ async function main() {
         e.stopPropagation();
         if (!confirm('このコメントを消しますか？')) return;
         try {
-          await api(`/api/comments/${comment.id}`, { method: 'DELETE' });
-          removeMarker(comment.id);
+          await deleteComment(db, comment.id);
         } catch (err) {
-          toast(err.message);
+          console.error(err);
+          toast('消せませんでした');
         }
       });
       el.append(del);
@@ -117,7 +127,7 @@ async function main() {
       position: { lat: comment.lat, lng: comment.lng },
       content: bubbleFor(comment),
       title: comment.text,
-      zIndex: Date.parse(comment.createdAt) / 1000,
+      zIndex: Math.floor((comment.createdAt?.toMillis() ?? Date.now()) / 1000),
     });
     markers.set(comment.id, marker);
   }
@@ -134,65 +144,100 @@ async function main() {
     }
   }
 
-  async function refresh() {
+  // 表示範囲のコメントをリアルタイムで受け取る
+  let unsubscribe = null;
+  let firstSnapshot = true;
+  map.addListener('idle', () => {
+    unsubscribe?.();
+    unsubscribe = null;
+    const tooFar = map.getZoom() < MIN_ZOOM;
+    document.getElementById('notice').hidden = !tooFar;
+    if (tooFar) {
+      for (const id of [...markers.keys()]) removeMarker(id);
+      return;
+    }
     const b = map.getBounds();
-    if (!b) return;
     const ne = b.getNorthEast();
     const sw = b.getSouthWest();
-    const q = new URLSearchParams({
-      south: sw.lat(), west: sw.lng(), north: ne.lat(), east: ne.lng(),
-    });
-    try {
-      const { comments } = await api(`/api/comments?${q}`);
-      const ids = new Set(comments.map((c) => c.id));
-      // 他の人の投稿で消えたもの / 範囲外に出たものを外す
-      for (const id of [...markers.keys()]) if (!ids.has(id)) removeMarker(id);
-      comments.forEach(addMarker);
-    } catch (err) {
-      toast(`読み込みに失敗しました: ${err.message}`);
-    }
-  }
-
-  map.addListener('idle', refresh);
-  setInterval(refresh, REFRESH_MS);
+    firstSnapshot = true;
+    unsubscribe = watchComments(
+      db,
+      { south: sw.lat(), west: sw.lng(), north: ne.lat(), east: ne.lng() },
+      (comments) => {
+        const ids = new Set(comments.map((c) => c.id));
+        // 消された・まとめて消えたコメント (範囲を移動した直後は単に外す)
+        for (const id of [...markers.keys()]) {
+          if (!ids.has(id)) removeMarker(id, { animate: !firstSnapshot });
+        }
+        comments.forEach(addMarker);
+        firstSnapshot = false;
+      },
+      (err) => {
+        console.error(err);
+        toast('コメントを読み込めませんでした');
+      },
+    );
+  });
 
   // 地図クリックで投稿フォーム
   const infoWindow = new InfoWindow();
+  const cellRect = new Rectangle({
+    strokeColor: '#1a73e8',
+    strokeWeight: 1,
+    fillColor: '#1a73e8',
+    fillOpacity: 0.08,
+    clickable: false,
+  });
+  infoWindow.addListener('close', () => cellRect.setMap(null));
+
   map.addListener('click', (e) => {
-    const position = e.latLng;
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    const cell = cellOf(lat, lng);
+
+    cellRect.setBounds(cellBounds(cell));
+    cellRect.setMap(map);
+
     const form = document.createElement('form');
     form.className = 'post-form';
     form.innerHTML = `
-      <textarea name="text" maxlength="${config.maxTextLength}" placeholder="ここにコメント" required></textarea>
-      <div class="row"><span class="count">0 / ${config.maxTextLength}</span><button type="submit">置く</button></div>`;
+      <textarea name="text" maxlength="${MAX_TEXT_LENGTH}" placeholder="ここにコメント" required></textarea>
+      <p class="remain">&nbsp;</p>
+      <div class="row"><span class="count">0 / ${MAX_TEXT_LENGTH}</span><button type="submit">置く</button></div>`;
     const textarea = form.elements.text;
     const count = form.querySelector('.count');
+    const remain = form.querySelector('.remain');
     textarea.addEventListener('input', () => {
-      count.textContent = `${[...textarea.value].length} / ${config.maxTextLength}`;
+      count.textContent = `${textarea.value.length} / ${MAX_TEXT_LENGTH}`;
     });
+
+    getCell(db, cell).then((c) => {
+      const left = VANISH_LIMIT - c.count;
+      remain.textContent = left <= 1
+        ? `このマスには ${c.count} 個。置くとまとめて消えます！`
+        : `このマスには ${c.count} 個。あと ${left} 個で消えます`;
+      remain.classList.toggle('danger', left <= 1);
+    }).catch(() => {});
+
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const button = form.querySelector('button');
       button.disabled = true;
       try {
-        const { comment, removed } = await api('/api/comments', {
-          method: 'POST',
-          body: JSON.stringify({ lat: position.lat(), lng: position.lng(), text: textarea.value }),
-        });
+        const result = await postComment(db, uid, { lat, lng, text: textarea.value });
         infoWindow.close();
-        if (removed.length > 0) {
-          removed.forEach((id) => removeMarker(id, { animate: true }));
-          toast(`${removed.length} 個重なったので、まとめて消えました！`);
-        } else {
-          addMarker(comment);
+        if (result.vanished) {
+          toast(`${VANISH_LIMIT} 個重なったので、まとめて消えました！`);
         }
       } catch (err) {
-        toast(err.message);
+        console.error(err);
+        toast(err.code ? '置けませんでした' : err.message);
         button.disabled = false;
       }
     });
+
     infoWindow.setContent(form);
-    infoWindow.setPosition(position);
+    infoWindow.setPosition(e.latLng);
     infoWindow.open(map);
     setTimeout(() => textarea.focus(), 0);
   });

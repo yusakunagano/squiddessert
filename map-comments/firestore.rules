@@ -1,0 +1,104 @@
+rules_version = '2';
+
+// データ構造と処理の流れは public/lib/comments.js を参照。
+// CELL_DEG (0.0003) と VANISH_LIMIT (10) は public/lib/grid.js と同じ値にすること。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function vanishLimit() { return 10; }
+
+    function cellIdOf(lat, lng) {
+      return string(int(math.floor(lat / 0.0003))) + '_' + string(int(math.floor(lng / 0.0003)));
+    }
+
+    function cellPath(cell) { return /databases/$(database)/documents/cells/$(cell); }
+    function commentPath(id) { return /databases/$(database)/documents/comments/$(id); }
+
+    function countBefore(cell) {
+      return exists(cellPath(cell)) ? get(cellPath(cell)).data.count : 0;
+    }
+
+    function cellAfter(cell) { return getAfter(cellPath(cell)).data; }
+
+    // このリクエストで、マスのコメントがまとめて消えようとしている
+    function isVanishing(cell) {
+      return countBefore(cell) == vanishLimit() - 1 && cellAfter(cell).count == 0;
+    }
+
+    match /comments/{id} {
+      allow read: if true;
+
+      // 自分のコメントを置く。同時にマスの count を 1 増やすこと。
+      // VANISH_LIMIT 個目は置けない (代わりにまとめて消す)。
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'lat', 'lng', 'cell', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 1
+        && request.resource.data.text.size() <= 140
+        && request.resource.data.lat is number
+        && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+        && request.resource.data.lng is number
+        && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.cell == cellIdOf(request.resource.data.lat, request.resource.data.lng)
+        && cellAfter(request.resource.data.cell).count == countBefore(request.resource.data.cell) + 1
+        && cellAfter(request.resource.data.cell).count < vanishLimit()
+        && cellAfter(request.resource.data.cell).last == id;
+
+      // 自分のコメントを消す (マスの count を 1 減らすこと)
+      // または、VANISH_LIMIT 個目を置こうとしてマスのコメントをまとめて消す
+      allow delete: if request.auth != null && (
+        (
+          resource.data.uid == request.auth.uid
+          && cellAfter(resource.data.cell).count == countBefore(resource.data.cell) - 1
+          && cellAfter(resource.data.cell).last == id
+        )
+        || isVanishing(resource.data.cell)
+      );
+    }
+
+    match /cells/{cell} {
+      allow read: if true;
+
+      allow create, update: if request.auth != null
+        && request.resource.data.keys().hasOnly(['count', 'last', 'vanished'])
+        && request.resource.data.count is int
+        && request.resource.data.last is string
+        && request.resource.data.vanished is int
+        && (isIncrement() || isDecrement() || isVanish());
+
+      function before() {
+        return resource == null ? { 'count': 0, 'vanished': 0 } : resource.data;
+      }
+
+      // コメントが 1 つ置かれた
+      function isIncrement() {
+        let last = request.resource.data.last;
+        return request.resource.data.count == before().count + 1
+          && request.resource.data.vanished == before().vanished
+          && !exists(commentPath(last))
+          && existsAfter(commentPath(last))
+          && getAfter(commentPath(last)).data.cell == cell;
+      }
+
+      // コメントが 1 つ消された (持ち主のチェックは comments 側)
+      function isDecrement() {
+        let last = request.resource.data.last;
+        return before().count > 0
+          && request.resource.data.count == before().count - 1
+          && request.resource.data.vanished == before().vanished
+          && exists(commentPath(last))
+          && !existsAfter(commentPath(last))
+          && get(commentPath(last)).data.cell == cell;
+      }
+
+      // VANISH_LIMIT 個目が置かれて、まとめて消えた
+      function isVanish() {
+        return before().count == vanishLimit() - 1
+          && request.resource.data.count == 0
+          && request.resource.data.vanished == before().vanished + 1;
+      }
+    }
+  }
+}

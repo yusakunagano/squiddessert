@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>令和診断</title>
+  <meta name="description" content="いくつかの質問に答えると、AI があなたの「令和度」を診断します。">
+  <style>
+    :root {
+      --bg: #fff8f3;
+      --card: #ffffff;
+      --text: #2b2330;
+      --muted: #7a6f80;
+      --accent: #c2185b;
+      --accent-soft: #fde4ee;
+      --border: #eadde4;
+      --radius: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #17131a;
+        --card: #221c26;
+        --text: #f3edf6;
+        --muted: #b0a5b6;
+        --accent: #f06292;
+        --accent-soft: #3a2230;
+        --border: #3a3040;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+      line-height: 1.7;
+    }
+    main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-size: 2rem; margin: 0 0 4px; letter-spacing: .05em; }
+    .lead { color: var(--muted); margin: 0 0 24px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    label.field { display: block; font-weight: 600; margin-bottom: 8px; }
+    input[type="text"] {
+      width: 100%; padding: 12px; font-size: 1rem;
+      border: 1px solid var(--border); border-radius: 10px;
+      background: var(--bg); color: var(--text);
+    }
+    .progress { color: var(--muted); font-size: .9rem; margin-bottom: 8px; }
+    .bar { height: 6px; background: var(--accent-soft); border-radius: 3px; overflow: hidden; margin-bottom: 20px; }
+    .bar > span { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+    .question { font-size: 1.15rem; font-weight: 700; margin: 0 0 16px; }
+    .choices { display: grid; gap: 10px; }
+    .choice {
+      text-align: left; padding: 14px 16px; font-size: 1rem;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--bg); color: var(--text); cursor: pointer;
+    }
+    .choice:hover, .choice:focus-visible { border-color: var(--accent); outline: none; }
+    .free { display: flex; gap: 8px; margin-top: 10px; }
+    .free input { flex: 1; }
+    button.primary {
+      padding: 12px 20px; font-size: 1rem; font-weight: 700;
+      border: none; border-radius: 12px; background: var(--accent); color: #fff; cursor: pointer;
+    }
+    button.primary:disabled { opacity: .5; cursor: default; }
+    button.link { background: none; border: none; color: var(--muted); cursor: pointer; padding: 8px 0; font-size: .9rem; }
+    .loading { text-align: center; padding: 48px 0; }
+    .spinner {
+      width: 40px; height: 40px; margin: 0 auto 16px;
+      border: 4px solid var(--accent-soft); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .score { text-align: center; }
+    .score .num { font-size: 4rem; font-weight: 800; color: var(--accent); line-height: 1; }
+    .score .unit { font-size: 1.2rem; color: var(--muted); }
+    .era { text-align: center; font-size: 1.4rem; font-weight: 800; margin: 12px 0 4px; }
+    .catch { text-align: center; color: var(--muted); margin: 0 0 16px; }
+    dl { margin: 16px 0 0; }
+    dt { font-weight: 700; color: var(--accent); margin-top: 12px; }
+    dd { margin: 4px 0 0; }
+    .error { color: var(--accent); background: var(--accent-soft); padding: 12px; border-radius: 10px; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>令和診断</h1>
+  <p class="lead">いくつかの質問に答えると、AI があなたの「令和度」を診断します。</p>
+
+  <section id="start" class="card">
+    <label class="field" for="name">ニックネーム（任意）</label>
+    <input id="name" type="text" maxlength="20" placeholder="例：いか太郎">
+    <div class="actions">
+      <button id="startBtn" class="primary">診断をはじめる</button>
+    </div>
+  </section>
+
+  <section id="quiz" class="card" hidden>
+    <div class="progress" id="progress"></div>
+    <div class="bar"><span id="barFill"></span></div>
+    <p class="question" id="question"></p>
+    <div class="choices" id="choices"></div>
+    <form class="free" id="freeForm">
+      <input id="freeInput" type="text" maxlength="100" placeholder="自由に答える">
+      <button class="primary" type="submit">回答</button>
+    </form>
+    <button class="link" id="backBtn">← ひとつ戻る</button>
+  </section>
+
+  <section id="loading" class="card loading" hidden>
+    <div class="spinner"></div>
+    <p>AI が令和度を鑑定中…</p>
+  </section>
+
+  <section id="result" class="card" hidden>
+    <div class="score"><span class="num" id="rScore"></span><span class="unit">% 令和</span></div>
+    <p class="era" id="rEra"></p>
+    <p class="catch" id="rCatch"></p>
+    <dl>
+      <dt>診断結果</dt><dd id="rAnalysis"></dd>
+      <dt>ラッキーアイテム</dt><dd id="rLucky"></dd>
+      <dt>アドバイス</dt><dd id="rAdvice"></dd>
+    </dl>
+    <div class="actions">
+      <button class="primary" id="shareBtn">結果をシェア</button>
+      <button class="link" id="retryBtn">もう一度診断する</button>
+    </div>
+  </section>
+
+  <p id="error" class="error" hidden></p>
+</main>
+
+<script>
+  // API のエンドポイント。別ドメインに API を置く場合はここを書き換えてください。
+  const API_URL = "/api/diagnose";
+
+  const QUESTIONS = [
+    { q: "友だちと連絡を取るときに一番よく使うのは？", choices: ["LINE", "Instagram の DM", "電話", "手紙・年賀状"] },
+    { q: "「エモい」という言葉、使いますか？", choices: ["日常的に使う", "たまに使う", "意味は分かるけど使わない", "初めて聞いた"] },
+    { q: "休日の過ごし方は？", choices: ["推し活", "動画配信サービスで一気見", "カラオケ・ボウリング", "家でテレビ"] },
+    { q: "お店での支払い方法は？", choices: ["スマホ決済", "クレジットカード", "交通系 IC", "現金一択"] },
+    { q: "理想の働き方は？", choices: ["フルリモート", "週何日か出社", "毎日出社して顔を合わせたい", "飲みニケーションも仕事のうち"] },
+    { q: "最近ハマっている食べ物は？", choices: ["韓国グルメ", "マリトッツォ系の映えスイーツ", "タピオカ", "ナポリタン・喫茶店メニュー"] },
+    { q: "写真を撮ったらまずすることは？", choices: ["加工してストーリーに上げる", "そのまま友だちに送る", "スマホに保存して満足", "プリントしてアルバムへ"] },
+    { q: "あなたにとって「推し」とは？", choices: ["生きる理由", "日々の癒し", "よく分からない", "昔はアイドルが好きだった"] },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const show = (id) => ["start", "quiz", "loading", "result"].forEach((s) => ($(s).hidden = s !== id));
+  let answers = [];
+  let lastResult = null;
+
+  function renderQuestion() {
+    const i = answers.length;
+    const item = QUESTIONS[i];
+    $("progress").textContent = `Q${i + 1} / ${QUESTIONS.length}`;
+    $("barFill").style.width = `${(i / QUESTIONS.length) * 100}%`;
+    $("question").textContent = item.q;
+    $("choices").replaceChildren(...item.choices.map((c) => {
+      const b = document.createElement("button");
+      b.className = "choice";
+      b.textContent = c;
+      b.onclick = () => answer(c);
+      return b;
+    }));
+    $("freeInput").value = "";
+    $("backBtn").hidden = i === 0;
+  }
+
+  function answer(a) {
+    answers.push({ q: QUESTIONS[answers.length].q, a });
+    if (answers.length < QUESTIONS.length) renderQuestion();
+    else diagnose();
+  }
+
+  async function diagnose() {
+    show("loading");
+    $("error").hidden = true;
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: $("name").value, answers }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `エラーが発生しました (${res.status})`);
+      renderResult(data);
+    } catch (e) {
+      $("error").textContent = e.message || "通信に失敗しました";
+      $("error").hidden = false;
+      answers.pop();
+      show("quiz");
+      renderQuestion();
+    }
+  }
+
+  function renderResult(r) {
+    lastResult = r;
+    $("rScore").textContent = r.reiwa_score;
+    $("rEra").textContent = r.era_type;
+    $("rCatch").textContent = `「${r.catchphrase}」`;
+    $("rAnalysis").textContent = r.analysis;
+    $("rLucky").textContent = r.lucky_item;
+    $("rAdvice").textContent = r.advice;
+    show("result");
+  }
+
+  $("startBtn").onclick = () => { answers = []; show("quiz"); renderQuestion(); };
+  $("backBtn").onclick = () => { answers.pop(); renderQuestion(); };
+  $("freeForm").onsubmit = (e) => {
+    e.preventDefault();
+    const v = $("freeInput").value.trim();
+    if (v) answer(v);
+  };
+  $("retryBtn").onclick = () => { answers = []; show("start"); };
+  $("shareBtn").onclick = async () => {
+    const r = lastResult;
+    const text = `私の令和度は ${r.reiwa_score}%！タイプは「${r.era_type}」でした。 #令和診断`;
+    if (navigator.share) {
+      try { await navigator.share({ text, url: location.href }); } catch {}
+    } else {
+      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(location.href)}`, "_blank", "noopener");
+    }
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// ナインゲームのランキング用ルール。
+// - 誰でもランキングを読める
+// - ログインした本人だけが、自分の行（ドキュメントID = 自分の uid）を書ける
+// - 書けるのは自己ベストを上回るスコアだけ。名前は 1〜12 文字
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /scores/{uid} {
+      allow read: if true;
+
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'score', 'nines', 'level', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 12
+        && request.resource.data.score is int
+        && request.resource.data.score > 0
+        && request.resource.data.score <= 1000000
+        && request.resource.data.nines is int
+        && request.resource.data.level is int
+        && request.resource.data.updatedAt == request.time
+        && (resource == null || request.resource.data.score > resource.data.score);
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

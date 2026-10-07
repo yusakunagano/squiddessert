@@ -153,6 +153,31 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
 .results dd { margin: 0; font-family: var(--display); text-align: right; font-variant-numeric: tabular-nums; }
 .results .big { font-size: 1.8rem; color: var(--nine); }
 .newbest { color: var(--nine); font-weight: 800; font-size: .9rem; }
+.panel { max-height: calc(100% - 8px); overflow-y: auto; }
+.submit { display: flex; flex-direction: column; gap: 6px; }
+.submit label { font-size: .8rem; font-weight: 700; color: var(--muted); }
+.submit-row { display: flex; gap: 8px; }
+.submit-row input {
+  flex: 1; min-width: 0; font: inherit; font-weight: 700; font-size: 1rem; padding: 9px 12px;
+  border-radius: 12px; border: 2px solid var(--line); background: var(--paper); color: var(--ink);
+  -webkit-user-select: text; user-select: text;
+}
+.submit-row input:focus { outline: none; border-color: var(--plus); }
+.link-btn { align-self: flex-start; background: none; border: 0; padding: 2px 0; font: inherit; font-size: .75rem; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.note { margin: 0; font-size: .85rem; line-height: 1.5; color: var(--muted); }
+.note.ok { color: var(--plus); font-weight: 800; }
+.note.err { color: var(--minus); font-weight: 700; }
+#rankOverlay { z-index: 45; }
+.rank-panel { max-width: 420px; }
+.rank-panel h2 small { font-family: var(--body); font-size: .8rem; color: var(--muted); font-weight: 800; }
+.rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
+.rank-list li { display: grid; grid-template-columns: 2.6em 1fr auto; gap: 8px; align-items: baseline; padding: 7px 8px; border-radius: 10px; }
+.rank-list li:nth-child(odd) { background: var(--well); }
+.rank-list li.me { outline: 2px solid var(--nine); }
+.rank-list .pos { font-family: var(--display); color: var(--muted); }
+.rank-list li.top .pos { color: var(--nine); }
+.rank-list .who { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-list .pts { font-family: var(--display); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
@@ -203,6 +228,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       <li>制限時間 90 秒で何回 9 を作れるか挑戦。レベルアップで +10 秒。</li>
     </ul>
     <button class="btn primary" id="startBtn" type="button">スタート</button>
+    <button class="btn" id="rankBtnStart" type="button">ランキングを見る</button>
   </div>
 </div>
 
@@ -212,6 +238,15 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     <p class="hint">残り時間は止まっています。</p>
     <button class="btn primary" id="resumeBtn" type="button">再開</button>
     <button class="btn" id="quitBtn" type="button">やめて最初から</button>
+  </div>
+</div>
+
+<div class="overlay" id="rankOverlay" hidden>
+  <div class="panel rank-panel">
+    <h2>ランキング <small>TOP 100</small></h2>
+    <p class="note" id="rankStatus">読み込み中…</p>
+    <ol class="rank-list" id="rankList"></ol>
+    <button class="btn primary" id="rankCloseBtn" type="button">閉じる</button>
   </div>
 </div>
 
@@ -226,7 +261,18 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       <dt>リセット回数</dt><dd id="rResets">0</dd>
     </dl>
     <div class="newbest" id="rBest" hidden>ベストスコア更新！</div>
+    <div class="submit" id="submitBox" hidden>
+      <label for="nameInput">ランキングに載せる名前</label>
+      <div class="submit-row">
+        <input id="nameInput" type="text" maxlength="12" autocomplete="nickname" placeholder="名前（12文字まで）">
+        <button class="btn primary" id="submitBtn" type="button">登録</button>
+      </div>
+      <button class="link-btn" id="logoutBtn" type="button">別のアカウントにする（ログアウト）</button>
+    </div>
+    <button class="btn" id="googleBtn" type="button" hidden>Googleでログインしてランキングに登録</button>
+    <p class="note" id="submitNote" hidden></p>
     <button class="btn primary" id="againBtn" type="button">もう一度</button>
+    <button class="btn" id="rankBtnEnd" type="button">ランキングを見る</button>
   </div>
 </div>
 
@@ -579,6 +625,9 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     $('rBest').hidden = !isBest;
     renderStats();
     $('endOverlay').hidden = false;
+    window.dispatchEvent(new CustomEvent('nine:gameover', {
+      detail: { score: S.score, nines: S.nines, level: S.level }
+    }));
   }
 
   // ---- drag & drop (pointer events: mouse + touch) ----
@@ -705,5 +754,6 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   render();
 })();
 </script>
+<script type="module" src="ranking.js"></script>
 </body>
 </html>

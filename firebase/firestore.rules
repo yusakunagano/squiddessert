@@ -2,28 +2,34 @@ rules_version = '2';
 
 // ナインゲームのランキング用ルール。
 // - 誰でもランキングを読める
-// - ログインした本人だけが、自分の行（ドキュメントID = 自分の uid）を書ける
+// - 各ブラウザ（匿名ログイン）は、自分の行（ドキュメントID = 自分の uid）だけを書ける
 // - 書けるのは自己ベストを上回るスコアだけ。名前は 1〜12 文字
+//
+// scores/{uid}               … 総合ランキング（全期間の自己ベスト）
+// weeks/{週の月曜日}/scores/{uid} … 週間ランキング（例: weeks/2026-10-05/scores/xxxx）
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function validScore(uid) {
+      let d = request.resource.data;
+      return request.auth != null
+        && request.auth.uid == uid
+        && d.keys().hasOnly(['name', 'score', 'nines', 'level', 'updatedAt'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 12
+        && d.score is int && d.score > 0 && d.score <= 1000000
+        && d.nines is int && d.level is int
+        && d.updatedAt == request.time
+        && (resource == null || d.score > resource.data.score);
+    }
+
     match /scores/{uid} {
       allow read: if true;
+      allow create, update: if validScore(uid);
+    }
 
-      allow create, update: if request.auth != null
-        && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['name', 'score', 'nines', 'level', 'updatedAt'])
-        && request.resource.data.name is string
-        && request.resource.data.name.size() >= 1
-        && request.resource.data.name.size() <= 12
-        && request.resource.data.score is int
-        && request.resource.data.score > 0
-        && request.resource.data.score <= 1000000
-        && request.resource.data.nines is int
-        && request.resource.data.level is int
-        && request.resource.data.updatedAt == request.time
-        && (resource == null || request.resource.data.score > resource.data.score);
-
-      allow delete: if request.auth != null && request.auth.uid == uid;
+    match /weeks/{week}/scores/{uid} {
+      allow read: if true;
+      allow create, update: if week.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && validScore(uid);
     }
 
     match /{document=**} {

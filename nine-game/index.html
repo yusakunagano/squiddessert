@@ -163,7 +163,13 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   -webkit-user-select: text; user-select: text;
 }
 .submit-row input:focus { outline: none; border-color: var(--plus); }
-.link-btn { align-self: flex-start; background: none; border: 0; padding: 2px 0; font: inherit; font-size: .75rem; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.rank-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: var(--well); }
+.rank-tab {
+  font: inherit; font-weight: 800; font-size: .9rem; padding: 8px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.rank-tab[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.rank-period { margin: -4px 0 0; font-size: .78rem; font-weight: 700; color: var(--muted); text-align: center; }
 .note { margin: 0; font-size: .85rem; line-height: 1.5; color: var(--muted); }
 .note.ok { color: var(--plus); font-weight: 800; }
 .note.err { color: var(--minus); font-weight: 700; }
@@ -244,6 +250,11 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
 <div class="overlay" id="rankOverlay" hidden>
   <div class="panel rank-panel">
     <h2>ランキング <small>TOP 100</small></h2>
+    <div class="rank-tabs" role="tablist">
+      <button class="rank-tab" type="button" role="tab" data-tab="weekly" aria-selected="true">週間</button>
+      <button class="rank-tab" type="button" role="tab" data-tab="all" aria-selected="false">総合</button>
+    </div>
+    <p class="rank-period" id="rankPeriod"></p>
     <p class="note" id="rankStatus">読み込み中…</p>
     <ol class="rank-list" id="rankList"></ol>
     <button class="btn primary" id="rankCloseBtn" type="button">閉じる</button>
@@ -267,9 +278,8 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
         <input id="nameInput" type="text" maxlength="12" autocomplete="nickname" placeholder="名前（12文字まで）">
         <button class="btn primary" id="submitBtn" type="button">登録</button>
       </div>
-      <button class="link-btn" id="logoutBtn" type="button">別のアカウントにする（ログアウト）</button>
+      <p class="note">ログインは不要です。名前は自由に決められます。</p>
     </div>
-    <button class="btn" id="googleBtn" type="button" hidden>Googleでログインしてランキングに登録</button>
     <p class="note" id="submitNote" hidden></p>
     <button class="btn primary" id="againBtn" type="button">もう一度</button>
     <button class="btn" id="rankBtnEnd" type="button">ランキングを見る</button>

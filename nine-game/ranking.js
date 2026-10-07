@@ -1,4 +1,6 @@
-// Online ranking: Google sign-in + Firestore (one best-score document per player).
+// Online ranking (weekly + all-time) on Firestore.
+// Players type any name; no account needed. Firebase anonymous auth gives each
+// browser a private id so a player can only raise their own score.
 import { firebaseConfig } from './firebase-config.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
@@ -7,12 +9,25 @@ const RANK_SIZE = 100;
 
 const $ = id => document.getElementById(id);
 let fb = null;          // { auth, db, A: auth module, F: firestore module }
-let user = null;
 let last = null;        // result of the game that just ended
 let submitted = false;
+let tab = 'weekly';
 
 function readName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }
 function writeName(v) { try { localStorage.setItem(NAME_KEY, v); } catch {} }
+
+// Weeks run Monday 00:00 to Sunday 24:00 Japan time. The id is the Monday's date, e.g. "2026-10-05".
+function weekStart(now = new Date()) {
+  const jst = new Date(now.getTime() + 9 * 3600e3);
+  const dow = (jst.getUTCDay() + 6) % 7;            // Monday = 0
+  return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate() - dow));
+}
+const weekId = d => d.toISOString().slice(0, 10);
+function weekLabel(d) {
+  const end = new Date(d.getTime() + 6 * 86400e3);
+  const md = x => `${x.getUTCMonth() + 1}/${x.getUTCDate()}`;
+  return `${md(d)}（月）〜 ${md(end)}（日）`;
+}
 
 function note(text, kind = '') {
   const n = $('submitNote');
@@ -31,74 +46,69 @@ async function load() {
   ]);
   const app = appM.initializeApp(firebaseConfig);
   fb = { auth: A.getAuth(app), db: F.getFirestore(app), A, F };
-  A.onAuthStateChanged(fb.auth, u => { user = u; refresh(); });
-  A.getRedirectResult(fb.auth).catch(() => {});
   return fb;
 }
 
+async function uid() {
+  const { auth, A } = fb;
+  if (!auth.currentUser) await A.signInAnonymously(auth);
+  return auth.currentUser.uid;
+}
+
+const refs = (id, week) => {
+  const { db, F } = fb;
+  return {
+    all: F.doc(db, 'scores', id),
+    week: F.doc(db, 'weeks', week, 'scores', id)
+  };
+};
+
 function refresh() {
-  const box = $('submitBox'), google = $('googleBtn');
+  const box = $('submitBox');
   box.hidden = true;
-  google.hidden = true;
   if (!last || submitted) return;
   if (!firebaseConfig) { note('オンラインランキングは準備中です。'); return; }
   if (last.score <= 0) { note('スコアが 1 点以上でランキングに登録できます。'); return; }
-  if (!fb) return;
-  if (user) {
-    const input = $('nameInput');
-    if (!input.value) input.value = (readName() || user.displayName || '').slice(0, 12);
-    box.hidden = false;
-    note('');
-  } else {
-    google.hidden = false;
-    note('名前はあとで変えられます。ランキングには入力した名前だけが表示されます。');
-  }
-}
-
-async function signIn() {
-  try {
-    const f = await load();
-    const provider = new f.A.GoogleAuthProvider();
-    try {
-      await f.A.signInWithPopup(f.auth, provider);
-    } catch (e) {
-      if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
-        await f.A.signInWithRedirect(f.auth, provider);
-      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
-        throw e;
-      }
-    }
-  } catch (e) {
-    note('ログインできませんでした。通信状況を確かめて、もう一度お試しください。', 'err');
-    console.error(e);
-  }
+  const input = $('nameInput');
+  if (!input.value) input.value = readName();
+  box.hidden = false;
+  note('');
 }
 
 async function submit() {
   const name = $('nameInput').value.trim();
   if (!name) { note('名前を入れてください。', 'err'); return; }
-  if (!user || !last) return;
+  if (!last) return;
   const btn = $('submitBtn');
   btn.disabled = true;
+  note('登録中…');
   try {
-    const { db, F } = fb;
-    const ref = F.doc(db, 'scores', user.uid);
-    const prev = await F.getDoc(ref);
-    const best = prev.exists() ? prev.data().score : 0;
+    const { db, F } = await load();
+    const id = await uid();
+    const week = weekId(weekStart());
+    const r = refs(id, week);
+    const [pa, pw] = await Promise.all([F.getDoc(r.all), F.getDoc(r.week)]);
+    const bestAll = pa.exists() ? pa.data().score : 0;
+    const bestWeek = pw.exists() ? pw.data().score : 0;
+    const row = { name, score: last.score, nines: last.nines, level: last.level, updatedAt: F.serverTimestamp() };
+    const batch = F.writeBatch(db);
+    let wrote = false;
+    if (last.score > bestAll) { batch.set(r.all, row); wrote = true; }
+    if (last.score > bestWeek) { batch.set(r.week, row); wrote = true; }
+    if (wrote) await batch.commit();
     writeName(name);
-    if (last.score > best) {
-      await F.setDoc(ref, {
-        name, score: last.score, nines: last.nines, level: last.level, updatedAt: F.serverTimestamp()
-      });
-    }
-    const myBest = Math.max(best, last.score);
-    const higher = await F.getCountFromServer(F.query(F.collection(db, 'scores'), F.where('score', '>', myBest)));
-    const rank = higher.data().count + 1;
+
+    const myWeek = Math.max(bestWeek, last.score), myAll = Math.max(bestAll, last.score);
+    const [hw, ha] = await Promise.all([
+      F.getCountFromServer(F.query(F.collection(db, 'weeks', week, 'scores'), F.where('score', '>', myWeek))),
+      F.getCountFromServer(F.query(F.collection(db, 'scores'), F.where('score', '>', myAll)))
+    ]);
+    const rankWeek = hw.data().count + 1, rankAll = ha.data().count + 1;
     submitted = true;
     refresh();
-    note(last.score > best
-      ? `登録しました！ あなたは ${rank} 位です。`
-      : `自己ベスト ${best} 点（${rank} 位）のほうが高いので、ランキングはそのままです。`, 'ok');
+    note(wrote
+      ? `登録しました！ 今週 ${rankWeek} 位・総合 ${rankAll} 位です。`
+      : `今週の自己ベスト ${bestWeek} 点のほうが高いので、記録はそのままです（今週 ${rankWeek} 位・総合 ${rankAll} 位）。`, 'ok');
   } catch (e) {
     note('登録できませんでした。通信状況を確かめて、もう一度お試しください。', 'err');
     console.error(e);
@@ -107,19 +117,28 @@ async function submit() {
   }
 }
 
-async function showRanking() {
-  const list = $('rankList'), status = $('rankStatus');
+async function renderRanking() {
+  const list = $('rankList'), status = $('rankStatus'), period = $('rankPeriod');
+  document.querySelectorAll('.rank-tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   list.innerHTML = '';
   status.hidden = false;
   status.className = 'note';
-  $('rankOverlay').hidden = false;
+  const start = weekStart();
+  period.textContent = tab === 'weekly' ? `今週 ${weekLabel(start)}` : 'これまでの全期間';
   if (!firebaseConfig) { status.textContent = 'オンラインランキングは準備中です。'; return; }
   status.textContent = '読み込み中…';
+  const want = tab;
   try {
-    const { db, F } = await load();
-    const snap = await F.getDocs(F.query(F.collection(db, 'scores'), F.orderBy('score', 'desc'), F.limit(RANK_SIZE)));
-    if (snap.empty) { status.textContent = 'まだ誰も登録していません。最初の 1 人になろう！'; return; }
+    const { db, F, auth } = await load();
+    const col = want === 'weekly' ? F.collection(db, 'weeks', weekId(start), 'scores') : F.collection(db, 'scores');
+    const snap = await F.getDocs(F.query(col, F.orderBy('score', 'desc'), F.limit(RANK_SIZE)));
+    if (want !== tab) return;                 // tab switched while loading
+    if (snap.empty) {
+      status.textContent = want === 'weekly' ? '今週はまだ誰も登録していません。最初の 1 人になろう！' : 'まだ誰も登録していません。最初の 1 人になろう！';
+      return;
+    }
     status.hidden = true;
+    const me = auth.currentUser?.uid;
     let pos = 0, prevScore = null, shown = 0;
     snap.forEach(d => {
       const v = d.data();
@@ -127,7 +146,7 @@ async function showRanking() {
       if (v.score !== prevScore) { pos = shown; prevScore = v.score; }   // ties share a rank
       const li = document.createElement('li');
       li.classList.toggle('top', pos <= 3);
-      li.classList.toggle('me', !!user && d.id === user.uid);
+      li.classList.toggle('me', !!me && d.id === me);
       const a = document.createElement('span'); a.className = 'pos'; a.textContent = pos;
       const b = document.createElement('span'); b.className = 'who'; b.textContent = v.name;
       const c = document.createElement('span'); c.className = 'pts'; c.textContent = v.score;
@@ -135,27 +154,31 @@ async function showRanking() {
       list.appendChild(li);
     });
   } catch (e) {
+    if (want !== tab) return;
     status.textContent = 'ランキングを読み込めませんでした。通信状況を確かめてください。';
     status.className = 'note err';
     console.error(e);
   }
 }
 
+function showRanking() {
+  $('rankOverlay').hidden = false;
+  renderRanking();
+}
+
 window.addEventListener('nine:gameover', e => {
   last = e.detail;
   submitted = false;
-  note('');
   refresh();
-  load().then(refresh).catch(err => { console.error(err); note('ランキングに接続できませんでした。', 'err'); });
 });
 
-$('googleBtn').addEventListener('click', signIn);
 $('submitBtn').addEventListener('click', submit);
 $('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
-$('logoutBtn').addEventListener('click', async () => {
-  if (fb) await fb.A.signOut(fb.auth);
-  $('nameInput').value = '';
-});
+document.querySelectorAll('.rank-tab').forEach(b => b.addEventListener('click', () => {
+  if (tab === b.dataset.tab) return;
+  tab = b.dataset.tab;
+  renderRanking();
+}));
 $('rankBtnStart').addEventListener('click', showRanking);
 $('rankBtnEnd').addEventListener('click', showRanking);
 $('rankCloseBtn').addEventListener('click', () => { $('rankOverlay').hidden = true; });

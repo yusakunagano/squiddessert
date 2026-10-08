@@ -2,7 +2,7 @@
 // Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261010';
+import { firebaseConfig } from './firebase-config.js?v=20261011';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
 const NAME_KEY = 'nine-game-name';
@@ -13,7 +13,7 @@ let fb = null;          // { auth, db, A: auth module, F: firestore module }
 let last = null;        // result of the game that just ended
 let submitted = false;
 let lastId = null;      // id of the entry this browser just submitted, highlighted in the list
-let tab = 'weekly';
+let tab = 'daily';
 
 function readName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }
 function writeName(v) { try { localStorage.setItem(NAME_KEY, v); } catch {} }
@@ -25,6 +25,14 @@ function weekStart(now = new Date()) {
   return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate() - dow));
 }
 const weekId = d => d.toISOString().slice(0, 10);
+// Days run 00:00 to 24:00 Japan time. The id is that date, e.g. "2026-10-09".
+function dayStart(now = new Date()) {
+  const jst = new Date(now.getTime() + 9 * 3600e3);
+  return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate()));
+}
+function dayLabel(d) {
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}（${'日月火水木金土'[d.getUTCDay()]}）`;
+}
 function weekLabel(d) {
   const end = new Date(d.getTime() + 6 * 86400e3);
   const md = x => `${x.getUTCMonth() + 1}/${x.getUTCDate()}`;
@@ -73,6 +81,8 @@ async function uid() {
 // weeks/{monday}/plays/{id}  … weekly ranking (e.g. weeks/2026-10-05/plays/xxxx)
 const allCol = () => fb.F.collection(fb.db, 'plays');
 const weekCol = week => fb.F.collection(fb.db, 'weeks', week, 'plays');
+// days/{date}/plays/{id}      … daily ranking (e.g. days/2026-10-09/plays/xxxx)
+const dayCol = day => fb.F.collection(fb.db, 'days', day, 'plays');
 
 // Every finished game goes on the ranking. The first time, the player must pick a name before
 // "もう一度" appears; after that each game is registered automatically under the saved name.
@@ -139,8 +149,8 @@ async function submit(nameArg) {
   try {
     const { db, F } = await load();
     const me = await uid();
-    const week = weekId(weekStart());
-    // The same id in both rankings, so the new entry can be highlighted in either tab.
+    const week = weekId(weekStart()), day = weekId(dayStart());
+    // The same id in every ranking, so the new entry can be highlighted in any tab.
     const allRef = F.doc(allCol());
     const weekRef = F.doc(weekCol(week), allRef.id);
     const row = { name, score: last.score, nines: last.nines, level: last.level, uid: me, createdAt: F.serverTimestamp() };
@@ -150,6 +160,14 @@ async function submit(nameArg) {
     await batch.commit();
     writeName(name);
     lastId = allRef.id;
+    // The daily entry is written on its own, so weekly and all-time still work even if the
+    // daily ranking is not allowed yet (for example before the Firestore rules are updated).
+    let rankDay = null;
+    try {
+      await F.setDoc(F.doc(dayCol(day), allRef.id), row);
+      const hd = await F.getCountFromServer(F.query(dayCol(day), F.where('score', '>', last.score)));
+      rankDay = hd.data().count + 1;
+    } catch (e) { console.warn('daily ranking unavailable', e); }
 
     const [hw, ha] = await Promise.all([
       F.getCountFromServer(F.query(weekCol(week), F.where('score', '>', last.score))),
@@ -159,7 +177,8 @@ async function submit(nameArg) {
     submitted = true;
     failed = false;
     refresh();
-    note(`「${name}」で登録しました！ 今回の ${last.score} 点は 今週 ${rankWeek} 位・総合 ${rankAll} 位です。`, 'ok');
+    const ranks = (rankDay ? `今日 ${rankDay} 位・` : '') + `今週 ${rankWeek} 位・総合 ${rankAll} 位`;
+    note(`「${name}」で登録しました！ 今回の ${last.score} 点は ${ranks}です。`, 'ok');
   } catch (e) {
     failed = true;
     refresh();
@@ -176,18 +195,19 @@ async function renderRanking() {
   list.innerHTML = '';
   status.hidden = false;
   status.className = 'note';
-  const start = weekStart();
-  period.textContent = tab === 'weekly' ? `今週 ${weekLabel(start)}` : 'これまでの全期間';
+  const start = weekStart(), today = dayStart();
+  period.textContent = tab === 'daily' ? `今日 ${dayLabel(today)}` : tab === 'weekly' ? `今週 ${weekLabel(start)}` : 'これまでの全期間';
   if (!firebaseConfig) { status.textContent = 'オンラインランキングは準備中です。'; return; }
   status.textContent = '読み込み中…';
   const want = tab;
   try {
     const { F, auth } = await load();
-    const col = want === 'weekly' ? weekCol(weekId(start)) : allCol();
+    const col = want === 'daily' ? dayCol(weekId(today)) : want === 'weekly' ? weekCol(weekId(start)) : allCol();
     const snap = await F.getDocs(F.query(col, F.orderBy('score', 'desc'), F.limit(RANK_SIZE)));
     if (want !== tab) return;                 // tab switched while loading
     if (snap.empty) {
-      status.textContent = want === 'weekly' ? '今週はまだ誰も登録していません。最初の 1 人になろう！' : 'まだ誰も登録していません。最初の 1 人になろう！';
+      const when = want === 'daily' ? '今日は' : want === 'weekly' ? '今週は' : '';
+      status.textContent = `${when}まだ誰も登録していません。最初の 1 人になろう！`;
       return;
     }
     status.hidden = true;

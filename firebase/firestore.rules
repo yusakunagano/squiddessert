@@ -8,6 +8,7 @@ rules_version = '2';
 //
 // plays/{id}                 … 総合ランキング
 // weeks/{週の月曜日}/plays/{id} … 週間ランキング（例: weeks/2026-10-05/plays/xxxx）
+// days/{日付}/plays/{id}       … デイリーランキング（例: days/2026-10-09/plays/xxxx）
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -30,6 +31,11 @@ service cloud.firestore {
     match /weeks/{week}/plays/{id} {
       allow read: if true;
       allow create: if week.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && validPlay();
+    }
+
+    match /days/{day}/plays/{id} {
+      allow read: if true;
+      allow create: if day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && validPlay();
     }
 
     match /{document=**} {

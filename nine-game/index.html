@@ -6,13 +6,13 @@
 <meta name="theme-color" content="#111111">
 <title>ナインゲーム</title>
 <style>
-@font-face { font-family: "Nine Display"; src: url("fonts/noto-sans-jp-900.woff2") format("woff2"); font-display: swap; }
-@font-face { font-family: "Nine Body"; font-weight: 500; src: url("fonts/noto-sans-jp-500.woff2") format("woff2"); font-display: swap; }
-@font-face { font-family: "Nine Body"; font-weight: 700; src: url("fonts/noto-sans-jp-700.woff2") format("woff2"); font-display: swap; }
-@font-face { font-family: "Nine Body"; font-weight: 900; src: url("fonts/noto-sans-jp-900.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Nine Display"; src: url("fonts/dela-gothic-one.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Nine Body"; font-weight: 500; src: url("fonts/mplus-rounded-500.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Nine Body"; font-weight: 700; src: url("fonts/mplus-rounded-700.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Nine Body"; font-weight: 800 900; src: url("fonts/mplus-rounded-800.woff2") format("woff2"); font-display: swap; }
 /* Layout: one-screen board. Grid of flat colour blocks on the left, a vertical tray of tiles on the right,
    stats strip on top, the cat's stage below. Look: flat print colours (red, olive, blue, green) on light grey,
-   heavy gothic type, softly rounded corners. One deliberate dark look in every theme: near-black page,
+   chunky display type (Dela Gothic One) with rounded body text (M PLUS Rounded 1c), pill-shaped buttons. One deliberate dark look in every theme: near-black page,
    light ink, colour blocks on top. */
 :root {
   --paper: #111111;
@@ -55,10 +55,9 @@ h1 { font-family: var(--display); font-weight: 400; font-size: 1.6rem; margin: 0
 h1 b { color: var(--red); font-weight: 400; }
 .head-right { display: flex; align-items: center; gap: 10px; }
 .icon-btn {
-  min-width: 34px; height: 34px; border-radius: var(--radius); border: 2px solid var(--ink); background: transparent;
+  width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--ink); background: transparent;
   color: var(--ink); font-weight: 800; font-size: .8rem; cursor: pointer; padding: 0;
 }
-.icon-btn.sound-toggle { padding: 0 8px; font-size: .72rem; }
 .sound-toggle[aria-pressed="true"] { background: var(--olive); border-color: var(--olive); color: var(--dark-ink); }
 .best { font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
@@ -66,7 +65,7 @@ h1 b { color: var(--red); font-weight: 400; }
 .stat { display: flex; flex-direction: column; gap: 2px; }
 .stat span { font-size: .68rem; color: var(--muted); letter-spacing: .08em; font-weight: 700; }
 .stat strong { font-family: var(--display); font-weight: 400; font-size: 1.35rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.timebar { height: 8px; border-radius: 4px; background: var(--well); overflow: hidden; }
+.timebar { height: 8px; border-radius: 4px; background: var(--well); overflow: hidden; margin-bottom: 8px; }
 .timebar i { display: block; height: 100%; width: 100%; background: var(--blue); transform-origin: left; transition: background .3s; }
 .timebar.low i { background: var(--minus); }
 
@@ -118,12 +117,17 @@ h1 b { color: var(--red); font-weight: 400; }
   width: calc(var(--cell) * .9); height: calc(var(--cell) * .9); border-radius: var(--radius); border: 0;
   font-family: var(--display); font-size: calc(var(--cell) * .4); color: #fff;
   display: grid; place-items: center; cursor: grab; touch-action: none; padding: 0;
-  background: var(--slate); transition: transform .1s, opacity .1s;
+  background: var(--slate); transition: transform .1s, opacity .1s, box-shadow .1s;
+  /* a little depth: light top edge, darker bottom edge and a short drop */
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .28), inset 0 -5px 0 rgba(0, 0, 0, .22), 0 4px 0 rgba(0, 0, 0, .45);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .2);
+  margin-bottom: 4px;
 }
+.tile:active { transform: translateY(2px); box-shadow: inset 0 2px 0 rgba(255, 255, 255, .28), inset 0 -3px 0 rgba(0, 0, 0, .22), 0 2px 0 rgba(0, 0, 0, .45); }
 .tile.set { background: var(--slate); }
 .tile.add { background: var(--green); }
 .tile.sub { background: var(--red); }
-.tile.star { background: var(--olive); color: var(--dark-ink); font-size: calc(var(--cell) * .5); }
+.tile.star { background: var(--olive); color: var(--dark-ink); text-shadow: 0 2px 0 rgba(255, 255, 255, .3); font-size: calc(var(--cell) * .5); }
 .tile.selected { outline: 3px solid var(--ink); outline-offset: 3px; transform: translateX(-4px); }
 .tile.lifted { opacity: .25; }
 .ghost {
@@ -137,7 +141,8 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .hint { font-size: .8rem; color: var(--muted); margin: 0; min-width: 0; line-height: 1.5; }
 .cat { display: block; width: 100%; height: 105px; image-rendering: pixelated; image-rendering: crisp-edges; }
 .btn {
-  font-family: var(--body); font-weight: 900; font-size: .95rem; border-radius: var(--radius);
+  font-family: var(--body); font-weight: 900; font-size: .95rem; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   padding: 10px 18px; border: 2px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
 }
 .btn small { font-weight: 700; color: var(--minus); margin-left: 4px; }
@@ -176,13 +181,13 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .submit-row { display: flex; gap: 8px; }
 .submit-row input {
   flex: 1; min-width: 0; font: inherit; font-weight: 700; font-size: 1rem; padding: 9px 12px;
-  border-radius: var(--radius); border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
+  border-radius: 999px; border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
   -webkit-user-select: text; user-select: text;
 }
 .submit-row input:focus { outline: 3px solid var(--blue); outline-offset: 1px; }
-.rank-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius); background: var(--well); }
+.rank-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: var(--well); }
 .rank-tab {
-  font: inherit; font-weight: 900; font-size: .9rem; padding: 8px; border: 0; border-radius: 4px;
+  font: inherit; font-weight: 900; font-size: .9rem; padding: 8px; border: 0; border-radius: 999px;
   background: transparent; color: var(--muted); cursor: pointer;
 }
 .rank-tab[aria-selected="true"] { background: var(--ink); color: var(--dark-ink); }
@@ -216,8 +221,8 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     <h1>ナイン<b>9</b>ゲーム</h1>
     <div class="head-right">
       <div class="best" id="bestLabel">ベスト 0</div>
-      <button class="icon-btn sound-toggle" type="button" aria-pressed="false">♪ OFF</button>
-      <button class="icon-btn" id="pauseBtn" type="button" aria-label="一時停止" hidden>Ⅱ</button>
+      <button class="icon-btn sound-toggle" type="button" aria-pressed="false" aria-label="サウンド オフ"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg></button>
+      <button class="icon-btn" id="pauseBtn" type="button" aria-label="一時停止" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg></button>
     </div>
   </header>
 
@@ -255,7 +260,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       <li>制限時間 60 秒で何回 9 を作れるか挑戦。レベルアップで +5 秒。</li>
     </ul>
     <button class="btn primary" id="startBtn" type="button">スタート</button>
-    <button class="btn sound-toggle" type="button" aria-pressed="false">♪ サウンド OFF</button>
+    <button class="btn sound-toggle" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>サウンド OFF</span></button>
     <button class="btn" id="rankBtnStart" type="button">ランキングを見る</button>
   </div>
 </div>
@@ -266,7 +271,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     <p class="hint">残り時間は止まっています。</p>
     <button class="btn primary" id="resumeBtn" type="button">再開</button>
     <button class="btn" id="rulesBtn" type="button">説明を見る</button>
-    <button class="btn sound-toggle" type="button" aria-pressed="false">♪ サウンド OFF</button>
+    <button class="btn sound-toggle" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>サウンド OFF</span></button>
     <button class="btn" id="quitBtn" type="button">やめて最初から</button>
   </div>
 </div>
@@ -580,10 +585,14 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
     function play(name, ...args) { if (on && FX[name]) FX[name](...args); }
 
+    const ICON_ON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+    const ICON_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>';
+
     function render() {
       document.querySelectorAll('.sound-toggle').forEach(b => {
         b.setAttribute('aria-pressed', String(on));
-        b.textContent = b.classList.contains('icon-btn') ? `♪ ${on ? 'ON' : 'OFF'}` : `♪ サウンド ${on ? 'ON' : 'OFF'}`;
+        const icon = on ? ICON_ON : ICON_OFF;
+        b.innerHTML = b.classList.contains('icon-btn') ? icon : `${icon}<span>サウンド ${on ? 'ON' : 'OFF'}</span>`;
         b.setAttribute('aria-label', `サウンド ${on ? 'オン' : 'オフ'}`);
       });
     }

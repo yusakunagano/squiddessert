@@ -1,7 +1,8 @@
 // Online ranking (weekly + all-time) on Firestore, arcade style: every play is its own entry.
 // Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
-import { firebaseConfig } from './firebase-config.js';
+// Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
+import { firebaseConfig } from './firebase-config.js?v=20261009';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
 const NAME_KEY = 'nine-game-name';
@@ -28,6 +29,16 @@ function weekLabel(d) {
   const end = new Date(d.getTime() + 6 * 86400e3);
   const md = x => `${x.getUTCMonth() + 1}/${x.getUTCDate()}`;
   return `${md(d)}（月）〜 ${md(end)}（日）`;
+}
+
+// A short, actionable message for a failed Firebase call, with the error code for troubleshooting.
+function errorText(e, action) {
+  const code = e?.code || e?.name || 'unknown';
+  let hint = '通信状況を確かめて、もう一度お試しください。';
+  if (code === 'permission-denied') hint = 'ページを再読み込みしてから、もう一度お試しください。';
+  else if (code === 'unavailable' || code === 'auth/network-request-failed' || code === 'TypeError') hint = '電波の良いところで、もう一度お試しください。';
+  else if (code === 'auth/operation-not-allowed' || code === 'auth/admin-restricted-operation') hint = 'Firebase で匿名ログインがオフになっています。';
+  return `${action}できませんでした。${hint}（${code}）`;
 }
 
 function note(text, kind = '') {
@@ -106,7 +117,7 @@ async function submit() {
     refresh();
     note(`登録しました！ 今回の ${last.score} 点は 今週 ${rankWeek} 位・総合 ${rankAll} 位です。`, 'ok');
   } catch (e) {
-    note('登録できませんでした。通信状況を確かめて、もう一度お試しください。', 'err');
+    note(errorText(e, '登録'), 'err');
     console.error(e);
   } finally {
     btn.disabled = false;
@@ -152,7 +163,7 @@ async function renderRanking() {
     });
   } catch (e) {
     if (want !== tab) return;
-    status.textContent = 'ランキングを読み込めませんでした。通信状況を確かめてください。';
+    status.textContent = errorText(e, 'ランキングを読み込み');
     status.className = 'note err';
     console.error(e);
   }

@@ -117,9 +117,10 @@ h1 b { color: var(--nine); font-weight: 400; }
 }
 button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
 
-.controls { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.controls { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.controls .btn { align-self: flex-end; }
 .hint { font-size: .8rem; color: var(--muted); flex: 1 1 200px; min-width: 0; line-height: 1.5; }
-.cat { width: 168px; height: 150px; image-rendering: pixelated; image-rendering: crisp-edges; }
+.cat { display: block; width: 100%; height: 130px; image-rendering: pixelated; image-rendering: crisp-edges; }
 .btn {
   font-family: var(--body); font-weight: 800; font-size: .95rem; border-radius: 999px;
   padding: 10px 18px; border: 2px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
@@ -216,7 +217,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   </div>
 
   <div class="controls">
-    <canvas class="cat" id="cat" role="img" aria-label="踊るねこ。列がそろうと大喜びします"></canvas>
+    <canvas class="cat" id="cat" role="img" aria-label="ねこ。踊ったり走ったり寝転んだりして、列がそろうと大喜びします"></canvas>
     <button class="btn" id="resetBtn" type="button">リセット<small>−100</small></button>
   </div>
 </div>
@@ -300,13 +301,14 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
 
   // Tile kinds: 'set' replaces the cell's digit, 'add' / 'sub' add or subtract (wrapping 0-9).
   const KIND_RATE = { set: .7, add: .15, sub: .15 };
-  const STEP_MAX = 5;    // largest number on a + / − tile
+  // Number ranges per kind: [small, big]. About 90% of tiles use the small range (−3 to 3).
+  const SMALL_RATE = .9;
+  const RANGE = { set: [[0, 3], [4, 9]], add: [[1, 3], [4, 5]], sub: [[1, 3], [4, 5]] };
 
   // seedMax: largest digit used when filling the board, kept small so 9 stays reachable.
-  // setMax: largest digit on a replace tile.
   function levelCfg(lv) {
-    if (lv <= 2) return { size: 3, seedMax: 5, setMax: 7 };
-    return { size: 4, seedMax: 4, setMax: 6 };
+    if (lv <= 2) return { size: 3, seedMax: 5 };
+    return { size: 4, seedMax: 4 };
   }
 
   const $ = id => document.getElementById(id);
@@ -324,15 +326,19 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   // Keep only the ones digit: 10 → 0, 11 → 1, and below 0 wraps back (−1 → 9).
   const wrap = v => ((v % 10) + 10) % 10;
 
-  // ---- dancing pixel cat: dances all the time, jumps for joy when lines clear ----
+  // ---- pixel cat on a stage below the board ----
+  // Wanders between moods (dance, run, jump, lie down) and celebrates whenever lines clear.
   const cat = (() => {
     const canvas = $('cat');
     const ctx = canvas.getContext('2d');
-    const W = 28, H = 25, PX = 6, OX = 5, SW = 18, SH = 19;   // canvas in pixels, screen px per pixel, sprite size
-    canvas.width = W * PX;
-    canvas.height = H * PX;
-    const COLORS = { K: '#2b1d14', O: '#f2a541', D: '#c9701f', W: '#fff6e8', P: '#ff8fa3', E: '#2b1d14', H: '#ff5d7a', S: '#ffd84d' };
-    const BASE = [
+    const PX = 5, H = 26;                      // screen px per pixel, stage height in pixels
+    let W = 60;                                // stage width in pixels, set from the layout
+    const COLORS = {
+      K: '#2b1d14', O: '#f2a541', D: '#c9701f', W: '#fff6e8', P: '#ff8fa3', E: '#2b1d14',
+      H: '#ff5d7a', S: '#ffd84d', Z: '#7a8ca3'
+    };
+    // Front view, 18 x 19.
+    const FRONT = [
       '..K............K..',
       '..KK..........KK..',
       '..KPK........KPK..',
@@ -353,6 +359,33 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       '....KWWK..KWWK....',
       '....KKKK..KKKK....'
     ];
+    // Side view running to the right, 20 x 12, two leg poses.
+    const RUN_TOP = [
+      'D...........K...K...',
+      'D..........KPKKKPK..',
+      '.D.........KOOOOOOK.',
+      '.D.........KOOOOEOK.',
+      '..DKKKKKKKKOOOOOOWPK',
+      '..KOOOOOOOOOOOOOOWWK',
+      '..KOODOODOOOKKKKKK..',
+      '..KOOOWWWWWWOOK.....',
+      '...KKKKKKKKKKK......'
+    ];
+    const RUN = [
+      RUN_TOP.concat(['..KO........OK......', '.KO..........OK.....', 'KW............WK....']),
+      RUN_TOP.concat(['....KO....KO........', '....KO....KO........', '....KW....KW........'])
+    ];
+    // Lying down asleep, side view, 22 x 8.
+    const LIE = [
+      '...............K...K..',
+      '..............KPKKKPK.',
+      '....KKKKKKKKKKOOOOOOOK',
+      '...KOODOODOOOOOKKOOOOK',
+      '..KOOOOOOOOOOOOOOOWPWK',
+      '..KOOWWWWWWWOOKKKKKKKK',
+      'DDKOWWWOOWWWOK........',
+      '.DDKKKKKKKKKKK........'
+    ];
     const ARM_DOWN = [[2, 12, 'K'], [3, 12, 'O'], [2, 13, 'K'], [3, 13, 'O'], [2, 14, 'K'], [3, 14, 'W'], [3, 15, 'K']];
     const ARM_UP = [[2, 12, 'K'], [3, 12, 'O'], [1, 11, 'K'], [2, 11, 'O'], [0, 10, 'K'], [1, 10, 'O'], [0, 9, 'K'], [1, 9, 'W'], [1, 8, 'K']];
     const ARM_HIGH = ARM_UP.map(([x, y, c]) => [x, y - 1, c]);
@@ -364,30 +397,67 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     const HAPPY_FACE = [[4, 7, 'E'], [5, 6, 'E'], [6, 6, 'E'], [7, 7, 'E'], [10, 7, 'E'], [11, 6, 'E'], [12, 6, 'E'], [13, 7, 'E'], [8, 9, 'P'], [9, 9, 'P']];
     const HEART = ['.H.H.', 'HHHHH', '.HHH.', '..H..'];
     const SPARK = ['.S.', 'SSS', '.S.'];
+    const ZED = ['ZZZZ', '..Z.', '.Z..', 'ZZZZ'];
     const slow = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const RUN_SPEED = 30;                      // pixels per second
+
+    let cx = 16;                               // horizontal centre of the cat
+    let face = 1;                              // 1 = facing right, -1 = left
+    let mood = { name: 'dance', t0: 0, dur: 4000 };
     let happyStart = -1e9, happyUntil = 0;
     let bursts = [];
 
-    const mirror = pts => pts.map(([x, y, c]) => [SW - 1 - x, y, c]);
+    const mirrorPts = pts => pts.map(([x, y, c]) => [FRONT[0].length - 1 - x, y, c]);
+    const flip = rows => rows.map(r => [...r].reverse().join(''));
+    const clampX = x => Math.max(12, Math.min(W - 12, x));
 
-    function sprite(now) {
-      const g = BASE.map(r => r.split(''));
+    function resize() {
+      W = Math.max(36, Math.floor(canvas.parentElement.clientWidth / PX));
+      canvas.width = W * PX;
+      canvas.height = H * PX;
+      canvas.style.width = W * PX + 'px';
+      canvas.style.height = H * PX + 'px';
+      cx = clampX(cx);
+    }
+
+    function pickMood(now) {
+      const r = Math.random();
+      let name = r < .35 ? 'dance' : r < .62 ? 'run' : r < .8 ? 'jump' : 'lie';
+      if (slow && (name === 'run' || name === 'jump')) name = 'dance';
+      if (name === 'run') {
+        let target = cx;
+        for (let i = 0; i < 8 && Math.abs(target - cx) < W / 4; i++) target = randInt(12, W - 12);
+        face = target > cx ? 1 : -1;
+        mood = { name, t0: now, from: cx, target, dur: Math.abs(target - cx) / RUN_SPEED * 1000 + 1 };
+      } else {
+        mood = { name, t0: now, dur: name === 'dance' ? randInt(3000, 5000) : name === 'jump' ? 1300 : randInt(4500, 7000) };
+      }
+    }
+
+    // pose: 'dance' | 'happy' | 'up' (arms raised, eyes open) | 'crouch'
+    function front(now, pose) {
+      const g = FRONT.map(r => r.split(''));
       const set = pts => pts.forEach(([x, y, c]) => { g[y][x] = c; });
-      const happy = now < happyUntil;
       const beat = Math.floor(now / (slow ? 600 : 220)) % 4;
-      if (happy) {
+      if (pose === 'happy') {
         const wave = Math.floor(now / 120) % 2;
         set(wave ? ARM_UP : ARM_HIGH);
-        set(mirror(wave ? ARM_HIGH : ARM_UP));
+        set(mirrorPts(wave ? ARM_HIGH : ARM_UP));
         set(EYES_OPEN.map(([x, y]) => [x, y, 'O']));
         set(HAPPY_FACE);
+      } else if (pose === 'up') {
+        set(ARM_UP);
+        set(mirrorPts(ARM_UP));
+      } else if (pose === 'crouch') {
+        set(ARM_DOWN);
+        set(mirrorPts(ARM_DOWN));
       } else {
         set(beat === 0 ? ARM_UP : ARM_DOWN);
-        set(mirror(beat === 2 ? ARM_UP : ARM_DOWN));
+        set(mirrorPts(beat === 2 ? ARM_UP : ARM_DOWN));
         if (now % 3200 < 140) set(EYES_OPEN.filter(([, y]) => y === 6).map(([x, y]) => [x, y, 'O']));   // blink
       }
       set(TAIL[beat < 2 ? 0 : 1]);
-      return { g, happy, beat };
+      return { rows: g.map(r => r.join('')), beat };
     }
 
     function blit(pattern, x0, y0) {
@@ -399,14 +469,41 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     }
 
     function draw(now) {
+      const happy = now < happyUntil;
+      if (!happy && now - mood.t0 > mood.dur) pickMood(now);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const { g, happy, beat } = sprite(now);
-      let y0 = H - SH;
-      if (happy && !slow) y0 -= Math.round(Math.abs(Math.sin((now - happyStart) / 1000 * Math.PI * 3)) * 4);
-      else if (!happy && !slow && beat % 2 === 0) y0 -= 1;
-      // Lean left and right with the beat while dancing.
-      const lean = happy || slow ? 0 : beat === 0 ? -1 : beat === 2 ? 1 : 0;
-      blit(g.map(r => r.join('')), OX + lean, y0);
+      const fx = Math.round(cx) - 9, fy = H - FRONT.length;
+
+      if (happy) {
+        const hop = slow ? 0 : Math.round(Math.abs(Math.sin((now - happyStart) / 1000 * Math.PI * 3)) * 4);
+        blit(front(now, 'happy').rows, fx, fy - hop);
+      } else if (mood.name === 'run') {
+        const p = Math.min(1, (now - mood.t0) / mood.dur);
+        cx = mood.from + (mood.target - mood.from) * p;
+        const step = Math.floor(now / 110) % 2;
+        const rows = face > 0 ? RUN[step] : flip(RUN[step]);
+        blit(rows, Math.round(cx) - 10, H - rows.length - (step ? 1 : 0));
+      } else if (mood.name === 'jump') {
+        const t = (now - mood.t0) % 650;
+        if (t < 130) blit(front(now, 'crouch').rows, fx, fy + 1);
+        else blit(front(now, 'up').rows, fx, fy - Math.round(Math.sin((t - 130) / 520 * Math.PI) * 7));
+      } else if (mood.name === 'lie') {
+        const rows = face > 0 ? LIE : flip(LIE);
+        blit(rows, Math.round(cx) - 11, H - rows.length);
+        // Z's drift up from the sleeping head, one after another.
+        for (let i = 0; i < 3; i++) {
+          const t = ((now - mood.t0) / 1000 + i * 0.7) % 2.1;
+          if ((now - mood.t0) / 1000 < i * 0.7) continue;
+          const hx = face > 0 ? Math.round(cx) + 8 : Math.round(cx) - 12;
+          blit(ZED, Math.max(0, Math.min(W - 4, hx + t * 2 * face)), H - 11 - t * 5);
+        }
+      } else {
+        const { rows, beat } = front(now, 'dance');
+        const bob = !slow && beat % 2 === 0 ? 1 : 0;
+        const lean = slow ? 0 : beat === 0 ? -1 : beat === 2 ? 1 : 0;
+        blit(rows, fx + lean, fy - bob);
+      }
+
       bursts = bursts.filter(b => now - b.t0 < b.life);
       bursts.forEach(b => {
         const t = (now - b.t0) / 1000;
@@ -419,20 +516,27 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       draw(now);
       requestAnimationFrame(loop);
     }
+
+    resize();
+    cx = Math.round(W / 4);
+    window.addEventListener('resize', resize);
     requestAnimationFrame(loop);
 
     // k = number of lines cleared at once; bigger combos mean a longer, bigger party.
+    // Whatever the cat was doing, it stops and jumps for joy, then dances for a bit.
     // Hearts and sparkles rise on both sides of the cat so they never cover its face.
     function cheer(k = 1) {
       const now = performance.now();
       happyStart = now;
       happyUntil = now + 900 + 450 * k;
+      mood = { name: 'dance', t0: happyUntil, dur: 2000 };
       for (let i = 0; i < 2 + 2 * k; i++) {
         const left = i % 2 === 0;
         const heart = Math.floor(i / 2) % 2 === 0;
         const w = heart ? 5 : 3;
+        const x = left ? Math.round(cx) - 9 - w - randInt(0, 3) : Math.round(cx) + 9 + randInt(0, 3);
         bursts.push({
-          heart, x: left ? randInt(0, OX - w) : randInt(OX + SW, W - w), y: randInt(10, 16),
+          heart, x: Math.max(0, Math.min(W - w, x)), y: randInt(10, 16),
           vy: 5 + Math.random() * 4, t0: now + i * 90, life: 1200
         });
       }
@@ -479,17 +583,17 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     return r < KIND_RATE.set ? 'set' : r < KIND_RATE.set + KIND_RATE.add ? 'add' : 'sub';
   }
 
-  // The number a tile of this kind needs to turn `cell` into `want`, or null if it can't.
+  // The number a tile of this kind needs to turn `cell` into `want`.
   function stepFor(kind, cell, want) {
     if (kind === 'set') return want;
-    const n = kind === 'add' ? wrap(want - cell) : wrap(cell - want);
-    return n >= 1 && n <= STEP_MAX ? n : null;
+    return kind === 'add' ? wrap(want - cell) : wrap(cell - want);
   }
 
   // Sometimes hand out a tile that would turn some line into 9, so the board stays playable.
   function newTile() {
     const { cfg, grid } = S;
     const kind = pickKind();
+    const [lo, hi] = RANGE[kind][Math.random() < SMALL_RATE ? 0 : 1];
     if (Math.random() < .5) {
       const options = [];
       for (const line of lines(cfg.size)) {
@@ -498,7 +602,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
           const want = 9 - (sum - grid[i]);
           if (want < 0 || want > 9 || want === grid[i]) continue;
           const n = stepFor(kind, grid[i], want);
-          if (n !== null) options.push(n);
+          if (n >= lo && n <= hi) options.push(n);
         }
       }
       // Avoid handing out a tile already waiting in the tray when possible.
@@ -506,7 +610,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       const pool = fresh.length ? fresh : options;
       if (pool.length) return { kind, n: pool[randInt(0, pool.length - 1)] };
     }
-    return { kind, n: kind === 'set' ? randInt(0, cfg.setMax) : randInt(1, STEP_MAX) };
+    return { kind, n: randInt(lo, hi) };
   }
 
   function fillTray() { while (S.tray.length < TRAY_SIZE) S.tray.push(newTile()); }

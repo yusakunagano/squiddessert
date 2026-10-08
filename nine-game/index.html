@@ -185,7 +185,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   -webkit-user-select: text; user-select: text;
 }
 .submit-row input:focus { outline: 3px solid var(--blue); outline-offset: 1px; }
-.rank-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: var(--well); }
+.rank-tabs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: var(--well); }
 .rank-tab {
   font: inherit; font-weight: 900; font-size: .9rem; padding: 8px; border: 0; border-radius: 999px;
   background: transparent; color: var(--muted); cursor: pointer;
@@ -288,7 +288,8 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   <div class="panel rank-panel">
     <h2>ランキング <small>TOP 100</small></h2>
     <div class="rank-tabs" role="tablist">
-      <button class="rank-tab" type="button" role="tab" data-tab="weekly" aria-selected="true">週間</button>
+      <button class="rank-tab" type="button" role="tab" data-tab="daily" aria-selected="true">今日</button>
+      <button class="rank-tab" type="button" role="tab" data-tab="weekly" aria-selected="false">週間</button>
       <button class="rank-tab" type="button" role="tab" data-tab="all" aria-selected="false">総合</button>
     </div>
     <p class="rank-period" id="rankPeriod"></p>
@@ -1080,6 +1081,6 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   render();
 })();
 </script>
-<script type="module" src="ranking.js?v=20261010"></script>
+<script type="module" src="ranking.js?v=20261011"></script>
 </body>
 </html>

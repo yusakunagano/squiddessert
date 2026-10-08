@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#e6e6e4">
+<meta name="theme-color" content="#111111">
 <title>ナインゲーム</title>
 <style>
 @font-face { font-family: "Nine Display"; src: url("fonts/noto-sans-jp-900.woff2") format("woff2"); font-display: swap; }
@@ -12,14 +12,17 @@
 @font-face { font-family: "Nine Body"; font-weight: 900; src: url("fonts/noto-sans-jp-900.woff2") format("woff2"); font-display: swap; }
 /* Layout: one-screen board. Grid of flat colour blocks on the left, a vertical tray of tiles on the right,
    stats strip on top, the cat's stage below. Look: flat print colours (red, olive, blue, green) on light grey,
-   black line art and heavy gothic type, square corners. One deliberate light look in every theme. */
+   heavy gothic type, softly rounded corners. One deliberate dark look in every theme: near-black page,
+   light ink, colour blocks on top. */
 :root {
-  --paper: #e6e6e4;
-  --surface: #ffffff;
-  --well: #d6d6d3;
-  --line: #111111;
-  --ink: #111111;
-  --muted: #5e5e5c;
+  --paper: #111111;
+  --surface: #1e1e1d;
+  --well: #2b2b29;
+  --line: #f2f2ef;
+  --ink: #f2f2ef;
+  --muted: #9b9b96;
+  --dark-ink: #111111;
+  --radius: 6px;
   --red: #be2a3c;
   --olive: #c8c846;
   --blue: #5e8fbd;
@@ -29,11 +32,11 @@
   --minus: var(--red);
   --nine: var(--red);
   --on-tile: #ffffff;
-  --shadow: rgba(17, 17, 17, .16);
+  --shadow: rgba(0, 0, 0, .45);
   --display: "Nine Display", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
   --body: "Nine Body", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
   --cell: 72px;
-  color-scheme: light;
+  color-scheme: dark;
 }
 html, body { height: 100%; margin: 0; }
 [hidden] { display: none !important; }
@@ -52,25 +55,27 @@ h1 { font-family: var(--display); font-weight: 400; font-size: 1.6rem; margin: 0
 h1 b { color: var(--red); font-weight: 400; }
 .head-right { display: flex; align-items: center; gap: 10px; }
 .icon-btn {
-  width: 34px; height: 34px; border-radius: 0; border: 2px solid var(--ink); background: transparent;
+  min-width: 34px; height: 34px; border-radius: var(--radius); border: 2px solid var(--ink); background: transparent;
   color: var(--ink); font-weight: 800; font-size: .8rem; cursor: pointer; padding: 0;
 }
+.icon-btn.sound-toggle { padding: 0 8px; font-size: .72rem; }
+.sound-toggle[aria-pressed="true"] { background: var(--olive); border-color: var(--olive); color: var(--dark-ink); }
 .best { font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .stat { display: flex; flex-direction: column; gap: 2px; }
 .stat span { font-size: .68rem; color: var(--muted); letter-spacing: .08em; font-weight: 700; }
 .stat strong { font-family: var(--display); font-weight: 400; font-size: 1.35rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.timebar { height: 8px; background: var(--well); overflow: hidden; }
+.timebar { height: 8px; border-radius: 4px; background: var(--well); overflow: hidden; }
 .timebar i { display: block; height: 100%; width: 100%; background: var(--blue); transform-origin: left; transition: background .3s; }
 .timebar.low i { background: var(--minus); }
 
 .play { display: flex; gap: 14px; align-items: flex-start; justify-content: center; position: relative; }
 .board { display: grid; gap: 6px; touch-action: none; }
 .cell {
-  width: var(--cell); height: var(--cell); border-radius: 0; border: 0;
+  width: var(--cell); height: var(--cell); border-radius: var(--radius); border: 0;
   background: var(--block, var(--surface)); display: grid; place-items: center; padding: 0; position: relative;
-  font-family: var(--display); font-size: calc(var(--cell) * .46); color: var(--block-ink, var(--ink));
+  font-family: var(--display); font-size: calc(var(--cell) * .46); color: var(--block-ink, var(--dark-ink));
   transition: transform .12s, outline-color .12s; cursor: pointer; outline: 3px solid transparent; outline-offset: 2px;
 }
 /* Each digit has its own flat block colour, from the print palette and its light tints. */
@@ -96,7 +101,7 @@ h1 b { color: var(--red); font-weight: 400; }
 .cell .delta.pos { color: var(--plus); }
 .cell .delta.neg { color: var(--minus); }
 @keyframes fadeup { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-8px); } }
-.cell.pop { animation: pop .42s ease-in forwards; background: var(--ink); color: #fff; }
+.cell.pop { animation: pop .42s ease-in forwards; background: var(--ink); color: var(--dark-ink); }
 @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.15); } 100% { transform: scale(.2); opacity: 0; } }
 .cell.fresh { animation: fresh .3s ease-out; }
 @keyframes fresh { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -106,11 +111,11 @@ h1 b { color: var(--red); font-weight: 400; }
 }
 .sum.hit { color: var(--red); }
 
-.tray { display: flex; flex-direction: column; gap: 8px; padding: 8px; background: var(--surface); touch-action: none; }
+.tray { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 10px; background: var(--surface); touch-action: none; }
 .tray-label { font-size: .62rem; color: var(--muted); text-align: center; font-weight: 700; letter-spacing: .1em; }
 /* Tray tiles: flat print-colour squares with slightly rounded corners. The ★ stays still so it is easy to grab. */
 .tile {
-  width: calc(var(--cell) * .9); height: calc(var(--cell) * .9); border-radius: 6px; border: 0;
+  width: calc(var(--cell) * .9); height: calc(var(--cell) * .9); border-radius: var(--radius); border: 0;
   font-family: var(--display); font-size: calc(var(--cell) * .4); color: #fff;
   display: grid; place-items: center; cursor: grab; touch-action: none; padding: 0;
   background: var(--slate); transition: transform .1s, opacity .1s;
@@ -118,7 +123,7 @@ h1 b { color: var(--red); font-weight: 400; }
 .tile.set { background: var(--slate); }
 .tile.add { background: var(--green); }
 .tile.sub { background: var(--red); }
-.tile.star { background: var(--olive); color: var(--ink); font-size: calc(var(--cell) * .5); }
+.tile.star { background: var(--olive); color: var(--dark-ink); font-size: calc(var(--cell) * .5); }
 .tile.selected { outline: 3px solid var(--ink); outline-offset: 3px; transform: translateX(-4px); }
 .tile.lifted { opacity: .25; }
 .ghost {
@@ -129,21 +134,21 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
 .controls { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
 .controls .btn { align-self: flex-end; }
-.hint { font-size: .8rem; color: var(--muted); flex: 1 1 200px; min-width: 0; line-height: 1.5; }
+.hint { font-size: .8rem; color: var(--muted); margin: 0; min-width: 0; line-height: 1.5; }
 .cat { display: block; width: 100%; height: 105px; image-rendering: pixelated; image-rendering: crisp-edges; }
 .btn {
-  font-family: var(--body); font-weight: 900; font-size: .95rem; border-radius: 0;
+  font-family: var(--body); font-weight: 900; font-size: .95rem; border-radius: var(--radius);
   padding: 10px 18px; border: 2px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
 }
 .btn small { font-weight: 700; color: var(--minus); margin-left: 4px; }
-.btn.primary { background: var(--ink); color: #fff; }
+.btn.primary { background: var(--ink); color: var(--dark-ink); }
 .btn.pulse { animation: pulse 1s ease-in-out infinite; border-color: var(--minus); }
 @keyframes pulse { 50% { transform: scale(1.06); } }
 
 .float {
   position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); pointer-events: none; z-index: 20;
   font-family: var(--display); font-size: 1.6rem; color: var(--red); text-align: center; white-space: nowrap;
-  text-shadow: 2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff; animation: rise 1.2s ease-out forwards;
+  text-shadow: 2px 2px 0 var(--paper), -2px -2px 0 var(--paper), 2px -2px 0 var(--paper), -2px 2px 0 var(--paper); animation: rise 1.2s ease-out forwards;
 }
 .float small { display: block; font-family: var(--body); font-weight: 800; font-size: .85rem; color: var(--ink); }
 @keyframes rise { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.8); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); } 100% { opacity: 0; transform: translate(-50%, -120%); } }
@@ -153,7 +158,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   background: color-mix(in srgb, var(--paper) 78%, transparent); backdrop-filter: blur(3px);
 }
 .panel {
-  background: var(--surface); border-radius: 0; padding: 22px 20px; max-width: 380px; width: 100%;
+  background: var(--surface); border-radius: 10px; padding: 22px 20px; max-width: 380px; width: 100%;
   box-shadow: 8px 8px 0 var(--shadow); display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;
 }
 .panel h2 { font-family: var(--display); font-weight: 400; font-size: 1.5rem; margin: 0; text-wrap: balance; }
@@ -171,16 +176,16 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .submit-row { display: flex; gap: 8px; }
 .submit-row input {
   flex: 1; min-width: 0; font: inherit; font-weight: 700; font-size: 1rem; padding: 9px 12px;
-  border-radius: 0; border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
+  border-radius: var(--radius); border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
   -webkit-user-select: text; user-select: text;
 }
 .submit-row input:focus { outline: 3px solid var(--blue); outline-offset: 1px; }
-.rank-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--well); }
+.rank-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius); background: var(--well); }
 .rank-tab {
-  font: inherit; font-weight: 900; font-size: .9rem; padding: 8px; border: 0; border-radius: 0;
+  font: inherit; font-weight: 900; font-size: .9rem; padding: 8px; border: 0; border-radius: 4px;
   background: transparent; color: var(--muted); cursor: pointer;
 }
-.rank-tab[aria-selected="true"] { background: var(--ink); color: #fff; }
+.rank-tab[aria-selected="true"] { background: var(--ink); color: var(--dark-ink); }
 .rank-period { margin: -4px 0 0; font-size: .78rem; font-weight: 700; color: var(--muted); text-align: center; }
 .note { margin: 0; font-size: .85rem; line-height: 1.5; color: var(--muted); }
 .note.ok { color: var(--plus); font-weight: 800; }
@@ -189,7 +194,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .rank-panel { max-width: 420px; }
 .rank-panel h2 small { font-family: var(--body); font-size: .8rem; color: var(--muted); font-weight: 800; }
 .rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
-.rank-list li { display: grid; grid-template-columns: 2.6em 1fr auto; gap: 8px; align-items: baseline; padding: 7px 8px; }
+.rank-list li { display: grid; grid-template-columns: 2.6em 1fr auto; gap: 8px; align-items: baseline; padding: 7px 8px; border-radius: 4px; }
 .rank-list li:nth-child(odd) { background: var(--well); }
 .rank-list li.me { outline: 3px solid var(--red); outline-offset: -3px; }
 .rank-list li.mine .who { color: var(--blue); }
@@ -210,6 +215,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     <h1>ナイン<b>9</b>ゲーム</h1>
     <div class="head-right">
       <div class="best" id="bestLabel">ベスト 0</div>
+      <button class="icon-btn sound-toggle" type="button" aria-pressed="false">♪ OFF</button>
       <button class="icon-btn" id="pauseBtn" type="button" aria-label="一時停止" hidden>Ⅱ</button>
     </div>
   </header>
@@ -248,6 +254,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       <li>制限時間 60 秒で何回 9 を作れるか挑戦。レベルアップで +10 秒。</li>
     </ul>
     <button class="btn primary" id="startBtn" type="button">スタート</button>
+    <button class="btn sound-toggle" type="button" aria-pressed="false">♪ サウンド OFF</button>
     <button class="btn" id="rankBtnStart" type="button">ランキングを見る</button>
   </div>
 </div>
@@ -258,6 +265,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     <p class="hint">残り時間は止まっています。</p>
     <button class="btn primary" id="resumeBtn" type="button">再開</button>
     <button class="btn" id="rulesBtn" type="button">説明を見る</button>
+    <button class="btn sound-toggle" type="button" aria-pressed="false">♪ サウンド OFF</button>
     <button class="btn" id="quitBtn" type="button">やめて最初から</button>
   </div>
 </div>
@@ -348,14 +356,14 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   const wrap = v => ((v % 10) + 10) % 10;
 
   // ---- tiny pixel cat below the board ----
-  // A deliberately simple silhouette (ink body, eyes are holes). Wanders between moods
+  // A deliberately simple silhouette (light body on the dark page, eyes are holes). Wanders between moods
   // (dance, walk, hop, nap) and celebrates whenever lines clear.
   const cat = (() => {
     const canvas = $('cat');
     const ctx = canvas.getContext('2d');
     const PX = 7, H = 15;                      // screen px per pixel, stage height in pixels
     let W = 50;                                // stage width in pixels, set from the layout
-    const COLORS = { X: '#111111', R: '#be2a3c', S: '#c8c846', Z: '#5e5e5c' };
+    const COLORS = { X: '#f2f2ef', R: '#be2a3c', S: '#c8c846', Z: '#9b9b96' };
     // 13 x 10, eyes are the holes in rows 4-5, tail on the right.
     const BODY = [
       '.X........X..',
@@ -518,6 +526,76 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       }
     }
     return { cheer };
+  })();
+
+  // ---- sound: little chiptune effects made with Web Audio (no audio files). Off by default. ----
+  const sound = (() => {
+    const KEY = 'nine-game-sound';
+    let on = false;
+    try { on = localStorage.getItem(KEY) === 'on'; } catch {}
+    let ac = null;
+
+    function audio() {
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        ac = new AC();
+      }
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    }
+
+    // One short note. at: seconds from now; slide: pitch multiplier reached by the end.
+    function note(freq, at, dur, { type = 'square', vol = .06, slide = 0 } = {}) {
+      const a = audio();
+      if (!a) return;
+      const t = a.currentTime + at;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t + dur);
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + .01);
+      g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      o.connect(g).connect(a.destination);
+      o.start(t);
+      o.stop(t + dur + .02);
+    }
+    const run = (freqs, step, opts) => freqs.forEach((f, i) => note(f, i * step, step * 1.6, opts));
+
+    const FX = {
+      pick: () => note(880, 0, .04, { vol: .03 }),
+      place: () => note(520, 0, .08, { type: 'triangle', vol: .12, slide: 1.4 }),
+      swap: () => note(330, 0, .1, { type: 'triangle', vol: .1, slide: 1.8 }),
+      // bigger combos climb higher
+      clear: k => run([523, 659, 784, 1047, 1319, 1568].slice(0, 3 + Math.min(k, 3)), .06, { vol: .05 }),
+      star: () => run([784, 988, 1175, 1568, 1976, 2349], .045, { vol: .045 }),
+      level: () => run([392, 523, 659, 784, 659, 784, 1047], .08, { type: 'square', vol: .05 }),
+      tick: () => note(1200, 0, .05, { vol: .04 }),
+      start: () => run([523, 784], .09, { vol: .05 }),
+      end: () => run([784, 659, 523, 392, 330], .12, { type: 'triangle', vol: .1 })
+    };
+
+    function play(name, ...args) { if (on && FX[name]) FX[name](...args); }
+
+    function render() {
+      document.querySelectorAll('.sound-toggle').forEach(b => {
+        b.setAttribute('aria-pressed', String(on));
+        b.textContent = b.classList.contains('icon-btn') ? `♪ ${on ? 'ON' : 'OFF'}` : `♪ サウンド ${on ? 'ON' : 'OFF'}`;
+        b.setAttribute('aria-label', `サウンド ${on ? 'オン' : 'オフ'}`);
+      });
+    }
+
+    function toggle() {
+      on = !on;
+      try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch {}
+      if (on) FX.start();          // the click unlocks audio on phones, and confirms it works
+      render();
+    }
+
+    document.querySelectorAll('.sound-toggle').forEach(b => b.addEventListener('click', toggle));
+    render();
+    return { play };
   })();
   const tileText = t => (t.kind === 'star' ? '★' : (t.kind === 'add' ? '+' : t.kind === 'sub' ? '−' : '') + t.n);
   const applyTile = (cell, t) => (t.kind === 'set' ? t.n : wrap(cell + (t.kind === 'add' ? t.n : -t.n)));
@@ -707,6 +785,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     if (bonus) S.bonuses++;
     floatText(`${COMBO[Math.min(k, 4)]} +${base + bonus}`, bonus ? `ボーナス +${bonus}` : '');
     cat.cheer(k);
+    sound.play('clear', k);
     try { navigator.vibrate && navigator.vibrate(k >= 2 ? [30, 40, 30] : 25); } catch {}
 
     clearCells(new Set(hits.flat()));
@@ -739,6 +818,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     S.linesInLevel += lines2.length;
     floatText(`★ 縦横クリア！ +${points}`, '');
     cat.cheer(2);
+    sound.play('star');
     try { navigator.vibrate && navigator.vibrate([20, 30, 20, 30, 40]); } catch {}
     clearCells(new Set(lines2.flat()));
   }
@@ -751,6 +831,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     if (t.kind === 'star') { starClear(cellIdx); return; }
     S.grid[cellIdx] = applyTile(S.grid[cellIdx], t);
     if (!resolve([cellIdx])) {
+      sound.play('place');
       fillTray();
       render({ changed: new Set([cellIdx]), tile: t, deltaAt: cellIdx });
     }
@@ -765,7 +846,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     const b = r * n + c;
     [S.grid[a], S.grid[b]] = [S.grid[b], S.grid[a]];
     S.selected = null;
-    if (!resolve([a, b])) render({ changed: new Set([a, b]) });
+    if (!resolve([a, b])) { sound.play('swap'); render({ changed: new Set([a, b]) }); }
   }
 
   // Returns true when the board was rebuilt (grid size changed).
@@ -775,6 +856,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     const prevSize = S.cfg.size;
     S.cfg = levelCfg(S.level);
     S.timeLeft += LEVEL_UP_TIME;
+    sound.play('level');
     if (S.cfg.size !== prevSize) {
       S.grid = newBoard(S.cfg);
       S.tray = [];
@@ -789,7 +871,9 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
   function tick(last) {
     const now = performance.now();
+    const before = Math.ceil(S.timeLeft);
     S.timeLeft -= (now - last) / 1000;
+    if (Math.ceil(S.timeLeft) < before && before <= 5 && S.timeLeft > 0) sound.play('tick');   // last 5 seconds
     if (S.timeLeft <= 0) { S.timeLeft = 0; renderStats(); endGame(); return; }
     renderStats();
     timerId = setTimeout(() => tick(now), 100);
@@ -829,11 +913,13 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     $('startOverlay').hidden = true;
     $('endOverlay').hidden = true;
     $('pauseBtn').hidden = false;
+    sound.play('start');
     tick(performance.now());
   }
 
   function endGame() {
     S.running = false;
+    sound.play('end');
     $('pauseBtn').hidden = true;
     cancelDrag();
     const best = readBest();
@@ -880,6 +966,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     if (!drag || e.pointerId !== drag.id) return;
     if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) {
       drag.moved = true;
+      sound.play('pick');
       const g = drag.tileEl.cloneNode(true);
       g.classList.add('ghost');
       g.classList.remove('selected');
@@ -948,6 +1035,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     if (!t || !S.running || suppressClick) { suppressClick = false; return; }
     const i = Number(t.dataset.tray);
     S.selected = S.selected === i ? null : i;
+    if (S.selected !== null) sound.play('pick');
     render();
   });
   boardEl.addEventListener('click', e => {

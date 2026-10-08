@@ -106,8 +106,9 @@ h1 b { color: var(--nine); font-weight: 400; }
   display: grid; place-items: center; cursor: grab; touch-action: none; padding: 0;
   box-shadow: 0 3px 0 var(--shadow); transition: transform .1s, opacity .1s;
 }
-.tile.pos { background: var(--plus); }
-.tile.neg { background: var(--minus); }
+.tile.set { background: var(--ink); color: var(--paper); }
+.tile.add { background: var(--plus); }
+.tile.sub { background: var(--minus); }
 .tile.selected { outline: 3px solid var(--nine); outline-offset: 2px; transform: translateX(-4px); }
 .tile.lifted { opacity: .25; }
 .ghost {
@@ -224,12 +225,14 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   <div class="panel">
     <h2>合計を<b>9</b>にそろえよう</h2>
     <ul>
-      <li>右の数字タイルをマスにドラッグすると、<b>マスの数に足されます</b>（タップで選んでマスをタップでもOK）。</li>
-      <li>10以上になったら1の位だけ残ります。3に5 → <b>8</b>、5に5 → <b>0</b>、8に3 → <b>1</b>。</li>
+      <li>右の数字タイルをマスにドラッグします（タップで選んでマスをタップでもOK）。タイルは3種類。
+        <br>「<b>5</b>」… マスの数字を<b>5に置き換え</b>
+        <br>「<b>+5</b>」… マスの数字に<b>5を足す</b>（10以上は1の位。8に+3 → 1）
+        <br>「<span class="neg-text">−5</span>」… マスの数字から<b>5を引く</b>（0より下は9に戻る。2に−3 → 9）</li>
       <li>マスを<b>上下左右に指でなぞると</b>、隣のマスと入れ替わります。</li>
       <li>横か縦の列の合計が <b>9</b> になると列が消えて得点。消えたマスには新しい数字が入ります。</li>
       <li>1回の操作で<b>2列以上が同時に9</b>になるとボーナス。</li>
-      <li>レベル2から<span class="neg-text">マイナスの数字</span>が登場（0を下回ると9に戻ります。2に−3 → 9）。レベル3から <b>4×4</b> マス。</li>
+      <li>レベル3から <b>4×4</b> マスに広がります。</li>
       <li>リセットで盤面の数字を全部入れ替えられますが <span class="neg-text">−100点</span>。</li>
       <li>制限時間 90 秒で何回 9 を作れるか挑戦。レベルアップで +10 秒。</li>
     </ul>
@@ -295,12 +298,15 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   const TRAY_SIZE = 4;
   const BEST_KEY = 'nine-game-best';
 
+  // Tile kinds: 'set' replaces the cell's digit, 'add' / 'sub' add or subtract (wrapping 0-9).
+  const KIND_RATE = { set: .7, add: .15, sub: .15 };
+  const STEP_MAX = 5;    // largest number on a + / − tile
+
   // seedMax: largest digit used when filling the board, kept small so 9 stays reachable.
+  // setMax: largest digit on a replace tile.
   function levelCfg(lv) {
-    if (lv === 1) return { size: 3, min: 1, max: 9, negRate: 0, seedMax: 5 };
-    if (lv === 2) return { size: 3, min: -5, max: 9, negRate: .3, seedMax: 5 };
-    if (lv === 3) return { size: 4, min: -5, max: 9, negRate: .3, seedMax: 4 };
-    return { size: 4, min: -9, max: 9, negRate: .35, seedMax: 4 };
+    if (lv <= 2) return { size: 3, seedMax: 5, setMax: 7 };
+    return { size: 4, seedMax: 4, setMax: 6 };
   }
 
   const $ = id => document.getElementById(id);
@@ -317,7 +323,8 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   // Keep only the ones digit: 10 → 0, 11 → 1, and below 0 wraps back (−1 → 9).
   const wrap = v => ((v % 10) + 10) % 10;
-  const fmt = v => (v < 0 ? '−' + Math.abs(v) : String(v));
+  const tileText = t => (t.kind === 'add' ? '+' : t.kind === 'sub' ? '−' : '') + t.n;
+  const applyTile = (cell, t) => (t.kind === 'set' ? t.n : wrap(cell + (t.kind === 'add' ? t.n : -t.n)));
 
   function lines(size) {
     const out = [];
@@ -351,14 +358,22 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     };
   }
 
-  function randomValue(cfg) {
-    if (cfg.negRate && Math.random() < cfg.negRate) return randInt(cfg.min, -1);
-    return randInt(cfg.min > 0 ? cfg.min : 1, cfg.max);
+  function pickKind() {
+    const r = Math.random();
+    return r < KIND_RATE.set ? 'set' : r < KIND_RATE.set + KIND_RATE.add ? 'add' : 'sub';
   }
 
-  // Sometimes hand out a number that would turn some line into 9, so the board stays playable.
+  // The number a tile of this kind needs to turn `cell` into `want`, or null if it can't.
+  function stepFor(kind, cell, want) {
+    if (kind === 'set') return want;
+    const n = kind === 'add' ? wrap(want - cell) : wrap(cell - want);
+    return n >= 1 && n <= STEP_MAX ? n : null;
+  }
+
+  // Sometimes hand out a tile that would turn some line into 9, so the board stays playable.
   function newTile() {
     const { cfg, grid } = S;
+    const kind = pickKind();
     if (Math.random() < .5) {
       const options = [];
       for (const line of lines(cfg.size)) {
@@ -366,17 +381,16 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
         for (const i of line) {
           const want = 9 - (sum - grid[i]);
           if (want < 0 || want > 9 || want === grid[i]) continue;
-          const t = wrap(want - grid[i]);
-          if (t <= cfg.max) options.push(t);
-          if (cfg.negRate && t - 10 >= cfg.min) options.push(t - 10);
+          const n = stepFor(kind, grid[i], want);
+          if (n !== null) options.push(n);
         }
       }
-      // Avoid handing out a number already waiting in the tray when possible.
-      const fresh = options.filter(v => !S.tray.includes(v));
+      // Avoid handing out a tile already waiting in the tray when possible.
+      const fresh = options.filter(n => !S.tray.some(t => t.kind === kind && t.n === n));
       const pool = fresh.length ? fresh : options;
-      if (pool.length) return pool[randInt(0, pool.length - 1)];
+      if (pool.length) return { kind, n: pool[randInt(0, pool.length - 1)] };
     }
-    return randomValue(cfg);
+    return { kind, n: kind === 'set' ? randInt(0, cfg.setMax) : randInt(1, STEP_MAX) };
   }
 
   function fillTray() { while (S.tray.length < TRAY_SIZE) S.tray.push(newTile()); }
@@ -414,10 +428,10 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
         b.dataset.idx = i;
         b.textContent = g[i];
         b.setAttribute('aria-label', `${r + 1}行${c + 1}列 ${g[i]}`);
-        if (fx.deltaAt === i) {
+        if (fx.deltaAt === i && fx.tile.kind !== 'set') {
           const d = document.createElement('span');
-          d.className = 'delta ' + (fx.delta < 0 ? 'neg' : 'pos');
-          d.textContent = fx.delta < 0 ? fmt(fx.delta) : '+' + fx.delta;
+          d.className = 'delta ' + (fx.tile.kind === 'sub' ? 'neg' : 'pos');
+          d.textContent = tileText(fx.tile);
           b.appendChild(d);
         }
         boardEl.appendChild(b);
@@ -428,13 +442,14 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     boardEl.appendChild(document.createElement('div'));
 
     trayEl.innerHTML = '<div class="tray-label">NEXT</div>';
+    const KIND_LABEL = { set: '置き換え', add: 'たす', sub: 'ひく' };
     S.tray.forEach((v, i) => {
       const t = document.createElement('button');
       t.type = 'button';
-      t.className = 'tile ' + (v < 0 ? 'neg' : 'pos') + (S.selected === i ? ' selected' : '');
+      t.className = 'tile ' + v.kind + (S.selected === i ? ' selected' : '');
       t.dataset.tray = i;
-      t.textContent = v < 0 ? fmt(v) : '+' + v;
-      t.setAttribute('aria-label', `数字 ${fmt(v)}`);
+      t.textContent = tileText(v);
+      t.setAttribute('aria-label', `${KIND_LABEL[v.kind]} ${v.n}`);
       trayEl.appendChild(t);
     });
     renderStats();
@@ -451,9 +466,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   }
 
   function updateHint() {
-    hintEl.textContent = S.level >= 2
-      ? 'マイナスの数字で引き算もできます（0を下回ると9に戻る）。横か縦の合計が 9 で列が消えます。'
-      : '右の数字をドラッグで足し算（10以上は1の位）。マスを上下左右になぞると隣と入れ替わります。';
+    hintEl.textContent = '「5」は置き換え、「+5」は足し算、「−5」は引き算。マスをなぞると隣と入れ替え。横か縦の合計 9 で消えます。';
   }
 
   function floatText(main, sub) {
@@ -522,12 +535,12 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   function place(cellIdx, trayIdx) {
     if (!S.running || S.busy || S.tray[trayIdx] === undefined) return;
     const t = S.tray[trayIdx];
-    S.grid[cellIdx] = wrap(S.grid[cellIdx] + t);
+    S.grid[cellIdx] = applyTile(S.grid[cellIdx], t);
     S.tray.splice(trayIdx, 1);
     S.selected = null;
     if (!resolve([cellIdx])) {
       fillTray();
-      render({ changed: new Set([cellIdx]), delta: t, deltaAt: cellIdx });
+      render({ changed: new Set([cellIdx]), tile: t, deltaAt: cellIdx });
     }
   }
 
@@ -558,7 +571,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       return true;
     }
     refill(S.grid, [], S.cfg);
-    floatText(`LEVEL ${S.level}`, (S.level === 2 ? 'マイナスの数字が登場！ ' : '') + `+${LEVEL_UP_TIME}秒`);
+    floatText(`LEVEL ${S.level}`, `+${LEVEL_UP_TIME}秒`);
     return false;
   }
 
@@ -759,7 +772,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   // Full sample board behind the start screen, so the first view shows the game.
   S = newState();
   S.grid = [3, 1, 4, 2, 5, 0, 1, 2, 3];
-  S.tray = [5, 3, 6, 2];
+  S.tray = [{ kind: 'set', n: 5 }, { kind: 'add', n: 3 }, { kind: 'set', n: 2 }, { kind: 'sub', n: 1 }];
   sizeCells();
   render();
 })();

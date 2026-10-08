@@ -65,7 +65,7 @@ h1 b { color: var(--red); font-weight: 400; }
 .stat { display: flex; flex-direction: column; gap: 2px; }
 .stat span { font-size: .68rem; color: var(--muted); letter-spacing: .08em; font-weight: 700; }
 .stat strong { font-family: var(--display); font-weight: 400; font-size: 1.35rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.timebar { height: 8px; border-radius: 4px; background: var(--well); overflow: hidden; margin-bottom: 8px; }
+.timebar { height: 8px; border-radius: 4px; background: var(--well); overflow: hidden; margin-bottom: 16px; }
 .timebar i { display: block; height: 100%; width: 100%; background: var(--blue); transform-origin: left; transition: background .3s; }
 .timebar.low i { background: var(--minus); }
 
@@ -76,6 +76,8 @@ h1 b { color: var(--red); font-weight: 400; }
   background: var(--block, var(--surface)); display: grid; place-items: center; padding: 0; position: relative;
   font-family: var(--display); font-size: calc(var(--cell) * .46); color: var(--block-ink, var(--dark-ink));
   transition: transform .12s, outline-color .12s; cursor: pointer; outline: 3px solid transparent; outline-offset: 2px;
+  /* a little depth, like the tiles: light top edge, darker bottom edge and a short drop */
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .3), inset 0 -5px 0 rgba(0, 0, 0, .18), 0 4px 0 rgba(0, 0, 0, .5);
 }
 /* Each digit has its own flat block colour, from the print palette and its light tints. */
 .cell.v0 { --block: #ffffff; }
@@ -99,6 +101,11 @@ h1 b { color: var(--red); font-weight: 400; }
 }
 .cell .delta.pos { color: var(--plus); }
 .cell .delta.neg { color: var(--minus); }
+.cell .penalty {
+  position: absolute; left: 4px; bottom: 6px; font-family: var(--body); font-weight: 900; line-height: 1.3;
+  font-size: calc(var(--cell) * .18); color: #fff; background: var(--red); padding: 0 5px; border-radius: 999px;
+  animation: fadeup .9s ease-out forwards; pointer-events: none;
+}
 @keyframes fadeup { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-8px); } }
 .cell.pop { animation: pop .42s ease-in forwards; background: var(--ink); color: var(--dark-ink); }
 @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.15); } 100% { transform: scale(.2); opacity: 0; } }
@@ -256,6 +263,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       <li>マスを<b>上下左右に指でなぞると</b>、隣のマスと入れ替わります。</li>
       <li>横か縦の列の合計が <b>9</b> になると列が消えて得点。消えたマスには新しい数字が入ります。</li>
       <li>1回の操作で<b>2列以上が同時に9</b>になるとボーナス。</li>
+      <li>タイルを置いても列がそろわなかったら <span class="neg-text">−10点</span>。よく計算してから置こう。</li>
       <li>レベル3から <b>4×4</b> マスに広がります。</li>
       <li>制限時間 60 秒で何回 9 を作れるか挑戦。レベルアップで +5 秒。</li>
     </ul>
@@ -336,6 +344,8 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   const KIND_RATE = { set: .7, add: .15, sub: .15 };
   // Number ranges per kind: [small, big]. About 90% of tiles use the small range (−3 to 3).
   const SMALL_RATE = .9;
+  // Dropping a tile that completes no line costs points, so guessing without counting does not pay.
+  const MISS_PENALTY = 10;
   // Plain "+1" tiles: 70% at level 1, then 50% from level 2 on.
   const PLUS_ONE_RATE = lv => (lv === 1 ? .7 : .5);
   // A ★ tile clears the whole row and column of the cell it is dropped on.
@@ -574,6 +584,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     const FX = {
       pick: () => note(880, 0, .04, { vol: .03 }),
       place: () => note(520, 0, .08, { type: 'triangle', vol: .12, slide: 1.4 }),
+      miss: () => { note(520, 0, .07, { type: 'triangle', vol: .1, slide: 1.3 }); note(150, .06, .14, { type: 'sawtooth', vol: .04, slide: .7 }); },
       swap: () => note(330, 0, .1, { type: 'triangle', vol: .1, slide: 1.8 }),
       // bigger combos climb higher
       clear: k => run([523, 659, 784, 1047, 1319, 1568].slice(0, 3 + Math.min(k, 3)), .06, { vol: .05 }),
@@ -694,7 +705,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     document.documentElement.style.setProperty('--cell', cell + 'px');
   }
 
-  // fx: { changed: Set, delta, deltaAt, pop: Set, fresh: Set }
+  // fx: { changed: Set, tile, deltaAt, penaltyAt, pop: Set, fresh: Set }
   function render(fx = {}) {
     const n = S.cfg.size, g = S.grid;
     boardEl.style.gridTemplateColumns = `repeat(${n}, var(--cell)) auto`;
@@ -716,6 +727,12 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
         b.dataset.idx = i;
         b.textContent = g[i];
         b.setAttribute('aria-label', `${r + 1}行${c + 1}列 ${g[i]}`);
+        if (fx.penaltyAt === i) {
+          const pen = document.createElement('span');
+          pen.className = 'penalty';
+          pen.textContent = `−${MISS_PENALTY}`;
+          b.appendChild(pen);
+        }
         if (fx.deltaAt === i && fx.tile.kind !== 'set') {
           const d = document.createElement('span');
           d.className = 'delta ' + (fx.tile.kind === 'sub' ? 'neg' : 'pos');
@@ -843,9 +860,10 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     if (t.kind === 'star') { starClear(cellIdx); return; }
     S.grid[cellIdx] = applyTile(S.grid[cellIdx], t);
     if (!resolve([cellIdx])) {
-      sound.play('place');
+      S.score -= MISS_PENALTY;
+      sound.play('miss');
       fillTray();
-      render({ changed: new Set([cellIdx]), tile: t, deltaAt: cellIdx });
+      render({ changed: new Set([cellIdx]), tile: t, deltaAt: cellIdx, penaltyAt: cellIdx });
     }
   }
 

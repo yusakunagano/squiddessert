@@ -119,7 +119,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
 
 .controls { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .hint { font-size: .8rem; color: var(--muted); flex: 1 1 200px; min-width: 0; line-height: 1.5; }
-.hint.warn { color: var(--minus); font-weight: 700; }
+.cat { width: 168px; height: 150px; image-rendering: pixelated; image-rendering: crisp-edges; }
 .btn {
   font-family: var(--body); font-weight: 800; font-size: .95rem; border-radius: 999px;
   padding: 10px 18px; border: 2px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
@@ -216,7 +216,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   </div>
 
   <div class="controls">
-    <p class="hint" id="hint">右の数字をマスへドラッグすると足し算。マスを指でなぞると隣と入れ替え。横か縦の合計 9 で列が消えます。</p>
+    <canvas class="cat" id="cat" role="img" aria-label="踊るねこ。列がそろうと大喜びします"></canvas>
     <button class="btn" id="resetBtn" type="button">リセット<small>−100</small></button>
   </div>
 </div>
@@ -295,7 +295,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   const LEVEL_UP_TIME = 10;
   const LINES_PER_LEVEL = 4;
   const RESET_PENALTY = 100;
-  const TRAY_SIZE = 4;
+  const TRAY_SIZE = 3;
   const BEST_KEY = 'nine-game-best';
 
   // Tile kinds: 'set' replaces the cell's digit, 'add' / 'sub' add or subtract (wrapping 0-9).
@@ -310,7 +310,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   }
 
   const $ = id => document.getElementById(id);
-  const boardEl = $('board'), trayEl = $('tray'), playEl = $('play'), hintEl = $('hint'), resetBtn = $('resetBtn');
+  const boardEl = $('board'), trayEl = $('tray'), playEl = $('play'), resetBtn = $('resetBtn');
 
   let S = null;          // game state
   let timerId = null;
@@ -323,6 +323,122 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   // Keep only the ones digit: 10 → 0, 11 → 1, and below 0 wraps back (−1 → 9).
   const wrap = v => ((v % 10) + 10) % 10;
+
+  // ---- dancing pixel cat: dances all the time, jumps for joy when lines clear ----
+  const cat = (() => {
+    const canvas = $('cat');
+    const ctx = canvas.getContext('2d');
+    const W = 28, H = 25, PX = 6, OX = 5, SW = 18, SH = 19;   // canvas in pixels, screen px per pixel, sprite size
+    canvas.width = W * PX;
+    canvas.height = H * PX;
+    const COLORS = { K: '#2b1d14', O: '#f2a541', D: '#c9701f', W: '#fff6e8', P: '#ff8fa3', E: '#2b1d14', H: '#ff5d7a', S: '#ffd84d' };
+    const BASE = [
+      '..K............K..',
+      '..KK..........KK..',
+      '..KPK........KPK..',
+      '..KPOKKKKKKKKOPK..',
+      '..KOOOODOODOOOOK..',
+      '..KOOOOOOOOOOOOK..',
+      '..KOOEEOOOOEEOOK..',
+      '..KOOEEOOOOEEOOK..',
+      '..KPPOOWKKWOOPPK..',
+      '..KOOOWWWWWWOOOK..',
+      '...KKOOOOOOOOKK...',
+      '....KKKKKKKKKK....',
+      '....KOOWWWWOOK....',
+      '....KOWWWWWWOK....',
+      '....KOOWWWWOOK....',
+      '....KOOOOOOOOK....',
+      '....KOOK..KOOK....',
+      '....KWWK..KWWK....',
+      '....KKKK..KKKK....'
+    ];
+    const ARM_DOWN = [[2, 12, 'K'], [3, 12, 'O'], [2, 13, 'K'], [3, 13, 'O'], [2, 14, 'K'], [3, 14, 'W'], [3, 15, 'K']];
+    const ARM_UP = [[2, 12, 'K'], [3, 12, 'O'], [1, 11, 'K'], [2, 11, 'O'], [0, 10, 'K'], [1, 10, 'O'], [0, 9, 'K'], [1, 9, 'W'], [1, 8, 'K']];
+    const ARM_HIGH = ARM_UP.map(([x, y, c]) => [x, y - 1, c]);
+    const TAIL = [
+      [[14, 15, 'D'], [15, 15, 'D'], [16, 14, 'D'], [16, 13, 'D']],
+      [[14, 15, 'D'], [15, 16, 'D'], [16, 16, 'D'], [17, 15, 'D']]
+    ];
+    const EYES_OPEN = [[5, 6], [6, 6], [5, 7], [6, 7], [11, 6], [12, 6], [11, 7], [12, 7]];
+    const HAPPY_FACE = [[4, 7, 'E'], [5, 6, 'E'], [6, 6, 'E'], [7, 7, 'E'], [10, 7, 'E'], [11, 6, 'E'], [12, 6, 'E'], [13, 7, 'E'], [8, 9, 'P'], [9, 9, 'P']];
+    const HEART = ['.H.H.', 'HHHHH', '.HHH.', '..H..'];
+    const SPARK = ['.S.', 'SSS', '.S.'];
+    const slow = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let happyStart = -1e9, happyUntil = 0;
+    let bursts = [];
+
+    const mirror = pts => pts.map(([x, y, c]) => [SW - 1 - x, y, c]);
+
+    function sprite(now) {
+      const g = BASE.map(r => r.split(''));
+      const set = pts => pts.forEach(([x, y, c]) => { g[y][x] = c; });
+      const happy = now < happyUntil;
+      const beat = Math.floor(now / (slow ? 600 : 220)) % 4;
+      if (happy) {
+        const wave = Math.floor(now / 120) % 2;
+        set(wave ? ARM_UP : ARM_HIGH);
+        set(mirror(wave ? ARM_HIGH : ARM_UP));
+        set(EYES_OPEN.map(([x, y]) => [x, y, 'O']));
+        set(HAPPY_FACE);
+      } else {
+        set(beat === 0 ? ARM_UP : ARM_DOWN);
+        set(mirror(beat === 2 ? ARM_UP : ARM_DOWN));
+        if (now % 3200 < 140) set(EYES_OPEN.filter(([, y]) => y === 6).map(([x, y]) => [x, y, 'O']));   // blink
+      }
+      set(TAIL[beat < 2 ? 0 : 1]);
+      return { g, happy, beat };
+    }
+
+    function blit(pattern, x0, y0) {
+      pattern.forEach((row, y) => [...row].forEach((c, x) => {
+        if (c === '.') return;
+        ctx.fillStyle = COLORS[c];
+        ctx.fillRect(Math.round(x0 + x) * PX, Math.round(y0 + y) * PX, PX, PX);
+      }));
+    }
+
+    function draw(now) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const { g, happy, beat } = sprite(now);
+      let y0 = H - SH;
+      if (happy && !slow) y0 -= Math.round(Math.abs(Math.sin((now - happyStart) / 1000 * Math.PI * 3)) * 4);
+      else if (!happy && !slow && beat % 2 === 0) y0 -= 1;
+      // Lean left and right with the beat while dancing.
+      const lean = happy || slow ? 0 : beat === 0 ? -1 : beat === 2 ? 1 : 0;
+      blit(g.map(r => r.join('')), OX + lean, y0);
+      bursts = bursts.filter(b => now - b.t0 < b.life);
+      bursts.forEach(b => {
+        const t = (now - b.t0) / 1000;
+        if (t < 0) return;
+        blit(b.heart ? HEART : SPARK, b.x + Math.sin(t * 6 + b.y) * 0.7, b.y - t * b.vy);
+      });
+    }
+
+    function loop(now) {
+      draw(now);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // k = number of lines cleared at once; bigger combos mean a longer, bigger party.
+    // Hearts and sparkles rise on both sides of the cat so they never cover its face.
+    function cheer(k = 1) {
+      const now = performance.now();
+      happyStart = now;
+      happyUntil = now + 900 + 450 * k;
+      for (let i = 0; i < 2 + 2 * k; i++) {
+        const left = i % 2 === 0;
+        const heart = Math.floor(i / 2) % 2 === 0;
+        const w = heart ? 5 : 3;
+        bursts.push({
+          heart, x: left ? randInt(0, OX - w) : randInt(OX + SW, W - w), y: randInt(10, 16),
+          vy: 5 + Math.random() * 4, t0: now + i * 90, life: 1200
+        });
+      }
+    }
+    return { cheer };
+  })();
   const tileText = t => (t.kind === 'add' ? '+' : t.kind === 'sub' ? '−' : '') + t.n;
   const applyTile = (cell, t) => (t.kind === 'set' ? t.n : wrap(cell + (t.kind === 'add' ? t.n : -t.n)));
 
@@ -465,9 +581,6 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     $('bestLabel').textContent = 'ベスト ' + readBest();
   }
 
-  function updateHint() {
-    hintEl.textContent = '「5」は置き換え、「+5」は足し算、「−5」は引き算。マスをなぞると隣と入れ替え。横か縦の合計 9 で消えます。';
-  }
 
   function floatText(main, sub) {
     const f = document.createElement('div');
@@ -511,6 +624,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     S.linesInLevel += k;
     if (bonus) S.bonuses++;
     floatText(`${COMBO[Math.min(k, 4)]} +${base + bonus}`, bonus ? `ボーナス +${bonus}` : '');
+    cat.cheer(k);
     try { navigator.vibrate && navigator.vibrate(k >= 2 ? [30, 40, 30] : 25); } catch {}
 
     const cleared = new Set(hits.flat());
@@ -527,7 +641,6 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       }
       fillTray();
       render({ fresh });
-      updateHint();
     }, 420);
     return true;
   }
@@ -626,7 +739,6 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     fillTray();
     sizeCells();
     render({ fresh: new Set(S.grid.map((_, i) => i)) });
-    updateHint();
     $('startOverlay').hidden = true;
     $('endOverlay').hidden = true;
     $('pauseBtn').hidden = false;
@@ -772,7 +884,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   // Full sample board behind the start screen, so the first view shows the game.
   S = newState();
   S.grid = [3, 1, 4, 2, 5, 0, 1, 2, 3];
-  S.tray = [{ kind: 'set', n: 5 }, { kind: 'add', n: 3 }, { kind: 'set', n: 2 }, { kind: 'sub', n: 1 }];
+  S.tray = [{ kind: 'set', n: 5 }, { kind: 'add', n: 3 }, { kind: 'sub', n: 1 }];
   sizeCells();
   render();
 })();

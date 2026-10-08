@@ -11,4 +11,11 @@
 //   messagingSenderId: "1234567890",
 //   appId: "1:1234567890:web:abcdef"
 // };
-export const firebaseConfig = null;
+export const firebaseConfig = {
+  apiKey: "AIzaSyAyRcZ1eo65qVsrOzD5VOkyyrZmEbZk5GM",
+  authDomain: "nine-game-158ac.firebaseapp.com",
+  projectId: "nine-game-158ac",
+  storageBucket: "nine-game-158ac.firebasestorage.app",
+  messagingSenderId: "951044365557",
+  appId: "1:951044365557:web:886c2523c825fa31aff9bc"
+};

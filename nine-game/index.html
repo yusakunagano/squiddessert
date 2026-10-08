@@ -113,15 +113,31 @@ h1 b { color: var(--nine); font-weight: 400; }
 
 .tray { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 16px; background: var(--surface); box-shadow: 0 2px 10px var(--shadow); touch-action: none; }
 .tray-label { font-size: .62rem; color: var(--muted); text-align: center; font-weight: 700; letter-spacing: .1em; }
+/* Tray tiles: glossy candy blocks. Each kind sets its top/bottom gradient and the darker edge below it. */
 .tile {
-  width: calc(var(--cell) * .9); height: calc(var(--cell) * .9); border-radius: 12px; border: 0;
-  font-family: var(--display); font-size: calc(var(--cell) * .4); color: var(--on-tile);
-  display: grid; place-items: center; cursor: grab; touch-action: none; padding: 0;
-  box-shadow: 0 3px 0 var(--shadow); transition: transform .1s, opacity .1s;
+  --t1: #8f9bff; --t2: #5b68e6; --edge: #3f49b8;
+  width: calc(var(--cell) * .9); height: calc(var(--cell) * .9); border-radius: 16px; border: 0;
+  font-family: var(--display); font-size: calc(var(--cell) * .4); color: #fff;
+  display: grid; place-items: center; cursor: grab; touch-action: none; padding: 0; position: relative;
+  background: linear-gradient(160deg, var(--t1), var(--t2));
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .18);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .45), inset 0 -3px 0 rgba(0, 0, 0, .08), 0 4px 0 var(--edge), 0 8px 14px var(--shadow);
+  transition: transform .1s, opacity .1s;
 }
-.tile.set { background: var(--ink); color: var(--paper); }
-.tile.add { background: var(--plus); }
-.tile.sub { background: var(--minus); }
+/* soft shine in the top-left corner */
+.tile::before {
+  content: ""; position: absolute; left: 12%; top: 9%; width: 34%; height: 18%;
+  border-radius: 999px; background: rgba(255, 255, 255, .35); pointer-events: none;
+}
+.tile.set { --t1: #8f9bff; --t2: #5b68e6; --edge: #3f49b8; }
+.tile.add { --t1: #5fe3bd; --t2: #17b08a; --edge: #0c7f63; }
+.tile.sub { --t1: #ff9bb0; --t2: #f2577a; --edge: #c23a5a; }
+.tile.star {
+  --t1: #ffe27a; --t2: #ffae2b; --edge: #d9861a;
+  color: #7a3d00; text-shadow: 0 2px 0 rgba(255, 255, 255, .45); font-size: calc(var(--cell) * .48);
+  animation: twinkle 1.6s ease-in-out infinite;
+}
+@keyframes twinkle { 50% { filter: brightness(1.12) saturate(1.15); transform: rotate(-4deg); } }
 .tile.selected { outline: 3px solid var(--nine); outline-offset: 2px; transform: translateX(-4px); }
 .tile.lifted { opacity: .25; }
 .ghost {
@@ -243,6 +259,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
         <br>「<b>5</b>」… マスの数字を<b>5に置き換え</b>
         <br>「<b>+5</b>」… マスの数字に<b>5を足す</b>（10以上は1の位。8に+3 → 1）
         <br>「<span class="neg-text">−5</span>」… マスの数字から<b>5を引く</b>（0より下は9に戻る。2に−3 → 9）</li>
+      <li>ときどき出る「<b>★</b>」は、置いたマスの<b>縦と横の列をまとめて消せます</b>。</li>
       <li>マスを<b>上下左右に指でなぞると</b>、隣のマスと入れ替わります。</li>
       <li>横か縦の列の合計が <b>9</b> になると列が消えて得点。消えたマスには新しい数字が入ります。</li>
       <li>1回の操作で<b>2列以上が同時に9</b>になるとボーナス。</li>
@@ -322,8 +339,10 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   const KIND_RATE = { set: .7, add: .15, sub: .15 };
   // Number ranges per kind: [small, big]. About 90% of tiles use the small range (−3 to 3).
   const SMALL_RATE = .9;
-  // Level 1 is the warm-up: about half of the tiles are a plain "+1".
-  const EASY_PLUS_ONE_RATE = .5;
+  // Warm-up: at level 1 about half of the tiles are a plain "+1", at level 2 about 30%.
+  const EASY_PLUS_ONE_RATE = { 1: .5, 2: .3 };
+  // A ★ tile clears the whole row and column of the cell it is dropped on.
+  const STAR_RATE = .05;
   const RANGE = { set: [[0, 3], [4, 9]], add: [[1, 3], [4, 5]], sub: [[1, 3], [4, 5]] };
 
   // seedMax: largest digit used when filling the board, kept small so 9 stays reachable.
@@ -564,7 +583,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     }
     return { cheer };
   })();
-  const tileText = t => (t.kind === 'add' ? '+' : t.kind === 'sub' ? '−' : '') + t.n;
+  const tileText = t => (t.kind === 'star' ? '★' : (t.kind === 'add' ? '+' : t.kind === 'sub' ? '−' : '') + t.n);
   const applyTile = (cell, t) => (t.kind === 'set' ? t.n : wrap(cell + (t.kind === 'add' ? t.n : -t.n)));
 
   function lines(size) {
@@ -613,7 +632,8 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   // Sometimes hand out a tile that would turn some line into 9, so the board stays playable.
   function newTile() {
     const { cfg, grid } = S;
-    if (S.level === 1 && Math.random() < EASY_PLUS_ONE_RATE) return { kind: 'add', n: 1 };
+    if (Math.random() < STAR_RATE) return { kind: 'star' };
+    if (Math.random() < (EASY_PLUS_ONE_RATE[S.level] || 0)) return { kind: 'add', n: 1 };
     const kind = pickKind();
     const [lo, hi] = RANGE[kind][Math.random() < SMALL_RATE ? 0 : 1];
     if (Math.random() < .5) {
@@ -684,14 +704,14 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     boardEl.appendChild(document.createElement('div'));
 
     trayEl.innerHTML = '<div class="tray-label">NEXT</div>';
-    const KIND_LABEL = { set: '置き換え', add: 'たす', sub: 'ひく' };
+    const KIND_LABEL = { set: '置き換え', add: 'たす', sub: 'ひく', star: 'スター（縦横を消す）' };
     S.tray.forEach((v, i) => {
       const t = document.createElement('button');
       t.type = 'button';
       t.className = 'tile ' + v.kind + (S.selected === i ? ' selected' : '');
       t.dataset.tray = i;
       t.textContent = tileText(v);
-      t.setAttribute('aria-label', `${KIND_LABEL[v.kind]} ${v.n}`);
+      t.setAttribute('aria-label', v.kind === 'star' ? KIND_LABEL.star : `${KIND_LABEL[v.kind]} ${v.n}`);
       trayEl.appendChild(t);
     });
     renderStats();
@@ -753,7 +773,12 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     cat.cheer(k);
     try { navigator.vibrate && navigator.vibrate(k >= 2 ? [30, 40, 30] : 25); } catch {}
 
-    const cleared = new Set(hits.flat());
+    clearCells(new Set(hits.flat()));
+    return true;
+  }
+
+  // Pop the given cells, then refill them (or rebuild the board on a size-changing level up).
+  function clearCells(cleared) {
     render({ pop: cleared });
     S.busy = true;
     setTimeout(() => {
@@ -768,15 +793,27 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       fillTray();
       render({ fresh });
     }, 420);
-    return true;
+  }
+
+  // ★: clear the whole row and column through the cell, whatever their sums.
+  function starClear(cellIdx) {
+    const lines2 = linesThrough(cellIdx);
+    const points = 150 * S.level * lines2.length;
+    S.score += points;
+    S.linesInLevel += lines2.length;
+    floatText(`★ 縦横クリア！ +${points}`, '');
+    cat.cheer(2);
+    try { navigator.vibrate && navigator.vibrate([20, 30, 20, 30, 40]); } catch {}
+    clearCells(new Set(lines2.flat()));
   }
 
   function place(cellIdx, trayIdx) {
     if (!S.running || S.busy || S.tray[trayIdx] === undefined) return;
     const t = S.tray[trayIdx];
-    S.grid[cellIdx] = applyTile(S.grid[cellIdx], t);
     S.tray.splice(trayIdx, 1);
     S.selected = null;
+    if (t.kind === 'star') { starClear(cellIdx); return; }
+    S.grid[cellIdx] = applyTile(S.grid[cellIdx], t);
     if (!resolve([cellIdx])) {
       fillTray();
       render({ changed: new Set([cellIdx]), tile: t, deltaAt: cellIdx });

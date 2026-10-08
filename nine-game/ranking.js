@@ -2,7 +2,10 @@
 // Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261011';
+import { firebaseConfig } from './firebase-config.js?v=20261012';
+
+// Name used for players who would rather not type one.
+const ANON_NAME = '名無しさん';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
 const NAME_KEY = 'nine-game-name';
@@ -107,6 +110,7 @@ function refresh() {
     if (renaming) {
       box.hidden = false;
       btn.textContent = '保存';
+      $('anonBtn').textContent = `${ANON_NAME}にする`;
       $('nameHelp').textContent = '次のゲームから、この名前で登録します。';
       if (!input.value) input.value = readName();
     } else {
@@ -122,6 +126,7 @@ function refresh() {
   // first game (or a retry after a failure): ask for the name; replay waits until it is registered
   box.hidden = false;
   btn.textContent = '登録';
+  $('anonBtn').textContent = `名前を入れずに登録（${ANON_NAME}）`;
   $('nameHelp').textContent = failed
     ? '「登録」をもう一度押してください。'
     : 'ランキングに載せる名前を決めてください。次からは自動で登録されます。';
@@ -129,8 +134,8 @@ function refresh() {
   showEndButtons(failed);
 }
 
-function saveRename() {
-  const name = $('nameInput').value.trim();
+function saveRename(nameArg) {
+  const name = (nameArg ?? $('nameInput').value).trim();
   if (!name) { note('名前を入れてください。', 'err'); return; }
   writeName(name);
   renaming = false;
@@ -144,6 +149,7 @@ async function submit(nameArg) {
   if (!last || submitted) return;
   const btn = $('submitBtn');
   btn.disabled = true;
+  $('anonBtn').disabled = true;
   showEndButtons(false);
   note(`「${name}」でランキングに登録中…`);
   try {
@@ -186,6 +192,7 @@ async function submit(nameArg) {
     console.error(e);
   } finally {
     btn.disabled = false;
+    $('anonBtn').disabled = false;
   }
 }
 
@@ -251,6 +258,8 @@ window.addEventListener('nine:gameover', e => {
 });
 
 const onSubmit = () => (renaming ? saveRename() : submit());
+// "名無しさん": register (or, when renaming, switch to it) without typing a name.
+$('anonBtn').addEventListener('click', () => (renaming ? saveRename(ANON_NAME) : submit(ANON_NAME)));
 $('submitBtn').addEventListener('click', onSubmit);
 $('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') onSubmit(); });
 $('renameBtn').addEventListener('click', () => { renaming = true; $('nameInput').value = readName(); refresh(); });

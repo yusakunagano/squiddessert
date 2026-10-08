@@ -1,35 +1,35 @@
 rules_version = '2';
 
-// ナインゲームのランキング用ルール。
+// ナインゲームのランキング用ルール（ゲームセンター式: 1プレイ1行）。
 // - 誰でもランキングを読める
-// - 各ブラウザ（匿名ログイン）は、自分の行（ドキュメントID = 自分の uid）だけを書ける
-// - 書けるのは自己ベストを上回るスコアだけ。名前は 1〜12 文字
+// - 匿名ログインしたブラウザは、自分の uid を付けた新しい記録を追加できる
+// - 追加した記録は、あとから書き換えも削除もできない
+// - 名前は 1〜12 文字、スコアは 1〜100万点
 //
-// scores/{uid}               … 総合ランキング（全期間の自己ベスト）
-// weeks/{週の月曜日}/scores/{uid} … 週間ランキング（例: weeks/2026-10-05/scores/xxxx）
+// plays/{id}                 … 総合ランキング
+// weeks/{週の月曜日}/plays/{id} … 週間ランキング（例: weeks/2026-10-05/plays/xxxx）
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function validScore(uid) {
+    function validPlay() {
       let d = request.resource.data;
       return request.auth != null
-        && request.auth.uid == uid
-        && d.keys().hasOnly(['name', 'score', 'nines', 'level', 'updatedAt'])
+        && d.keys().hasOnly(['name', 'score', 'nines', 'level', 'uid', 'createdAt'])
+        && d.uid == request.auth.uid
         && d.name is string && d.name.size() >= 1 && d.name.size() <= 12
         && d.score is int && d.score > 0 && d.score <= 1000000
         && d.nines is int && d.level is int
-        && d.updatedAt == request.time
-        && (resource == null || d.score > resource.data.score);
+        && d.createdAt == request.time;
     }
 
-    match /scores/{uid} {
+    match /plays/{id} {
       allow read: if true;
-      allow create, update: if validScore(uid);
+      allow create: if validPlay();
     }
 
-    match /weeks/{week}/scores/{uid} {
+    match /weeks/{week}/plays/{id} {
       allow read: if true;
-      allow create, update: if week.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && validScore(uid);
+      allow create: if week.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && validPlay();
     }
 
     match /{document=**} {

@@ -187,6 +187,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 }
 .rank-tab[aria-selected="true"] { background: var(--ink); color: var(--dark-ink); }
 .rank-period { margin: -4px 0 0; font-size: .78rem; font-weight: 700; color: var(--muted); text-align: center; }
+.link-btn { align-self: flex-start; background: none; border: 0; padding: 0; font: inherit; font-size: .8rem; font-weight: 700; color: var(--muted); text-decoration: underline; cursor: pointer; }
 .note { margin: 0; font-size: .85rem; line-height: 1.5; color: var(--muted); }
 .note.ok { color: var(--plus); font-weight: 800; }
 .note.err { color: var(--minus); font-weight: 700; }
@@ -251,7 +252,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       <li>横か縦の列の合計が <b>9</b> になると列が消えて得点。消えたマスには新しい数字が入ります。</li>
       <li>1回の操作で<b>2列以上が同時に9</b>になるとボーナス。</li>
       <li>レベル3から <b>4×4</b> マスに広がります。</li>
-      <li>制限時間 60 秒で何回 9 を作れるか挑戦。レベルアップで +10 秒。</li>
+      <li>制限時間 60 秒で何回 9 を作れるか挑戦。レベルアップで +5 秒。</li>
     </ul>
     <button class="btn primary" id="startBtn" type="button">スタート</button>
     <button class="btn sound-toggle" type="button" aria-pressed="false">♪ サウンド OFF</button>
@@ -304,13 +305,14 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     <div class="newbest" id="rBest" hidden>ベストスコア更新！</div>
     <div class="submit" id="submitBox" hidden>
       <label for="nameInput">ランキングに載せる名前</label>
+      <p class="note" id="nameHelp"></p>
       <div class="submit-row">
         <input id="nameInput" type="text" maxlength="12" autocomplete="nickname" placeholder="名前（12文字まで）">
         <button class="btn primary" id="submitBtn" type="button">登録</button>
       </div>
-      <p class="note">ログインは不要です。名前は自由に決められます。</p>
     </div>
     <p class="note" id="submitNote" hidden></p>
+    <button class="link-btn" id="renameBtn" type="button" hidden>次から名前を変える</button>
     <button class="btn primary" id="againBtn" type="button">もう一度</button>
     <button class="btn" id="rankBtnEnd" type="button">ランキングを見る</button>
   </div>
@@ -319,7 +321,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 <script>
 (() => {
   const ROUND_TIME = 60;
-  const LEVEL_UP_TIME = 10;
+  const LEVEL_UP_TIME = 5;
   const LINES_PER_LEVEL = 4;
   const TRAY_SIZE = 3;
   const BEST_KEY = 'nine-game-best';
@@ -328,8 +330,8 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   const KIND_RATE = { set: .7, add: .15, sub: .15 };
   // Number ranges per kind: [small, big]. About 90% of tiles use the small range (−3 to 3).
   const SMALL_RATE = .9;
-  // Warm-up: at level 1 about half of the tiles are a plain "+1", at level 2 about 30%.
-  const EASY_PLUS_ONE_RATE = { 1: .5, 2: .3 };
+  // Plain "+1" tiles: 70% at level 1, then 50% from level 2 on.
+  const PLUS_ONE_RATE = lv => (lv === 1 ? .7 : .5);
   // A ★ tile clears the whole row and column of the cell it is dropped on.
   const STAR_RATE = .05;
   const RANGE = { set: [[0, 3], [4, 9]], add: [[1, 3], [4, 5]], sub: [[1, 3], [4, 5]] };
@@ -647,7 +649,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   function newTile() {
     const { cfg, grid } = S;
     if (Math.random() < STAR_RATE) return { kind: 'star' };
-    if (Math.random() < (EASY_PLUS_ONE_RATE[S.level] || 0)) return { kind: 'add', n: 1 };
+    if (Math.random() < PLUS_ONE_RATE(S.level)) return { kind: 'add', n: 1 };
     const kind = pickKind();
     const [lo, hi] = RANGE[kind][Math.random() < SMALL_RATE ? 0 : 1];
     if (Math.random() < .5) {
@@ -1069,6 +1071,6 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   render();
 })();
 </script>
-<script type="module" src="ranking.js?v=20261009"></script>
+<script type="module" src="ranking.js?v=20261010"></script>
 </body>
 </html>

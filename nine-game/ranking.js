@@ -2,7 +2,7 @@
 // Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261009';
+import { firebaseConfig } from './firebase-config.js?v=20261010';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
 const NAME_KEY = 'nine-game-name';
@@ -74,25 +74,68 @@ async function uid() {
 const allCol = () => fb.F.collection(fb.db, 'plays');
 const weekCol = week => fb.F.collection(fb.db, 'weeks', week, 'plays');
 
-function refresh() {
-  const box = $('submitBox');
-  box.hidden = true;
-  if (!last || submitted) return;
-  if (!firebaseConfig) { note('オンラインランキングは準備中です。'); return; }
-  if (last.score <= 0) { note('スコアが 1 点以上でランキングに登録できます。'); return; }
-  const input = $('nameInput');
-  if (!input.value) input.value = readName();
-  box.hidden = false;
-  note('');
+// Every finished game goes on the ranking. The first time, the player must pick a name before
+// "もう一度" appears; after that each game is registered automatically under the saved name.
+// renaming: the player opened "次から名前を変える" after this game was registered.
+let failed = false;
+let renaming = false;
+
+function showEndButtons(show) {
+  $('againBtn').hidden = !show;
+  $('rankBtnEnd').hidden = !show;
 }
 
-async function submit() {
+function refresh() {
+  const box = $('submitBox'), input = $('nameInput'), btn = $('submitBtn');
+  box.hidden = true;
+  $('renameBtn').hidden = true;
+  showEndButtons(true);
+  if (!last) return;
+  if (!firebaseConfig) { note('オンラインランキングは準備中です。'); return; }
+  if (last.score <= 0) { note('0 点はランキングに載りません。'); return; }
+  if (submitted) {
+    if (renaming) {
+      box.hidden = false;
+      btn.textContent = '保存';
+      $('nameHelp').textContent = '次のゲームから、この名前で登録します。';
+      if (!input.value) input.value = readName();
+    } else {
+      $('renameBtn').hidden = false;
+    }
+    return;
+  }
+  const saved = readName();
+  if (saved && !failed) {           // returning player: register right away
+    submit(saved);
+    return;
+  }
+  // first game (or a retry after a failure): ask for the name; replay waits until it is registered
+  box.hidden = false;
+  btn.textContent = '登録';
+  $('nameHelp').textContent = failed
+    ? '「登録」をもう一度押してください。'
+    : 'ランキングに載せる名前を決めてください。次からは自動で登録されます。';
+  if (!input.value) input.value = saved;
+  showEndButtons(failed);
+}
+
+function saveRename() {
   const name = $('nameInput').value.trim();
   if (!name) { note('名前を入れてください。', 'err'); return; }
-  if (!last) return;
+  writeName(name);
+  renaming = false;
+  refresh();
+  note(`次のゲームから「${name}」で登録します。`, 'ok');
+}
+
+async function submit(nameArg) {
+  const name = (nameArg ?? $('nameInput').value).trim();
+  if (!name) { note('名前を入れてください。', 'err'); return; }
+  if (!last || submitted) return;
   const btn = $('submitBtn');
   btn.disabled = true;
-  note('登録中…');
+  showEndButtons(false);
+  note(`「${name}」でランキングに登録中…`);
   try {
     const { db, F } = await load();
     const me = await uid();
@@ -114,9 +157,12 @@ async function submit() {
     ]);
     const rankWeek = hw.data().count + 1, rankAll = ha.data().count + 1;
     submitted = true;
+    failed = false;
     refresh();
-    note(`登録しました！ 今回の ${last.score} 点は 今週 ${rankWeek} 位・総合 ${rankAll} 位です。`, 'ok');
+    note(`「${name}」で登録しました！ 今回の ${last.score} 点は 今週 ${rankWeek} 位・総合 ${rankAll} 位です。`, 'ok');
   } catch (e) {
+    failed = true;
+    refresh();
     note(errorText(e, '登録'), 'err');
     console.error(e);
   } finally {
@@ -177,11 +223,17 @@ function showRanking() {
 window.addEventListener('nine:gameover', e => {
   last = e.detail;
   submitted = false;
+  failed = false;
+  renaming = false;
+  $('nameInput').value = '';
+  note('');
   refresh();
 });
 
-$('submitBtn').addEventListener('click', submit);
-$('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+const onSubmit = () => (renaming ? saveRename() : submit());
+$('submitBtn').addEventListener('click', onSubmit);
+$('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') onSubmit(); });
+$('renameBtn').addEventListener('click', () => { renaming = true; $('nameInput').value = readName(); refresh(); });
 document.querySelectorAll('.rank-tab').forEach(b => b.addEventListener('click', () => {
   if (tab === b.dataset.tab) return;
   tab = b.dataset.tab;

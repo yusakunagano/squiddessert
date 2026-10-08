@@ -175,6 +175,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 }
 .panel h2 { font-family: var(--display); font-weight: 400; font-size: 1.5rem; margin: 0; text-wrap: balance; }
 .panel h2 b { color: var(--red); font-weight: 400; }
+.rules-short li { font-size: .95rem; }
 .panel ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: .88rem; line-height: 1.55; }
 .panel .neg-text { color: var(--minus); font-weight: 800; }
 .results { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: .95rem; }
@@ -254,19 +255,12 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 <div class="overlay" id="startOverlay">
   <div class="panel">
     <h2>合計を<b>9</b>にそろえよう</h2>
-    <ul id="rulesList">
-      <li>右の数字タイルをマスにドラッグします（タップで選んでマスをタップでもOK）。タイルは3種類。
-        <br>「<b>5</b>」… マスの数字を<b>5に置き換え</b>
-        <br>「<b>+5</b>」… マスの数字に<b>5を足す</b>（10以上は1の位。8に+3 → 1）
-        <br>「<span class="neg-text">−5</span>」… マスの数字から<b>5を引く</b>（0より下は9に戻る。2に−3 → 9）</li>
-      <li>ときどき出る「<b>★</b>」は、置いたマスの<b>縦と横の列をまとめて消せます</b>。</li>
-      <li>マスを<b>上下左右に指でなぞると</b>、隣のマスと入れ替わります。</li>
-      <li>横か縦の列の合計が <b>9</b> になると列が消えて得点。消えたマスには新しい数字が入ります。</li>
-      <li>1回の操作で<b>2列以上が同時に9</b>になるとボーナス。</li>
-      <li>タイルを置いても列がそろわなかったら <span class="neg-text">−10点</span>。よく計算してから置こう。</li>
-      <li>レベル3から <b>4×4</b> マスに広がります。</li>
-      <li>制限時間 60 秒で何回 9 を作れるか挑戦。レベルアップで +5 秒。</li>
+    <ul class="rules-short">
+      <li>右の数字タイルをマスに置いて（<b>置き換え・足す・引く</b>）、横か縦の合計を <b>9</b> にしよう。</li>
+      <li>マスを<b>指でなぞる</b>と、隣のマスと入れ替えられます。</li>
+      <li>制限時間 <b>60秒</b>で、何回 9 を作れるか挑戦！</li>
     </ul>
+    <button class="link-btn" id="rulesBtnStart" type="button">詳しい説明を見る</button>
     <button class="btn primary" id="startBtn" type="button">スタート</button>
     <button class="btn sound-toggle" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>サウンド OFF</span></button>
     <button class="btn" id="rankBtnStart" type="button">ランキングを見る</button>
@@ -287,7 +281,19 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 <div class="overlay" id="rulesOverlay" hidden>
   <div class="panel">
     <h2>遊び方</h2>
-    <div id="rulesBody"></div>
+    <ul id="rulesList">
+      <li>右の数字タイルをマスにドラッグします（タップで選んでマスをタップでもOK）。タイルは3種類。
+        <br>「<b>5</b>」… マスの数字を<b>5に置き換え</b>
+        <br>「<b>+5</b>」… マスの数字に<b>5を足す</b>（10以上は1の位。8に+3 → 1）
+        <br>「<span class="neg-text">−5</span>」… マスの数字から<b>5を引く</b>（0より下は9に戻る。2に−3 → 9）</li>
+      <li>ときどき出る「<b>★</b>」は、置いたマスの<b>縦と横の列をまとめて消せます</b>。</li>
+      <li>マスを<b>上下左右に指でなぞると</b>、隣のマスと入れ替わります。</li>
+      <li>横か縦の列の合計が <b>9</b> になると列が消えて得点。消えたマスには新しい数字が入ります。</li>
+      <li>1回の操作で<b>2列以上が同時に9</b>になるとボーナス。</li>
+      <li>タイルを置いても列がそろわなかったら <span class="neg-text">−10点</span>（0点より下にはなりません）。よく計算してから置こう。</li>
+      <li>レベル3から <b>4×4</b> マスに広がります。</li>
+      <li>制限時間 60 秒で何回 9 を作れるか挑戦。レベルアップで +5 秒。</li>
+    </ul>
     <button class="btn primary" id="rulesCloseBtn" type="button">戻る</button>
   </div>
 </div>
@@ -344,7 +350,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   const KIND_RATE = { set: .7, add: .15, sub: .15 };
   // Number ranges per kind: [small, big]. About 90% of tiles use the small range (−3 to 3).
   const SMALL_RATE = .9;
-  // Dropping a tile that completes no line costs points, so guessing without counting does not pay.
+  // Dropping a tile that completes no line costs points (never below 0), so guessing without counting does not pay.
   const MISS_PENALTY = 10;
   // Plain "+1" tiles: 70% at level 1, then 50% from level 2 on.
   const PLUS_ONE_RATE = lv => (lv === 1 ? .7 : .5);
@@ -730,7 +736,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
         if (fx.penaltyAt === i) {
           const pen = document.createElement('span');
           pen.className = 'penalty';
-          pen.textContent = `−${MISS_PENALTY}`;
+          pen.textContent = `−${fx.lost}`;
           b.appendChild(pen);
         }
         if (fx.deltaAt === i && fx.tile.kind !== 'set') {
@@ -860,10 +866,11 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     if (t.kind === 'star') { starClear(cellIdx); return; }
     S.grid[cellIdx] = applyTile(S.grid[cellIdx], t);
     if (!resolve([cellIdx])) {
-      S.score -= MISS_PENALTY;
-      sound.play('miss');
+      const lost = Math.min(MISS_PENALTY, S.score);     // the score never goes below 0
+      S.score -= lost;
+      sound.play(lost ? 'miss' : 'place');
       fillTray();
-      render({ changed: new Set([cellIdx]), tile: t, deltaAt: cellIdx, penaltyAt: cellIdx });
+      render({ changed: new Set([cellIdx]), tile: t, deltaAt: cellIdx, penaltyAt: lost ? cellIdx : null, lost });
     }
   }
 
@@ -1081,11 +1088,10 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   $('resumeBtn').addEventListener('click', resumeGame);
   $('quitBtn').addEventListener('click', quitGame);
   // The pause screen shows the same rules as the start screen.
-  $('rulesBtn').addEventListener('click', () => {
-    $('rulesBody').replaceChildren($('rulesList').cloneNode(true));
-    $('rulesBody').firstChild.removeAttribute('id');
-    $('rulesOverlay').hidden = false;
-  });
+  // Full rules: from the start screen ("詳しい説明を見る") and from the pause screen.
+  const showRules = () => { $('rulesOverlay').hidden = false; };
+  $('rulesBtn').addEventListener('click', showRules);
+  $('rulesBtnStart').addEventListener('click', showRules);
   $('rulesCloseBtn').addEventListener('click', () => { $('rulesOverlay').hidden = true; });
   // Leaving the app or switching tabs pauses the clock.
   document.addEventListener('visibilitychange', () => { if (document.hidden && S) pauseGame(); });

@@ -25,6 +25,9 @@
   --shadow: rgba(21, 35, 58, .14);
   --display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
   --body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --block-ink: #15233a;
+  --b0: #e3e8ee; --b1: #ffc9c9; --b2: #ffd9b0; --b3: #ffeea0; --b4: #d4f2ad;
+  --b5: #b5ecd2; --b6: #b6e3f5; --b7: #c9d1ff; --b8: #e2c9ff; --b9: #ffc4e6;
   --cell: 72px;
 }
 @media (prefers-color-scheme: dark) {
@@ -32,12 +35,16 @@
     --paper: #0f1724; --surface: #1b2738; --well: #172234; --line: #2a3a4f;
     --ink: #e7eef3; --muted: #8b9bac; --plus: #4cb0bc; --minus: #ff7486; --nine: #f5b553;
     --on-tile: #0f1724; --shadow: rgba(0, 0, 0, .4); color-scheme: dark;
+    --b0: #b9c3cf; --b1: #f59f9f; --b2: #f5b980; --b3: #f2d86a; --b4: #b3dc84;
+    --b5: #8fd6b6; --b6: #8ccbe6; --b7: #a6b0f2; --b8: #c7a6f2; --b9: #f29fcf;
   }
 }
 :root[data-theme="dark"] {
   --paper: #0f1724; --surface: #1b2738; --well: #172234; --line: #2a3a4f;
   --ink: #e7eef3; --muted: #8b9bac; --plus: #4cb0bc; --minus: #ff7486; --nine: #f5b553;
   --on-tile: #0f1724; --shadow: rgba(0, 0, 0, .4); color-scheme: dark;
+    --b0: #b9c3cf; --b1: #f59f9f; --b2: #f5b980; --b3: #f2d86a; --b4: #b3dc84;
+    --b5: #8fd6b6; --b6: #8ccbe6; --b7: #a6b0f2; --b8: #c7a6f2; --b9: #f29fcf;
 }
 html, body { height: 100%; margin: 0; }
 [hidden] { display: none !important; }
@@ -73,10 +80,16 @@ h1 b { color: var(--nine); font-weight: 400; }
 .board { display: grid; gap: 6px; touch-action: none; }
 .cell {
   width: var(--cell); height: var(--cell); border-radius: 12px; border: 2px solid var(--line);
-  background: var(--surface); display: grid; place-items: center; padding: 0; position: relative;
-  font-family: var(--display); font-size: calc(var(--cell) * .46); color: var(--ink);
+  background: var(--block, var(--surface)); display: grid; place-items: center; padding: 0; position: relative;
+  font-family: var(--display); font-size: calc(var(--cell) * .46); color: var(--block-ink);
+  box-shadow: inset 0 calc(var(--cell) * -.07) 0 rgba(0, 0, 0, .12);
   transition: transform .12s, border-color .12s, background .12s; cursor: pointer;
 }
+/* Each digit has its own block colour. */
+.cell.v0 { --block: var(--b0); } .cell.v1 { --block: var(--b1); } .cell.v2 { --block: var(--b2); }
+.cell.v3 { --block: var(--b3); } .cell.v4 { --block: var(--b4); } .cell.v5 { --block: var(--b5); }
+.cell.v6 { --block: var(--b6); } .cell.v7 { --block: var(--b7); } .cell.v8 { --block: var(--b8); }
+.cell.v9 { --block: var(--b9); }
 .cell.hover { border-color: var(--nine); transform: scale(1.06); }
 .cell.target { border-color: var(--plus); border-style: dashed; }
 .cell.changed { animation: bump .32s ease-out; }
@@ -175,7 +188,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
 .note { margin: 0; font-size: .85rem; line-height: 1.5; color: var(--muted); }
 .note.ok { color: var(--plus); font-weight: 800; }
 .note.err { color: var(--minus); font-weight: 700; }
-#rankOverlay { z-index: 45; }
+#rankOverlay, #rulesOverlay { z-index: 45; }
 .rank-panel { max-width: 420px; }
 .rank-panel h2 small { font-family: var(--body); font-size: .8rem; color: var(--muted); font-weight: 800; }
 .rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
@@ -207,7 +220,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     <div class="stat"><span>スコア</span><strong id="score">0</strong></div>
     <div class="stat"><span>9の回数</span><strong id="nines">0</strong></div>
     <div class="stat"><span>レベル</span><strong id="level">1</strong></div>
-    <div class="stat"><span>残り時間</span><strong id="time">90</strong></div>
+    <div class="stat"><span>残り時間</span><strong id="time">60</strong></div>
   </div>
   <div class="timebar" id="timebar"><i id="timefill"></i></div>
 
@@ -218,14 +231,13 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
 
   <div class="controls">
     <canvas class="cat" id="cat" role="img" aria-label="ねこ。踊ったり走ったり寝転んだりして、列がそろうと大喜びします"></canvas>
-    <button class="btn" id="resetBtn" type="button">リセット<small>−100</small></button>
   </div>
 </div>
 
 <div class="overlay" id="startOverlay">
   <div class="panel">
     <h2>合計を<b>9</b>にそろえよう</h2>
-    <ul>
+    <ul id="rulesList">
       <li>右の数字タイルをマスにドラッグします（タップで選んでマスをタップでもOK）。タイルは3種類。
         <br>「<b>5</b>」… マスの数字を<b>5に置き換え</b>
         <br>「<b>+5</b>」… マスの数字に<b>5を足す</b>（10以上は1の位。8に+3 → 1）
@@ -234,8 +246,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       <li>横か縦の列の合計が <b>9</b> になると列が消えて得点。消えたマスには新しい数字が入ります。</li>
       <li>1回の操作で<b>2列以上が同時に9</b>になるとボーナス。</li>
       <li>レベル3から <b>4×4</b> マスに広がります。</li>
-      <li>リセットで盤面の数字を全部入れ替えられますが <span class="neg-text">−100点</span>。</li>
-      <li>制限時間 90 秒で何回 9 を作れるか挑戦。レベルアップで +10 秒。</li>
+      <li>制限時間 60 秒で何回 9 を作れるか挑戦。レベルアップで +10 秒。</li>
     </ul>
     <button class="btn primary" id="startBtn" type="button">スタート</button>
     <button class="btn" id="rankBtnStart" type="button">ランキングを見る</button>
@@ -247,7 +258,16 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     <h2>一時停止中</h2>
     <p class="hint">残り時間は止まっています。</p>
     <button class="btn primary" id="resumeBtn" type="button">再開</button>
+    <button class="btn" id="rulesBtn" type="button">説明を見る</button>
     <button class="btn" id="quitBtn" type="button">やめて最初から</button>
+  </div>
+</div>
+
+<div class="overlay" id="rulesOverlay" hidden>
+  <div class="panel">
+    <h2>遊び方</h2>
+    <div id="rulesBody"></div>
+    <button class="btn primary" id="rulesCloseBtn" type="button">戻る</button>
   </div>
 </div>
 
@@ -273,7 +293,6 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
       <dt>9を作った回数</dt><dd id="rNines">0</dd>
       <dt>ボーナス回数</dt><dd id="rBonus">0</dd>
       <dt>到達レベル</dt><dd id="rLevel">1</dd>
-      <dt>リセット回数</dt><dd id="rResets">0</dd>
     </dl>
     <div class="newbest" id="rBest" hidden>ベストスコア更新！</div>
     <div class="submit" id="submitBox" hidden>
@@ -292,10 +311,9 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
 
 <script>
 (() => {
-  const ROUND_TIME = 90;
+  const ROUND_TIME = 60;
   const LEVEL_UP_TIME = 10;
   const LINES_PER_LEVEL = 4;
-  const RESET_PENALTY = 100;
   const TRAY_SIZE = 3;
   const BEST_KEY = 'nine-game-best';
 
@@ -312,7 +330,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
   }
 
   const $ = id => document.getElementById(id);
-  const boardEl = $('board'), trayEl = $('tray'), playEl = $('play'), resetBtn = $('resetBtn');
+  const boardEl = $('board'), trayEl = $('tray'), playEl = $('play');
 
   let S = null;          // game state
   let timerId = null;
@@ -573,7 +591,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     const cfg = levelCfg(1);
     return {
       level: 1, cfg, grid: newBoard(cfg), tray: [],
-      score: 0, nines: 0, bonuses: 0, resets: 0, linesInLevel: 0,
+      score: 0, nines: 0, bonuses: 0, linesInLevel: 0,
       timeLeft: ROUND_TIME, running: false, paused: false, busy: false, selected: null
     };
   }
@@ -643,7 +661,7 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
         const i = r * n + c;
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'cell' + (S.selected !== null ? ' target' : '')
+        b.className = `cell v${g[i]}` + (S.selected !== null ? ' target' : '')
           + (fx.pop?.has(i) ? ' pop' : fx.fresh?.has(i) ? ' fresh' : fx.changed?.has(i) ? ' changed' : '');
         b.dataset.idx = i;
         b.textContent = g[i];
@@ -792,18 +810,6 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     return false;
   }
 
-  function resetBoard() {
-    if (!S.running || S.busy) return;
-    S.score -= RESET_PENALTY;
-    S.resets++;
-    S.grid = newBoard(S.cfg);
-    S.tray = [];
-    S.selected = null;
-    fillTray();
-    floatText(`−${RESET_PENALTY}`, 'リセット');
-    render({ fresh: new Set(S.grid.map((_, i) => i)) });
-  }
-
   function tick(last) {
     const now = performance.now();
     S.timeLeft -= (now - last) / 1000;
@@ -860,7 +866,6 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     $('rNines').textContent = S.nines;
     $('rBonus').textContent = S.bonuses;
     $('rLevel').textContent = S.level;
-    $('rResets').textContent = S.resets;
     $('rBest').hidden = !isBest;
     renderStats();
     $('endOverlay').hidden = false;
@@ -975,12 +980,18 @@ button:focus-visible { outline: 3px solid var(--nine); outline-offset: 2px; }
     place(Number(c.dataset.idx), S.selected);
   });
 
-  resetBtn.addEventListener('click', resetBoard);
   $('startBtn').addEventListener('click', startGame);
   $('againBtn').addEventListener('click', startGame);
   $('pauseBtn').addEventListener('click', pauseGame);
   $('resumeBtn').addEventListener('click', resumeGame);
   $('quitBtn').addEventListener('click', quitGame);
+  // The pause screen shows the same rules as the start screen.
+  $('rulesBtn').addEventListener('click', () => {
+    $('rulesBody').replaceChildren($('rulesList').cloneNode(true));
+    $('rulesBody').firstChild.removeAttribute('id');
+    $('rulesOverlay').hidden = false;
+  });
+  $('rulesCloseBtn').addEventListener('click', () => { $('rulesOverlay').hidden = true; });
   // Leaving the app or switching tabs pauses the clock.
   document.addEventListener('visibilitychange', () => { if (document.hidden && S) pauseGame(); });
   window.addEventListener('resize', () => { if (S) { sizeCells(); } });

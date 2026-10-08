@@ -1,6 +1,6 @@
-// Online ranking (weekly + all-time) on Firestore.
+// Online ranking (weekly + all-time) on Firestore, arcade style: every play is its own entry.
 // Players type any name; no account needed. Firebase anonymous auth gives each
-// browser a private id so a player can only raise their own score.
+// browser a private id that is stored on its entries.
 import { firebaseConfig } from './firebase-config.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
@@ -11,6 +11,7 @@ const $ = id => document.getElementById(id);
 let fb = null;          // { auth, db, A: auth module, F: firestore module }
 let last = null;        // result of the game that just ended
 let submitted = false;
+let lastId = null;      // id of the entry this browser just submitted, highlighted in the list
 let tab = 'weekly';
 
 function readName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }
@@ -51,17 +52,16 @@ async function load() {
 
 async function uid() {
   const { auth, A } = fb;
+  // Wait for a saved sign-in to be restored first, or every page load would become a new player.
+  await auth.authStateReady();
   if (!auth.currentUser) await A.signInAnonymously(auth);
   return auth.currentUser.uid;
 }
 
-const refs = (id, week) => {
-  const { db, F } = fb;
-  return {
-    all: F.doc(db, 'scores', id),
-    week: F.doc(db, 'weeks', week, 'scores', id)
-  };
-};
+// plays/{id}                 … all-time ranking
+// weeks/{monday}/plays/{id}  … weekly ranking (e.g. weeks/2026-10-05/plays/xxxx)
+const allCol = () => fb.F.collection(fb.db, 'plays');
+const weekCol = week => fb.F.collection(fb.db, 'weeks', week, 'plays');
 
 function refresh() {
   const box = $('submitBox');
@@ -84,31 +84,27 @@ async function submit() {
   note('登録中…');
   try {
     const { db, F } = await load();
-    const id = await uid();
+    const me = await uid();
     const week = weekId(weekStart());
-    const r = refs(id, week);
-    const [pa, pw] = await Promise.all([F.getDoc(r.all), F.getDoc(r.week)]);
-    const bestAll = pa.exists() ? pa.data().score : 0;
-    const bestWeek = pw.exists() ? pw.data().score : 0;
-    const row = { name, score: last.score, nines: last.nines, level: last.level, updatedAt: F.serverTimestamp() };
+    // The same id in both rankings, so the new entry can be highlighted in either tab.
+    const allRef = F.doc(allCol());
+    const weekRef = F.doc(weekCol(week), allRef.id);
+    const row = { name, score: last.score, nines: last.nines, level: last.level, uid: me, createdAt: F.serverTimestamp() };
     const batch = F.writeBatch(db);
-    let wrote = false;
-    if (last.score > bestAll) { batch.set(r.all, row); wrote = true; }
-    if (last.score > bestWeek) { batch.set(r.week, row); wrote = true; }
-    if (wrote) await batch.commit();
+    batch.set(allRef, row);
+    batch.set(weekRef, row);
+    await batch.commit();
     writeName(name);
+    lastId = allRef.id;
 
-    const myWeek = Math.max(bestWeek, last.score), myAll = Math.max(bestAll, last.score);
     const [hw, ha] = await Promise.all([
-      F.getCountFromServer(F.query(F.collection(db, 'weeks', week, 'scores'), F.where('score', '>', myWeek))),
-      F.getCountFromServer(F.query(F.collection(db, 'scores'), F.where('score', '>', myAll)))
+      F.getCountFromServer(F.query(weekCol(week), F.where('score', '>', last.score))),
+      F.getCountFromServer(F.query(allCol(), F.where('score', '>', last.score)))
     ]);
     const rankWeek = hw.data().count + 1, rankAll = ha.data().count + 1;
     submitted = true;
     refresh();
-    note(wrote
-      ? `登録しました！ 今週 ${rankWeek} 位・総合 ${rankAll} 位です。`
-      : `今週の自己ベスト ${bestWeek} 点のほうが高いので、記録はそのままです（今週 ${rankWeek} 位・総合 ${rankAll} 位）。`, 'ok');
+    note(`登録しました！ 今回の ${last.score} 点は 今週 ${rankWeek} 位・総合 ${rankAll} 位です。`, 'ok');
   } catch (e) {
     note('登録できませんでした。通信状況を確かめて、もう一度お試しください。', 'err');
     console.error(e);
@@ -129,8 +125,8 @@ async function renderRanking() {
   status.textContent = '読み込み中…';
   const want = tab;
   try {
-    const { db, F, auth } = await load();
-    const col = want === 'weekly' ? F.collection(db, 'weeks', weekId(start), 'scores') : F.collection(db, 'scores');
+    const { F, auth } = await load();
+    const col = want === 'weekly' ? weekCol(weekId(start)) : allCol();
     const snap = await F.getDocs(F.query(col, F.orderBy('score', 'desc'), F.limit(RANK_SIZE)));
     if (want !== tab) return;                 // tab switched while loading
     if (snap.empty) {
@@ -146,7 +142,8 @@ async function renderRanking() {
       if (v.score !== prevScore) { pos = shown; prevScore = v.score; }   // ties share a rank
       const li = document.createElement('li');
       li.classList.toggle('top', pos <= 3);
-      li.classList.toggle('me', !!me && d.id === me);
+      li.classList.toggle('me', d.id === lastId);
+      li.classList.toggle('mine', d.id !== lastId && !!me && v.uid === me);
       const a = document.createElement('span'); a.className = 'pos'; a.textContent = pos;
       const b = document.createElement('span'); b.className = 'who'; b.textContent = v.name;
       const c = document.createElement('span'); c.className = 'pts'; c.textContent = v.score;

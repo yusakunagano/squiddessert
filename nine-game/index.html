@@ -178,7 +178,11 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 }
 .panel h2 { font-family: var(--display); font-weight: 400; font-size: 1.5rem; margin: 0; text-wrap: balance; }
 .panel h2 b { color: var(--red); font-weight: 400; }
+.rules-short { list-style: none; padding-left: 0 !important; text-align: center; }
 .rules-short li { font-size: .95rem; }
+.start-title { text-align: center; }
+#rulesBtnStart { align-self: center; }
+.start-title b { font-size: 1.7em; line-height: 1; vertical-align: -.08em; }
 .panel ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: .88rem; line-height: 1.55; }
 .panel .neg-text { color: var(--minus); font-weight: 800; }
 .results { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: .95rem; }
@@ -267,13 +271,13 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   </div>
 
   <div class="controls">
-    <canvas class="cat" id="cat" role="img" aria-label="どうぶつ（ねこ・うさぎ・ぶた・わに・いぬ・きりん）。踊ったり歩いたり寝転んだりして、列がそろうと大喜びします"></canvas>
+    <canvas class="cat" id="cat" role="img" aria-label="どうぶつ（ねこ・うさぎ・ぶた・わに・いぬ・きりん・パンダ・ペンギン）。踊ったり歩いたり寝転んだりして、列がそろうと大喜びします"></canvas>
   </div>
 </div>
 
 <div class="overlay" id="startOverlay">
   <div class="panel">
-    <h2>合計を<b>9</b>にそろえよう</h2>
+    <h2 class="start-title">合計を<b>9</b>にそろえよう</h2>
     <ul class="rules-short">
       <li>右の数字タイルをマスに置いて（<b>置き換え・足す・引く</b>）、横か縦の合計を <b>9</b> にしよう。</li>
     </ul>
@@ -406,7 +410,8 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     const ctx = canvas.getContext('2d');
     const PX = 7, H = 21;                      // screen px per pixel, stage height in pixels
     let W = 50;                                // stage width in pixels, set from the layout
-    const COLORS = { X: '#f2f2ef', R: '#be2a3c', S: '#c8c846', Z: '#9b9b96' };
+    // X light fur, K dark fur (panda, penguin), O orange (beak, feet), R/S hearts and sparkles, Z sleep.
+    const COLORS = { X: '#f2f2ef', K: '#6b6b67', O: '#e8a33d', R: '#be2a3c', S: '#c8c846', Z: '#9b9b96' };
     const LEGS = [['.X.X....X.X..'], ['..X.X..X.X...']];
     // Each animal: body rows (without legs), two leg poses, where the eyes are (holes punched by code),
     // where the arm nubs go (null = no arms), and a lying-down pose with the head on the left.
@@ -514,6 +519,42 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
         legs: [['.X.X....X.X..', '.X.X....X.X..'], ['..X.X..X.X...', '..X.X..X.X...']],
         eyes: { x: [4, 7], top: 3, bottom: 3 }, arms: null,
         nap: ['X.X..........', 'XXX..........', 'XXXX.........', '.XX..........', '.XX..........', '.XXXXXXXXXX..', 'XXX.XXXX.XXXX', 'XXXXXXXXXXXX.']
+      },
+      {
+        name: 'パンダ',
+        body: [
+          '.KK......KK..',
+          '.KKXXXXXXKK..',
+          '..XXXXXXXX...',
+          '.XKKXXXXKKX..',
+          '.XKKXXXXKKX..',
+          '.XXXXKKXXXX..',
+          '..XXXXXXXX...',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..'
+        ],
+        legs: [['.K.K....K.K..'], ['..K.K..K.K...']], eyes: { x: [3, 8], top: 4, bottom: 4 },
+        arms: { row: 7, x: [0, 11], up: [5, 6], color: 'K' },
+        nap: ['K..K.........', 'XXXXK........', 'KKXXXXXXXXXX.', 'XXXXXXXXXXXXK', '.K.K.....K.K.']
+      },
+      {
+        name: 'ペンギン',
+        body: [
+          '....KKKK.....',
+          '...KKKKKK....',
+          '..KKXXXXKK...',
+          '..KXXXXXXK...',
+          '..KXXOOXXK...',
+          '.KKXXXXXXKK..',
+          '.KKXXXXXXKK..',
+          '..KXXXXXXK...',
+          '..KXXXXXXK...',
+          '...KXXXXK....'
+        ],
+        legs: [['...OO..OO....'], ['..OO....OO...']], eyes: { x: [4, 7], top: 3, bottom: 3 },
+        arms: { row: 6, x: [0, 11], up: [3, 4], color: 'K' },
+        nap: ['..KKK........', 'KKXXXK.......', 'OXXXXKKKKKKK.', 'KKXXXXXXXXXKK', '.KKKKKKKKKK..']
       }
     ];
     const HEART = ['.R.R.', 'RRRRR', '.RRR.', '..R..'];
@@ -558,8 +599,9 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
         // arm nubs at the sides of the body, or raised higher up
         [0, 1].forEach(i => {
           const x = a.arms.x[i];
-          if (arms[i] === 'up') a.arms.up.forEach(y => { g[y][x] = 'X'; });
-          else g[a.arms.row][x] = 'X';
+          const c = a.arms.color || 'X';
+          if (arms[i] === 'up') a.arms.up.forEach(y => { g[y][x] = c; });
+          else g[a.arms.row][x] = c;
         });
       }
       return g.map(r => r.join(''));

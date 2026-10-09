@@ -149,7 +149,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .controls { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
 .controls .btn { align-self: flex-end; }
 .hint { font-size: .8rem; color: var(--muted); margin: 0; min-width: 0; line-height: 1.5; }
-.cat { display: block; width: 100%; height: 105px; image-rendering: pixelated; image-rendering: crisp-edges; }
+.cat { display: block; width: 100%; height: 147px; image-rendering: pixelated; image-rendering: crisp-edges; }
 .btn {
   font-family: var(--body); font-weight: 900; font-size: .95rem; border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -267,7 +267,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   </div>
 
   <div class="controls">
-    <canvas class="cat" id="cat" role="img" aria-label="ねこ。踊ったり歩いたり寝転んだりして、列がそろうと大喜びします"></canvas>
+    <canvas class="cat" id="cat" role="img" aria-label="どうぶつ（ねこ・うさぎ・ぶた・わに・いぬ・きりん）。踊ったり歩いたり寝転んだりして、列がそろうと大喜びします"></canvas>
   </div>
 </div>
 
@@ -276,8 +276,6 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     <h2>合計を<b>9</b>にそろえよう</h2>
     <ul class="rules-short">
       <li>右の数字タイルをマスに置いて（<b>置き換え・足す・引く</b>）、横か縦の合計を <b>9</b> にしよう。</li>
-      <li>マスを<b>指でなぞる</b>と、隣のマスと入れ替えられます。</li>
-      <li>制限時間 <b>60秒</b>で、何回 9 を作れるか挑戦！</li>
     </ul>
     <button class="link-btn" id="rulesBtnStart" type="button">詳しい説明を見る</button>
     <button class="btn primary" id="startBtn" type="button">スタート</button>
@@ -399,35 +397,124 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   // Keep only the ones digit: 10 → 0, 11 → 1, and below 0 wraps back (−1 → 9).
   const wrap = v => ((v % 10) + 10) % 10;
 
-  // ---- tiny pixel cat below the board ----
-  // A deliberately simple silhouette (light body on the dark page, eyes are holes). Wanders between moods
-  // (dance, walk, hop, nap) and celebrates whenever lines clear.
+  // ---- tiny pixel animal below the board ----
+  // Deliberately simple silhouettes (light body on the dark page, eyes are holes). A random animal
+  // shows up for each game. It wanders between moods (dance, walk, hop, nap) and celebrates
+  // whenever lines clear.
   const cat = (() => {
     const canvas = $('cat');
     const ctx = canvas.getContext('2d');
-    const PX = 7, H = 15;                      // screen px per pixel, stage height in pixels
+    const PX = 7, H = 21;                      // screen px per pixel, stage height in pixels
     let W = 50;                                // stage width in pixels, set from the layout
     const COLORS = { X: '#f2f2ef', R: '#be2a3c', S: '#c8c846', Z: '#9b9b96' };
-    // 13 x 10, eyes are the holes in rows 4-5, tail on the right.
-    const BODY = [
-      '.X........X..',
-      '.XX......XX..',
-      '.XXXXXXXXXX..',
-      '.XXXXXXXXXX..',
-      '.XX.XXXX.XX.X',
-      '.XX.XXXX.XX.X',
-      '.XXXXXXXXXXX.',
-      '.XXXXXXXXXX..',
-      '.XXXXXXXXXX..'
-    ];
-    const LEGS = ['.X.X....X.X..', '..X.X..X.X...'];
-    // Lying down asleep, 13 x 5: head on the left, closed eye is the hole in row 2.
-    const NAP = [
-      'X..X........X',
-      'XXXX........X',
-      'X..XXXXXXXXX.',
-      'XXXXXXXXXXXXX',
-      'XXXXXXXXXXXXX'
+    const LEGS = [['.X.X....X.X..'], ['..X.X..X.X...']];
+    // Each animal: body rows (without legs), two leg poses, where the eyes are (holes punched by code),
+    // where the arm nubs go (null = no arms), and a lying-down pose with the head on the left.
+    const ANIMALS = [
+      {
+        name: 'ねこ',
+        body: [
+          '.X........X..',
+          '.XX......XX..',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX.X',
+          '.XXXXXXXXXX.X',
+          '.XXXXXXXXXXX.',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..'
+        ],
+        legs: LEGS, eyes: { x: [3, 8], top: 4, bottom: 5 }, arms: { row: 6, x: [0, 11], up: [2, 3] },
+        nap: ['X..X........X', 'XXXX........X', 'X..XXXXXXXXX.', 'XXXXXXXXXXXXX', 'XXXXXXXXXXXXX']
+      },
+      {
+        name: 'うさぎ',
+        body: [
+          '...X....X....',
+          '..XX....XX...',
+          '..XX....XX...',
+          '..XX....XX...',
+          '..XXX..XXX...',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..',
+          '.XXXX..XXXX..',
+          '.XXXXXXXXXX.X',
+          '.XXXXXXXXXXXX',
+          '.XXXXXXXXXX..'
+        ],
+        legs: LEGS, eyes: { x: [3, 8], top: 7, bottom: 8 }, arms: { row: 12, x: [0, 11], up: [6, 7] },
+        nap: ['XXXX.........', '..XXX........', 'X..XXXXXXXX..', 'XXXXXXXXXXXXX', 'XXXXXXXXXXXX.']
+      },
+      {
+        name: 'ぶた',
+        body: [
+          '.XX......XX..',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX.X',
+          '.XXX.XX.XXXX.',
+          '.XXXXXXXXXX.X',
+          '.XXXXXXXXXX..',
+          '..XXXXXXXX...'
+        ],
+        legs: [['..X.X..X.X...'], ['.X.X....X.X..']], eyes: { x: [3, 8], top: 3, bottom: 4 },
+        arms: { row: 7, x: [0, 11], up: [2, 3] },
+        nap: ['.XX..........', 'XXXX.........', 'X..XXXXXXXX.X', 'XXXXXXXXXXXXX', 'XXXXXXXXXXXX.']
+      },
+      {
+        name: 'わに',
+        body: [
+          '...........X.X....',
+          '...XXXXXXXXXXXXX..',
+          '.XXXXXXXXXXXXXXXXX',
+          'XXXXXXXXXXX.X.X.X.',
+          'XXXXXXXXXXXXXXXXX.'
+        ],
+        legs: [['...XX......XX.....'], ['....XX.....XX.....']], eyes: { x: [12], top: 1, bottom: 1 }, arms: null,
+        nap: null                              // lies flat already: the body with closed eyes, flipped
+      },
+      {
+        name: 'いぬ',
+        body: [
+          '..XXXXXXXX...',
+          '.XXXXXXXXXX..',
+          'XXXXXXXXXXXX.',
+          'XXXXXXXXXXXX.',
+          'X.XXXXXXXX.X.',
+          'X.XXX..XXX.X.',
+          'X.XXXXXXXX.XX',
+          '..XXXXXXXX..X',
+          '.XXXXXXXXXX..',
+          '.XXXXXXXXXX..'
+        ],
+        legs: LEGS, eyes: { x: [3, 8], top: 3, bottom: 4 }, arms: { row: 8, x: [0, 11], up: [7] },
+        nap: ['XXXX.........', 'XXXXX........', 'X..XXXXXXXXXX', 'XXXXXXXXXXXX.', 'XXXXXXXXXXXX.']
+      },
+      {
+        name: 'きりん',
+        body: [
+          '....X..X.....',
+          '....X..X.....',
+          '...XXXXXX....',
+          '...XXXXXX....',
+          '...XXXXXX....',
+          '....XXXX.....',
+          '.....XX......',
+          '.....XX......',
+          '.....XX......',
+          '.....XXX.....',
+          '..XXXXXXXX...',
+          '.XX.XXXX.XXX.',
+          '.XXXXX.XXXXX.',
+          '.XXXXXXXXXXXX'
+        ],
+        legs: [['.X.X....X.X..', '.X.X....X.X..'], ['..X.X..X.X...', '..X.X..X.X...']],
+        eyes: { x: [4, 7], top: 3, bottom: 3 }, arms: null,
+        nap: ['X.X..........', 'XXX..........', 'XXXX.........', '.XX..........', '.XX..........', '.XXXXXXXXXX..', 'XXX.XXXX.XXXX', 'XXXXXXXXXXXX.']
+      }
     ];
     const HEART = ['.R.R.', 'RRRRR', '.RRR.', '..R..'];
     const SPARK = ['.S.', 'SSS', '.S.'];
@@ -435,14 +522,17 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     const slow = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const WALK_SPEED = 14;                     // pixels per second
 
-    let cx = 12;                               // horizontal centre of the cat
+    let animal = ANIMALS[randInt(0, ANIMALS.length - 1)];
+    let cx = 12;                               // horizontal centre of the animal
     let face = 1;
     let mood = { name: 'dance', t0: 0, dur: 4000 };
     let happyStart = -1e9, happyUntil = 0;
     let bursts = [];
 
-    const clampX = x => Math.max(8, Math.min(W - 8, x));
+    const clampX = x => Math.max(10, Math.min(W - 10, x));
     const flip = rows => rows.map(r => [...r].reverse().join(''));
+    const width = () => animal.body[0].length;
+    const napRows = () => animal.nap || flip(animal.body);
 
     function resize() {
       W = Math.max(30, Math.floor(canvas.parentElement.clientWidth / PX));
@@ -453,23 +543,25 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       cx = clampX(cx);
     }
 
-    // Build the standing cat. arms: [left, right], each 'down' | 'up'; eyes: 'open' | 'blink' | 'happy';
-    // look: -1 / 0 / 1 shifts the eyes toward where the cat is heading; step picks the leg pose.
+    // Build the standing animal. arms: [left, right], each 'down' | 'up'; eyes: 'open' | 'blink' | 'happy';
+    // look: -1 / 0 / 1 shifts the eyes toward where it is heading; step picks the leg pose.
     function stand({ arms = ['down', 'down'], eyes = 'open', look = 0, step = 0 }) {
-      const g = BODY.concat([LEGS[step]]).map(r => r.split(''));
-      const hole = (x, y) => { g[y][x] = '.'; };
-      for (const y of [4, 5]) for (const x of [3, 8]) g[y][x] = 'X';      // start with eyes closed
-      const ex = [3 + look, 8 + look];
-      if (eyes === 'open') ex.forEach(x => { hole(x, 4); hole(x, 5); });
-      else if (eyes === 'blink') ex.forEach(x => hole(x, 5));
-      else ex.forEach(x => { hole(x - 1, 5); hole(x, 4); hole(x + 1, 5); });   // happy ^ ^
-      // arms: nubs at the sides of row 6, or raised beside the head
-      const arm = (side, pose) => {
-        const x = side < 0 ? 0 : 11;
-        if (pose === 'up') { g[2][x] = 'X'; g[3][x] = 'X'; }
-        else g[6][x] = 'X';
-      };
-      arm(-1, arms[0]); arm(1, arms[1]);
+      const a = animal;
+      const g = a.body.concat(a.legs[step]).map(r => r.split(''));
+      const hole = (x, y) => { if (g[y] && g[y][x] !== undefined) g[y][x] = '.'; };
+      const { top, bottom } = a.eyes;
+      const ex = a.eyes.x.map(x => x + look);
+      if (eyes === 'open') ex.forEach(x => { hole(x, top); hole(x, bottom); });
+      else if (eyes === 'blink') ex.forEach(x => hole(x, bottom));
+      else ex.forEach(x => { hole(x - 1, bottom); hole(x, bottom - 1); hole(x + 1, bottom); });   // happy ^ ^
+      if (a.arms) {
+        // arm nubs at the sides of the body, or raised higher up
+        [0, 1].forEach(i => {
+          const x = a.arms.x[i];
+          if (arms[i] === 'up') a.arms.up.forEach(y => { g[y][x] = 'X'; });
+          else g[a.arms.row][x] = 'X';
+        });
+      }
       return g.map(r => r.join(''));
     }
 
@@ -487,7 +579,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       if (slow && (name === 'walk' || name === 'hop')) name = 'dance';
       if (name === 'walk') {
         let target = cx;
-        for (let i = 0; i < 8 && Math.abs(target - cx) < W / 4; i++) target = randInt(8, W - 8);
+        for (let i = 0; i < 8 && Math.abs(target - cx) < W / 4; i++) target = randInt(10, W - 10);
         face = target > cx ? 1 : -1;
         mood = { name, t0: now, from: cx, target, dur: Math.abs(target - cx) / WALK_SPEED * 1000 + 1 };
       } else {
@@ -499,7 +591,10 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       const happy = now < happyUntil;
       if (!happy && now - mood.t0 > mood.dur) pickMood(now);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const x0 = Math.round(cx) - 6, y0 = H - 10;
+      const w = width();
+      const x0 = Math.round(cx) - Math.floor(w / 2);
+      const standH = animal.body.length + animal.legs[0].length;
+      const y0 = H - standH;
       const beat = Math.floor(now / (slow ? 600 : 250)) % 4;
 
       if (happy) {
@@ -510,20 +605,22 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
         cx = mood.from + (mood.target - mood.from) * p;
         const step = Math.floor(now / 140) % 2;
         const rows = stand({ look: face, step });
-        blit(face < 0 ? flip(rows) : rows, Math.round(cx) - 6, y0 - step);
+        blit(face < 0 ? flip(rows) : rows, Math.round(cx) - Math.floor(w / 2), y0 - step);
       } else if (mood.name === 'hop') {
         const t = (now - mood.t0) % 650;
         const up = t < 130 ? 0 : Math.round(Math.sin((t - 130) / 520 * Math.PI) * 4);
         blit(stand({ arms: up ? ['up', 'up'] : ['down', 'down'] }), x0, y0 - up);
       } else if (mood.name === 'nap') {
-        const rows = face > 0 ? flip(NAP) : NAP;
-        blit(rows, Math.round(cx) - 6, H - NAP.length);
+        const nap = napRows();
+        const nw = nap[0].length;
+        const rows = face > 0 ? flip(nap) : nap;          // head toward where it was facing
+        blit(rows, Math.round(cx) - Math.floor(nw / 2), H - nap.length);
         for (let i = 0; i < 3; i++) {
           const age = (now - mood.t0) / 1000 - i * .7;
           if (age < 0) continue;
           const t = age % 2.1;
-          const hx = face > 0 ? Math.round(cx) + 6 : Math.round(cx) - 9;
-          blit(ZED, Math.max(0, Math.min(W - 4, hx + t * 2 * face)), H - 9 - t * 3);
+          const hx = face > 0 ? Math.round(cx) + Math.ceil(nw / 2) : Math.round(cx) - Math.floor(nw / 2) - 4;
+          blit(ZED, Math.max(0, Math.min(W - 4, hx + t * 2 * face)), H - nap.length - 4 - t * 3);
         }
       } else {
         const blink = now % 3400 < 130;
@@ -551,25 +648,33 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     window.addEventListener('resize', resize);
     requestAnimationFrame(loop);
 
+    // A different animal for the next game.
+    function randomize() {
+      const others = ANIMALS.filter(a => a !== animal);
+      animal = others[randInt(0, others.length - 1)];
+      mood = { name: 'dance', t0: performance.now(), dur: 3000 };
+    }
+
     // k = number of lines cleared at once; bigger combos mean a longer, bigger party.
-    // Hearts and sparkles rise on both sides of the cat so they never cover its face.
+    // Hearts and sparkles rise on both sides of the animal so they never cover its face.
     function cheer(k = 1) {
       const now = performance.now();
       happyStart = now;
       happyUntil = now + 900 + 450 * k;
       mood = { name: 'dance', t0: happyUntil, dur: 2000 };
+      const half = Math.ceil(width() / 2);
       for (let i = 0; i < 2 + 2 * k; i++) {
         const left = i % 2 === 0;
         const heart = Math.floor(i / 2) % 2 === 0;
         const w = heart ? 5 : 3;
-        const x = left ? Math.round(cx) - 7 - w - randInt(0, 2) : Math.round(cx) + 8 + randInt(0, 2);
+        const x = left ? Math.round(cx) - half - w - randInt(0, 2) : Math.round(cx) + half + 1 + randInt(0, 2);
         bursts.push({
-          heart, x: Math.max(0, Math.min(W - w, x)), y: randInt(5, 9),
+          heart, x: Math.max(0, Math.min(W - w, x)), y: randInt(H - 13, H - 8),
           vy: 4 + Math.random() * 3, t0: now + i * 90, life: 1200
         });
       }
     }
-    return { cheer };
+    return { cheer, randomize, names: ANIMALS.map(a => a.name) };
   })();
 
   // ---- sound: little chiptune effects made with Web Audio (no audio files). Off by default. ----
@@ -962,6 +1067,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
   function startGame() {
     clearTimeout(timerId);
+    cat.randomize();
     S = newState();
     S.running = true;
     fillTray();

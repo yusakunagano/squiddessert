@@ -2,7 +2,7 @@
 // Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261013';
+import { firebaseConfig } from './firebase-config.js?v=20261014';
 
 // Name used for players who would rather not type one.
 const ANON_NAME = '名無しさん';
@@ -113,6 +113,21 @@ function note(text, kind = '') {
   n.hidden = !text;
   n.textContent = text;
   n.className = 'note' + (kind ? ' ' + kind : '');
+  if (kind !== 'ok') showRanks(null);
+}
+
+// The player's ranks after registering, one board per line: all-time, weekly, today.
+function showRanks(rows) {
+  const box = $('rankResult');
+  box.replaceChildren();
+  box.hidden = !rows;
+  (rows || []).forEach(([label, rank]) => {
+    const dt = document.createElement('dt'); dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.textContent = rank ? `${rank}位` : '—';
+    dd.classList.toggle('top10', !!rank && rank <= 10);
+    box.append(dt, dd);
+  });
 }
 
 async function load() {
@@ -239,8 +254,8 @@ async function submit(nameArg) {
     submitted = true;
     failed = false;
     refresh();
-    const ranks = (rankDay ? `今日 ${rankDay} 位・` : '') + `今週 ${rankWeek} 位・総合 ${rankAll} 位`;
-    note(`「${name}」で登録しました！ 今回の ${last.score} 点は ${ranks}です。`, 'ok');
+    note(`「${name}」で ${last.score} 点を登録しました！`, 'ok');
+    showRanks([['総合', rankAll], ['週間', rankWeek], ['本日', rankDay]]);
     celebrate({ rankAll, rankWeek, rankDay });
   } catch (e) {
     failed = true;

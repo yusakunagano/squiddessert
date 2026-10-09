@@ -210,6 +210,13 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .link-btn { align-self: flex-start; background: none; border: 0; padding: 0; font: inherit; font-size: .8rem; font-weight: 700; color: var(--muted); text-decoration: underline; cursor: pointer; }
 .note { margin: 0; font-size: .85rem; line-height: 1.5; color: var(--muted); }
 .note.ok { color: var(--plus); font-weight: 800; }
+.rank-result {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 18px; margin: 0;
+  padding: 10px 16px; border-radius: 12px; background: var(--well); font-variant-numeric: tabular-nums;
+}
+.rank-result dt { font-weight: 800; color: var(--muted); }
+.rank-result dd { margin: 0; font-family: var(--display); font-size: 1.15rem; text-align: right; }
+.rank-result dd.top10 { color: var(--olive); }
 .note.err { color: var(--minus); font-weight: 700; }
 #rankOverlay, #rulesOverlay { z-index: 45; }
 .rank-panel { max-width: 420px; }
@@ -354,6 +361,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       <button class="btn" id="anonBtn" type="button">名前を入れずに登録（名無しさん）</button>
     </div>
     <p class="note" id="submitNote" hidden></p>
+    <dl class="rank-result" id="rankResult" hidden></dl>
     <button class="link-btn" id="renameBtn" type="button" hidden>次から名前を変える</button>
     <button class="btn primary" id="againBtn" type="button">もう一度</button>
     <button class="btn" id="rankBtnEnd" type="button">ランキングを見る</button>
@@ -1275,6 +1283,6 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   render();
 })();
 </script>
-<script type="module" src="ranking.js?v=20261013"></script>
+<script type="module" src="ranking.js?v=20261014"></script>
 </body>
 </html>

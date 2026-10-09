@@ -2,7 +2,7 @@
 // Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261012';
+import { firebaseConfig } from './firebase-config.js?v=20261013';
 
 // Name used for players who would rather not type one.
 const ANON_NAME = '名無しさん';
@@ -40,6 +40,62 @@ function weekLabel(d) {
   const end = new Date(d.getTime() + 6 * 86400e3);
   const md = x => `${x.getUTCMonth() + 1}/${x.getUTCDate()}`;
   return `${md(d)}（月）〜 ${md(end)}（日）`;
+}
+
+// Crown icon for the top three: gold, silver, bronze.
+const CROWN_COLORS = ['#f5c542', '#c9ced6', '#d08a4a'];
+function crown(pos, size = 22) {
+  const c = CROWN_COLORS[pos - 1];
+  return `<svg viewBox="0 0 24 20" width="${size}" height="${Math.round(size * 20 / 24)}" aria-hidden="true">`
+    + `<path d="M2 6l5 5 5-9 5 9 5-5-2 12H4z" fill="${c}" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/>`
+    + `<circle cx="2" cy="6" r="1.8" fill="${c}"/><circle cx="12" cy="2" r="1.8" fill="${c}"/><circle cx="22" cy="6" r="1.8" fill="${c}"/></svg>`;
+}
+
+// ---- celebration for a top-10 finish: confetti and a big badge ----
+// Shows one board only, by priority: all-time, then weekly, then daily.
+function celebrate({ rankAll, rankWeek, rankDay }) {
+  const pick = [['総合ランキング', rankAll], ['週間ランキング', rankWeek], ['今日のランキング', rankDay]]
+    .find(([, r]) => r && r <= 10);
+  if (!pick) return;
+  const [board, rank] = pick;
+  window.dispatchEvent(new CustomEvent('nine:fanfare'));
+  const wrap = document.createElement('div');
+  wrap.className = 'celebrate';
+  wrap.setAttribute('role', 'status');
+  wrap.innerHTML = `<canvas></canvas><div class="celebrate-card">
+    <div class="celebrate-crown">${crown(rank <= 3 ? rank : 1, 64)}</div>
+    <div class="celebrate-board">${board}</div>
+    <div class="celebrate-rank">${rank}<small>位</small></div>
+    <div class="celebrate-msg">おめでとう！</div></div>`;
+  document.body.appendChild(wrap);
+  const close = () => wrap.remove();
+  wrap.addEventListener('click', close);
+  setTimeout(close, 3600);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // confetti in the game's colours
+  const cv = wrap.querySelector('canvas'), ctx = cv.getContext('2d');
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  const W = innerWidth, H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
+  const COLORS = ['#be2a3c', '#c8c846', '#5e8fbd', '#5b6fa6', '#64955a', '#f5c542', '#f2f2ef'];
+  const bits = Array.from({ length: 140 }, () => ({
+    x: Math.random() * W, y: -20 - Math.random() * H * .6, w: 6 + Math.random() * 6, h: 8 + Math.random() * 8,
+    vx: (Math.random() - .5) * 120, vy: 120 + Math.random() * 220, rot: Math.random() * 6, vr: (Math.random() - .5) * 10,
+    c: COLORS[Math.floor(Math.random() * COLORS.length)]
+  }));
+  let last = performance.now();
+  (function frame(now) {
+    if (!wrap.isConnected) return;
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    ctx.clearRect(0, 0, W, H);
+    bits.forEach(b => {
+      b.x += b.vx * dt; b.y += b.vy * dt; b.rot += b.vr * dt; b.vy += 40 * dt;
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
+      ctx.fillStyle = b.c; ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h * Math.abs(Math.cos(b.rot)));
+      ctx.restore();
+    });
+    requestAnimationFrame(frame);
+  })(last);
 }
 
 // A short, actionable message for a failed Firebase call, with the error code for troubleshooting.
@@ -185,6 +241,7 @@ async function submit(nameArg) {
     refresh();
     const ranks = (rankDay ? `今日 ${rankDay} 位・` : '') + `今週 ${rankWeek} 位・総合 ${rankAll} 位`;
     note(`「${name}」で登録しました！ 今回の ${last.score} 点は ${ranks}です。`, 'ok');
+    celebrate({ rankAll, rankWeek, rankDay });
   } catch (e) {
     failed = true;
     refresh();
@@ -228,7 +285,8 @@ async function renderRanking() {
       li.classList.toggle('top', pos <= 3);
       li.classList.toggle('me', d.id === lastId);
       li.classList.toggle('mine', d.id !== lastId && !!me && v.uid === me);
-      const a = document.createElement('span'); a.className = 'pos'; a.textContent = pos;
+      const a = document.createElement('span'); a.className = 'pos';
+      if (pos <= 3) { a.innerHTML = crown(pos); a.setAttribute('aria-label', `${pos}位`); } else a.textContent = pos;
       const b = document.createElement('span'); b.className = 'who'; b.textContent = v.name;
       const c = document.createElement('span'); c.className = 'pts'; c.textContent = v.score;
       li.append(a, b, c);

@@ -215,8 +215,24 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .rank-list li:nth-child(odd) { background: var(--well); }
 .rank-list li.me { outline: 3px solid var(--red); outline-offset: -3px; }
 .rank-list li.mine .who { color: var(--blue); }
-.rank-list .pos { font-family: var(--display); color: var(--muted); }
+.rank-list .pos { font-family: var(--display); color: var(--muted); display: flex; align-items: center; }
 .rank-list li.top .pos { color: var(--nine); }
+/* the big start button on the title screen */
+#startBtn { min-height: 64px; font-size: 1.3rem; letter-spacing: .08em; }
+/* top-10 celebration */
+.celebrate { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(0, 0, 0, .55); cursor: pointer; }
+.celebrate canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.celebrate-card {
+  position: relative; text-align: center; padding: 26px 36px 22px; border-radius: 18px; background: var(--surface);
+  box-shadow: 0 0 0 4px var(--olive), 0 18px 40px rgba(0, 0, 0, .5); animation: popIn .5s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+.celebrate-crown { display: flex; justify-content: center; animation: bob 1.2s ease-in-out infinite; }
+.celebrate-board { font-family: var(--body); font-weight: 900; color: var(--muted); margin-top: 6px; }
+.celebrate-rank { font-family: var(--display); font-size: 4.2rem; line-height: 1.05; color: var(--olive); }
+.celebrate-rank small { font-size: 1.6rem; margin-left: 4px; }
+.celebrate-msg { font-family: var(--display); font-size: 1.5rem; color: var(--ink); margin-top: 4px; }
+@keyframes popIn { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes bob { 50% { transform: translateY(-6px) rotate(-4deg); } }
 .rank-list .who { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-list .pts { font-family: var(--display); }
 
@@ -1094,6 +1110,8 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   // The pause screen shows the same rules as the start screen.
   // Full rules: from the start screen ("詳しい説明を見る") and from the pause screen.
   const showRules = () => { $('rulesOverlay').hidden = false; };
+  // A top-10 finish on the ranking: fanfare and a happy cat.
+  window.addEventListener('nine:fanfare', () => { sound.play('level'); cat.cheer(3); });
   $('rulesBtn').addEventListener('click', showRules);
   $('rulesBtnStart').addEventListener('click', showRules);
   $('rulesCloseBtn').addEventListener('click', () => { $('rulesOverlay').hidden = true; });
@@ -1109,6 +1127,6 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   render();
 })();
 </script>
-<script type="module" src="ranking.js?v=20261012"></script>
+<script type="module" src="ranking.js?v=20261013"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@ export const firebaseConfig = {
 
 // Google Maps の API キー (Maps JavaScript API)。
 // Google Cloud Console で「HTTP リファラー」を公開先のドメインに制限しておくこと。
-export const googleMapsApiKey = '';
+export const googleMapsApiKey = 'AIzaSyDDwhre_rUs84ay9pgIv8bcbTAl9jAU8Ac';
 
 // マップ ID。吹き出しマーカーに必要。本番では Google Cloud Console で作ったものを推奨。
 export const googleMapsMapId = 'DEMO_MAP_ID';

@@ -31,9 +31,11 @@ Google マップ上にコメントを残せるサービスです。Firebase の�
 2. **Authentication** → ログイン方法 → **匿名** を有効にする。
 3. **Firestore Database** を作成する（本番モード、ロケーションは `asia-northeast1` など）。
 4. プロジェクトの設定 → マイアプリ → ウェブアプリを追加し、表示された `firebaseConfig` を `public/config.js` に貼る。
-5. [Google Cloud Console](https://console.cloud.google.com/) で同じプロジェクトの **Maps JavaScript API** を有効にし、API キーを作って `public/config.js` の `googleMapsApiKey` に入れる。
-   キーは「HTTP リファラー」で公開先（`https://<プロジェクトID>.web.app/*` など）に制限してください。
-   Google Maps は Firebase とは別に Google Maps Platform の課金設定が必要ですが、毎月の無料枠があります。
+5. [Google Cloud Console](https://console.cloud.google.com/) で **Firebase とは別のプロジェクト**を作り、そこで **Maps JavaScript API** を有効にして API キーを作り、`public/config.js` の `googleMapsApiKey` に入れる。
+   Google Maps には課金アカウントの登録が必要です（毎月の無料枠あり）。Firebase のプロジェクトに課金アカウントをつなぐと
+   Firebase が自動で Blaze プランになるので、Maps 用は別プロジェクトにしてください。
+   キーは「HTTP リファラー」で公開先（`https://<プロジェクトID>.web.app/*` と `https://<プロジェクトID>.firebaseapp.com/*`）に、
+   「API の制限」で Maps JavaScript API だけに制限してください。
 6. デプロイ:
 
    ```sh

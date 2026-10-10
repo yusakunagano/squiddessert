@@ -62,6 +62,37 @@ function initFirebase() {
   return { db, uid };
 }
 
+// 場所を検索して地図を移動する (Google の Places API (New) を使う)
+async function setupSearch(map) {
+  const box = document.getElementById('search');
+  try {
+    const { PlaceAutocompleteElement } = await google.maps.importLibrary('places');
+    const input = new PlaceAutocompleteElement({});
+    input.placeholder = '場所を検索';
+    input.setAttribute('aria-label', '場所を検索');
+    input.addEventListener('gmp-select', async (e) => {
+      try {
+        const place = e.placePrediction ? e.placePrediction.toPlace() : e.place;
+        await place.fetchFields({ fields: ['displayName', 'location', 'viewport'] });
+        if (place.viewport) {
+          map.fitBounds(place.viewport);
+        } else if (place.location) {
+          map.setCenter(place.location);
+          map.setZoom(17);
+        }
+      } catch (err) {
+        console.error(err);
+        toast('その場所に移動できませんでした');
+      }
+    });
+    box.append(input);
+    box.hidden = false;
+  } catch (err) {
+    // Places API が使えないときは検索欄を出さない
+    console.error('場所の検索が使えません', err);
+  }
+}
+
 async function main() {
   document.getElementById('rule').textContent =
     `同じマス (約30m四方) に ${VANISH_LIMIT} 個重なると、まとめて消えます。`;
@@ -94,6 +125,8 @@ async function main() {
     () => {},
     { timeout: 5000 },
   );
+
+  setupSearch(map);
 
   /** id -> AdvancedMarkerElement */
   const markers = new globalThis.Map();

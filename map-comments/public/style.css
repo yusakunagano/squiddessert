@@ -18,6 +18,11 @@ body {
 }
 .bar h1 { margin: 0; font-size: 18px; }
 .bar .hint { margin: 0; font-size: 13px; color: #666; }
+.search { width: 300px; max-width: 100%; align-self: center; }
+.search gmp-place-autocomplete { width: 100%; color-scheme: light; }
+@media (max-width: 720px) {
+  .search { order: 3; width: 100%; }
+}
 
 .main { flex: 1; display: flex; min-height: 0; }
 #map { flex: 1; min-width: 0; }

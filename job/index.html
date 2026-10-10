@@ -21,6 +21,10 @@
     --accent-soft: #e6ebfa;
     --on-accent: #ffffff;
     --marker: #f2c94c;
+    --good: #1f7a4d;
+    --good-soft: #e3f3ea;
+    --bad: #a35a00;
+    --bad-soft: #fbeedb;
     --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
     --font-body: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   }
@@ -28,12 +32,14 @@
     :root:not([data-theme="light"]) {
       --paper: #12151c; --card: #1b2029; --ink: #e9edf4; --muted: #a2abba;
       --line: #2f3644; --accent: #8ea6ff; --accent-soft: #232c45; --on-accent: #10142a; --marker: #c9a43a;
+      --good: #6fd29c; --good-soft: #1a3328; --bad: #f0b264; --bad-soft: #3a2c19;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --paper: #12151c; --card: #1b2029; --ink: #e9edf4; --muted: #a2abba;
     --line: #2f3644; --accent: #8ea6ff; --accent-soft: #232c45; --on-accent: #10142a; --marker: #c9a43a;
+      --good: #6fd29c; --good-soft: #1a3328; --bad: #f0b264; --bad-soft: #3a2c19;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -115,6 +121,18 @@
   .job { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--paper); }
   .job b { display: block; }
   .job p { margin: 2px 0 0; font-size: .92rem; }
+  .jobs.muted .job { background: var(--card); border-style: dashed; }
+  .jobs.muted .job b { color: var(--muted); }
+  .matches { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 10px; }
+  .match { border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+  .match.good { background: var(--good-soft); }
+  .match.bad { background: var(--bad-soft); }
+  .match .tag { font-size: .75rem; font-weight: 700; letter-spacing: .08em; }
+  .match.good .tag { color: var(--good); }
+  .match.bad .tag { color: var(--bad); }
+  .match b { font-size: 1.05rem; }
+  .match p { margin: 0; font-size: .92rem; }
+  .match .tip { font-size: .88rem; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
   .chips li { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
   .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
@@ -185,6 +203,26 @@
         <section class="block">
           <h2>こんな職業も向いています</h2>
           <div class="jobs" id="rOthers"></div>
+        </section>
+        <section class="block">
+          <h2>向いていないかもしれない職業</h2>
+          <div class="jobs muted" id="rUnsuited"></div>
+        </section>
+        <section class="block">
+          <h2>一緒に働く人との相性</h2>
+          <div class="matches">
+            <div class="match good">
+              <span class="tag">◎ 相性の良い職業の人</span>
+              <b id="rGoodTitle"></b>
+              <p id="rGoodReason"></p>
+            </div>
+            <div class="match bad">
+              <span class="tag">△ ぶつかりやすい職業の人</span>
+              <b id="rBadTitle"></b>
+              <p id="rBadReason"></p>
+              <p class="tip" id="rBadTip"></p>
+            </div>
+          </div>
         </section>
         <section class="block">
           <h2>仕事で活きる強み</h2>
@@ -323,11 +361,18 @@
     });
     $("rTraits").replaceChildren(...rows);
 
-    $("rOthers").replaceChildren(...(r.other_jobs ?? []).slice(0, 2).map((j) => {
+    const jobBoxes = (list) => (list ?? []).slice(0, 2).map((j) => {
       const box = el("div", null, "job");
       box.append(el("b", j.title), el("p", j.reason));
       return box;
-    }));
+    });
+    $("rOthers").replaceChildren(...jobBoxes(r.other_jobs));
+    $("rUnsuited").replaceChildren(...jobBoxes(r.unsuited_jobs));
+    $("rGoodTitle").textContent = r.good_match?.title ?? "";
+    $("rGoodReason").textContent = r.good_match?.reason ?? "";
+    $("rBadTitle").textContent = r.bad_match?.title ?? "";
+    $("rBadReason").textContent = r.bad_match?.reason ?? "";
+    $("rBadTip").textContent = r.bad_match?.tip ? `うまく付き合うコツ：${r.bad_match.tip}` : "";
     $("rStrengths").replaceChildren(...(r.strengths ?? []).slice(0, 3).map((s) => el("li", s)));
     $("copyNote").textContent = "";
     show("result");

@@ -14,6 +14,9 @@ const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザー
 - traits: 回答から見た傾向。creativity（創造力）、teamwork（協調性）、analysis（分析力）、action（行動力）をそれぞれ 0〜100 の整数で。
 - top_job: いちばん向いている職業。title は日本に実在する具体的な職業名（例：「Web デザイナー」「理学療法士」）、reason は回答の具体的な内容に触れた理由（100〜150文字）。
 - other_jobs: ほかに向いている職業をちょうど 2 つ。top_job と異なる分野から選び、reason は 60〜100 文字。
+- unsuited_jobs: 向いていない可能性がある職業をちょうど 2 つ。reason は回答に触れた理由（60〜100文字）。「苦手そう」程度のやわらかい言い方にし、本人を否定しないこと。
+- good_match: 一緒に働くと相性の良い職業の人。title は職業名、reason はなぜ相性が良いか（60〜100文字）。
+- bad_match: 一緒に働くとぶつかりやすい職業の人。title は職業名、reason はぶつかりやすい理由（60〜100文字）、tip はうまく付き合うコツ（50文字以内）。相手の職業を悪く言わないこと。
 - strengths: 仕事で活きる強みを 3 つ（各 15 文字以内）。
 - advice: その職業に近づくための最初の一歩になる具体的なアドバイス（80文字以内）。
 
@@ -27,6 +30,17 @@ const JOB_SCHEMA = {
     reason: { type: "string" },
   },
   required: ["title", "reason"],
+  additionalProperties: false,
+};
+
+const MATCH_SCHEMA = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    reason: { type: "string" },
+    tip: { type: "string" },
+  },
+  required: ["title", "reason", "tip"],
   additionalProperties: false,
 };
 
@@ -48,10 +62,13 @@ const RESULT_SCHEMA = {
     },
     top_job: JOB_SCHEMA,
     other_jobs: { type: "array", items: JOB_SCHEMA },
+    unsuited_jobs: { type: "array", items: JOB_SCHEMA },
+    good_match: JOB_SCHEMA,
+    bad_match: MATCH_SCHEMA,
     strengths: { type: "array", items: { type: "string" } },
     advice: { type: "string" },
   },
-  required: ["type_name", "catchphrase", "traits", "top_job", "other_jobs", "strengths", "advice"],
+  required: ["type_name", "catchphrase", "traits", "top_job", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "strengths", "advice"],
   additionalProperties: false,
 };
 
@@ -93,7 +110,7 @@ export default async function handler(req, res) {
   try {
     const response = await client.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 2000,
+      max_tokens: 3000,
       output_config: {
         format: { type: "json_schema", schema: RESULT_SCHEMA },
       },
@@ -120,6 +137,7 @@ export default async function handler(req, res) {
       result.traits[key] = clampScore(result.traits[key]);
     }
     result.other_jobs = result.other_jobs.slice(0, 2);
+    result.unsuited_jobs = result.unsuited_jobs.slice(0, 2);
     result.strengths = result.strengths.slice(0, 3);
     return res.status(200).json({ name, ...result });
   } catch (err) {

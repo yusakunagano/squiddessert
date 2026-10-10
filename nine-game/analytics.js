@@ -1,6 +1,6 @@
 // Google Analytics (GA4). Turned on only when firebase-config.js has a measurementId.
 // Counts page views plus two game events; no names or other personal details are sent.
-import { firebaseConfig } from './firebase-config.js?v=20261015';
+import { firebaseConfig } from './firebase-config.js?v=20261016';
 
 const id = firebaseConfig && firebaseConfig.measurementId;
 

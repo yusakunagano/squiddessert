@@ -2,7 +2,7 @@
 // Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261014';
+import { firebaseConfig } from './firebase-config.js?v=20261015';
 
 // Name used for players who would rather not type one.
 const ANON_NAME = '名無しさん';

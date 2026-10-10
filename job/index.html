@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="10 の質問に答えると、AI があなたに向いている職業を診断します。">
+<!-- PAGE-START -->
+<title>AI 職業診断</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@700;900&family=BIZ+UDPGothic:wght@400;700&display=swap">
+<style>
+  /* Layout: one column like an entry sheet; the result is printed as a 名刺 (business card) carrying the suggested job title */
+  :root {
+    --paper: #f3f5f8;
+    --card: #ffffff;
+    --ink: #1c2230;
+    --muted: #5f6878;
+    --line: #dde2ea;
+    --accent: #2948b3;
+    --accent-soft: #e6ebfa;
+    --on-accent: #ffffff;
+    --marker: #f2c94c;
+    --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    --font-body: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12151c; --card: #1b2029; --ink: #e9edf4; --muted: #a2abba;
+      --line: #2f3644; --accent: #8ea6ff; --accent-soft: #232c45; --on-accent: #10142a; --marker: #c9a43a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12151c; --card: #1b2029; --ink: #e9edf4; --muted: #a2abba;
+    --line: #2f3644; --accent: #8ea6ff; --accent-soft: #232c45; --on-accent: #10142a; --marker: #c9a43a;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--font-body); font-size: 1rem; line-height: 1.8;
+    padding-inline: 16px;
+  }
+  main { max-width: 36rem; margin: 0 auto; padding-block: 40px 64px; display: grid; gap: 20px; }
+  header { display: grid; gap: 4px; }
+  .eyebrow { font-size: .78rem; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  h1 { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.2rem, 8vw, 3rem); line-height: 1.15; margin: 0; letter-spacing: .04em; text-wrap: balance; }
+  h1 mark { background: linear-gradient(transparent 62%, var(--marker) 62%); color: inherit; padding: 0 2px; }
+  .lead { color: var(--muted); margin: 6px 0 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; display: grid; gap: 16px; }
+  label { font-weight: 700; font-size: .9rem; }
+  input[type="text"] {
+    width: 100%; padding: 12px 14px; font: inherit;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink);
+  }
+  input[type="text"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btn {
+    font: inherit; font-weight: 700; padding: 12px 22px; border-radius: 8px; border: none;
+    background: var(--accent); color: var(--on-accent); cursor: pointer; justify-self: start;
+  }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn:focus-visible, .choice:focus-visible, .ghost:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .ghost { font: inherit; font-size: .88rem; background: none; border: none; color: var(--muted); cursor: pointer; padding: 6px 0; justify-self: start; }
+  .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .track { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+  .track span { height: 4px; border-radius: 2px; background: var(--line); }
+  .track span.on { background: var(--accent); }
+  .question { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; line-height: 1.5; margin: 0; text-wrap: balance; }
+  .choices { display: grid; gap: 8px; }
+  .choice {
+    font: inherit; text-align: left; padding: 12px 16px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer;
+  }
+  .choice:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .free { display: flex; gap: 8px; flex-wrap: wrap; }
+  .free input { flex: 1 1 12rem; min-width: 0; }
+  .free .btn { padding: 10px 18px; }
+  .loading { justify-items: center; text-align: center; padding-block: 40px; }
+  .dots { display: flex; gap: 8px; }
+  .dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: bob 1s ease-in-out infinite; }
+  .dots span:nth-child(2) { animation-delay: .15s; }
+  .dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bob { 50% { transform: translateY(-8px); opacity: .5; } }
+  @media (prefers-reduced-motion: reduce) { .dots span { animation: none; } }
+  .note { font-size: .85rem; color: var(--muted); margin: 0; }
+
+  /* 名刺 */
+  .meishi {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    aspect-ratio: 91 / 55; max-width: 100%; padding: 6% 7%;
+    display: grid; grid-template-rows: auto 1fr auto; gap: 4px;
+    box-shadow: 0 10px 30px -18px rgba(20, 30, 60, .45);
+    border-top: 6px solid var(--accent);
+  }
+  .meishi-top { display: flex; justify-content: space-between; gap: 8px; font-size: .72rem; color: var(--muted); letter-spacing: .08em; }
+  .meishi-body { display: grid; align-content: center; gap: 2px; min-width: 0; }
+  .meishi-label { font-size: .78rem; color: var(--muted); }
+  .meishi-job { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.4rem, 6vw, 2rem); line-height: 1.25; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+  .meishi-name { font-size: .95rem; margin: 0; }
+  .meishi-foot { font-size: .72rem; color: var(--muted); text-align: right; }
+
+  .type { display: grid; gap: 2px; }
+  .type-name { font-family: var(--font-display); font-weight: 900; font-size: 1.35rem; margin: 0; }
+  .type-catch { color: var(--muted); margin: 0; }
+  h2 { font-size: .78rem; letter-spacing: .15em; font-weight: 700; color: var(--accent); margin: 0; }
+  section.block { display: grid; gap: 8px; }
+  .traits { display: grid; gap: 8px; }
+  .trait { display: grid; grid-template-columns: 4.5rem 1fr 2.5rem; align-items: center; gap: 10px; font-size: .9rem; }
+  .trait .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .trait .bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .8s ease-out; }
+  .trait .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .jobs { display: grid; gap: 10px; }
+  .job { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--paper); }
+  .job b { display: block; }
+  .job p { margin: 2px 0 0; font-size: .92rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
+  .chips li { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .error { background: var(--accent-soft); color: var(--ink); border-left: 4px solid var(--accent); border-radius: 6px; padding: 12px 14px; margin: 0; }
+  footer { font-size: .75rem; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="eyebrow">AI × キャリア診断</span>
+    <h1>AI <mark>職業診断</mark></h1>
+    <p class="lead">10 の質問に答えると、AI があなたの興味や得意なことから向いている職業を提案します。</p>
+  </header>
+
+  <section id="start" class="card">
+    <label for="name">ニックネーム（任意・名刺に載ります）</label>
+    <input id="name" type="text" maxlength="20" placeholder="例：山田 いか" autocomplete="off">
+    <button class="btn" id="startBtn" type="button">診断をはじめる</button>
+    <p class="note">選択肢から選んでも、自由に書いてもかまいません。所要時間は 2 分ほどです。</p>
+    <p class="note" id="aiNote" hidden></p>
+  </section>
+
+  <section id="quiz" class="card" hidden>
+    <div class="meta"><span id="progress"></span><span>選ぶか、自由に回答</span></div>
+    <div class="track" id="track"></div>
+    <p class="question" id="question"></p>
+    <div class="choices" id="choices"></div>
+    <form class="free" id="freeForm">
+      <input id="freeInput" type="text" maxlength="100" placeholder="自由に答える" autocomplete="off">
+      <button class="btn" type="submit">回答</button>
+    </form>
+    <button class="ghost" id="backBtn" type="button">← ひとつ戻る</button>
+  </section>
+
+  <section id="loading" class="card loading" hidden>
+    <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
+    <p style="margin:0">AI があなたに合う職業を探しています…</p>
+    <p class="note" id="loadingNote"></p>
+    <button class="ghost" id="stopBtn" type="button" style="justify-self:center">中止する</button>
+  </section>
+
+  <section id="result" hidden>
+    <div style="display:grid;gap:20px">
+      <div class="meishi">
+        <div class="meishi-top"><span>AI 職業診断</span><span id="rDate"></span></div>
+        <div class="meishi-body">
+          <span class="meishi-label">あなたに向いている職業</span>
+          <p class="meishi-job" id="rJob"></p>
+          <p class="meishi-name" id="rName"></p>
+        </div>
+        <div class="meishi-foot" id="rType"></div>
+      </div>
+
+      <div class="card">
+        <div class="type">
+          <p class="type-name" id="rTypeName"></p>
+          <p class="type-catch" id="rCatch"></p>
+        </div>
+        <section class="block">
+          <h2>向いている理由</h2>
+          <p style="margin:0" id="rReason"></p>
+        </section>
+        <section class="block">
+          <h2>あなたの傾向</h2>
+          <div class="traits" id="rTraits"></div>
+        </section>
+        <section class="block">
+          <h2>こんな職業も向いています</h2>
+          <div class="jobs" id="rOthers"></div>
+        </section>
+        <section class="block">
+          <h2>仕事で活きる強み</h2>
+          <ul class="chips" id="rStrengths"></ul>
+        </section>
+        <section class="block">
+          <h2>最初の一歩</h2>
+          <p style="margin:0" id="rAdvice"></p>
+        </section>
+        <div class="row">
+          <button class="btn" id="copyBtn" type="button">結果をコピー</button>
+          <button class="ghost" id="retryBtn" type="button">もう一度診断する</button>
+        </div>
+        <p class="note" id="copyNote" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <p class="error" id="error" role="alert" hidden></p>
+  <footer>診断は AI による参考情報です。進路を決めるときは、いろいろな人の話も聞いてみてください。</footer>
+</main>
+
+<script>
+  const QUESTIONS = [
+    { q: "子どもの頃、夢中になっていた遊びは？", choices: ["絵を描く・工作をする", "外で体を動かす", "ゲームやパズルを解く", "ごっこ遊びや友だちとのおしゃべり"] },
+    { q: "休日の理想の過ごし方は？", choices: ["何かを作ったり描いたりする", "知らない場所へ出かける", "本や動画で新しいことを学ぶ", "友だちや家族と集まる"] },
+    { q: "グループで何かをするとき、あなたの役割は？", choices: ["全体をまとめるリーダー", "アイデアを出す人", "計画を立てて分析する人", "みんなを支えるサポート役"] },
+    { q: "仕事でいちばん大事にしたいことは？", choices: ["人の役に立っている実感", "しっかり稼げること", "時間や場所の自由", "専門性やスキルが身につくこと"] },
+    { q: "得意なことにいちばん近いのは？", choices: ["文章や話で伝えること", "数字やデータを扱うこと", "手を動かして作ること", "人の気持ちを察すること"] },
+    { q: "働く場所として惹かれるのは？", choices: ["オフィス", "自宅やカフェ", "屋外や現場", "お店や人が集まる場所"] },
+    { q: "困った問題が起きたら、まずどうする？", choices: ["とりあえず動いて試す", "原因をじっくり調べる", "誰かに相談する", "やり方やルールを確認する"] },
+    { q: "言われていちばんうれしい褒め言葉は？", choices: ["センスがいいね", "頼りになるね", "よく気がつくね", "詳しいね"] },
+    { q: "どちらかといえば苦手なのは？", choices: ["同じ作業の繰り返し", "大勢の前で話すこと", "細かい数字のチェック", "急な予定変更"] },
+    { q: "いちばん興味のある分野は？", choices: ["IT・テクノロジー", "医療・福祉・教育", "アート・エンタメ・デザイン", "ビジネス・お金・経営"] },
+  ];
+
+  const TRAIT_LABELS = { creativity: "創造力", teamwork: "協調性", analysis: "分析力", action: "行動力" };
+
+  const $ = (id) => document.getElementById(id);
+  const show = (id) => ["start", "quiz", "loading", "result"].forEach((s) => ($(s).hidden = s !== id));
+  let answers = [];
+  let lastResult = null;
+  let ctl = null;
+
+  /* AI-CALL-START */
+  // API のエンドポイント。別ドメインに API を置く場合はここを書き換えてください。
+  const API_URL = "/api/diagnose";
+
+  async function askAI(name, answers, signal) {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, answers }),
+      signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `エラーが発生しました (${res.status})`);
+    return data;
+  }
+  /* AI-CALL-END */
+
+  $("track").replaceChildren(...QUESTIONS.map(() => document.createElement("span")));
+
+  function renderQuestion() {
+    const i = answers.length;
+    const item = QUESTIONS[i];
+    $("progress").textContent = `Q${i + 1} / ${QUESTIONS.length}`;
+    [...$("track").children].forEach((el, k) => el.classList.toggle("on", k <= i));
+    $("question").textContent = item.q;
+    $("choices").replaceChildren(...item.choices.map((c) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "choice";
+      b.textContent = c;
+      b.onclick = () => answer(c);
+      return b;
+    }));
+    $("freeInput").value = "";
+    $("backBtn").hidden = i === 0;
+  }
+
+  function answer(a) {
+    answers.push({ q: QUESTIONS[answers.length].q, a });
+    if (answers.length < QUESTIONS.length) renderQuestion();
+    else diagnose();
+  }
+
+  async function diagnose() {
+    show("loading");
+    $("error").hidden = true;
+    ctl = new AbortController();
+    try {
+      const r = await askAI($("name").value.trim().slice(0, 20), answers, ctl.signal);
+      renderResult(r);
+    } catch (e) {
+      const cancelled = e?.name === "AbortError" || e?.code === "cancelled";
+      if (!cancelled) {
+        $("error").textContent = e?.message || "通信に失敗しました。もう一度お試しください。";
+        $("error").hidden = false;
+      }
+      answers.pop();
+      show("quiz");
+      renderQuestion();
+    }
+  }
+
+  function el(tag, text, cls) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = String(text);
+    return n;
+  }
+
+  function renderResult(r) {
+    lastResult = r;
+    const name = $("name").value.trim();
+    $("rDate").textContent = new Date().toLocaleDateString("ja-JP");
+    $("rJob").textContent = r.top_job?.title ?? "";
+    $("rName").textContent = name ? `${name} 様` : "";
+    $("rType").textContent = r.type_name ? `タイプ：${r.type_name}` : "";
+    $("rTypeName").textContent = r.type_name ?? "";
+    $("rCatch").textContent = r.catchphrase ? `「${r.catchphrase}」` : "";
+    $("rReason").textContent = r.top_job?.reason ?? "";
+    $("rAdvice").textContent = r.advice ?? "";
+
+    const traits = r.traits ?? {};
+    const rows = Object.entries(TRAIT_LABELS).map(([key, label]) => {
+      const v = Math.max(0, Math.min(100, Math.round(Number(traits[key]) || 0)));
+      const row = el("div", null, "trait");
+      const bar = el("div", null, "bar");
+      const fill = el("span");
+      fill.dataset.v = v;
+      bar.append(fill);
+      row.append(el("span", label), bar, el("span", v, "num"));
+      return row;
+    });
+    $("rTraits").replaceChildren(...rows);
+
+    $("rOthers").replaceChildren(...(r.other_jobs ?? []).slice(0, 2).map((j) => {
+      const box = el("div", null, "job");
+      box.append(el("b", j.title), el("p", j.reason));
+      return box;
+    }));
+    $("rStrengths").replaceChildren(...(r.strengths ?? []).slice(0, 3).map((s) => el("li", s)));
+    $("copyNote").textContent = "";
+    show("result");
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $("rTraits").querySelectorAll(".bar span").forEach((s) => (s.style.width = s.dataset.v + "%"));
+    }));
+  }
+
+  $("startBtn").onclick = () => { answers = []; $("error").hidden = true; show("quiz"); renderQuestion(); };
+  $("backBtn").onclick = () => { answers.pop(); renderQuestion(); };
+  $("stopBtn").onclick = () => ctl?.abort();
+  $("freeForm").onsubmit = (e) => {
+    e.preventDefault();
+    const v = $("freeInput").value.trim();
+    if (v) answer(v);
+  };
+  $("retryBtn").onclick = () => { answers = []; show("start"); };
+  $("copyBtn").onclick = async () => {
+    const r = lastResult;
+    const text = `私に向いている職業は「${r.top_job?.title}」！ タイプは「${r.type_name}」でした。 #AI職業診断`;
+    try {
+      await navigator.clipboard.writeText(text);
+      $("copyNote").textContent = "コピーしました。";
+    } catch {
+      $("copyNote").textContent = text;
+    }
+  };
+</script>
+<!-- PAGE-END -->
+</body>
+</html>

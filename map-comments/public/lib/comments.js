@@ -5,6 +5,7 @@ import {
   getDocs,
   limit,
   onSnapshot,
+  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -101,6 +102,20 @@ export function watchComments(db, { south, west, north, east }, onChange, onErro
         .filter((c) => (west <= east ? c.lng >= west && c.lng <= east : c.lng >= west || c.lng <= east));
       onChange(comments);
     },
+    onError,
+  );
+}
+
+/**
+ * 新しい順に max 件のコメントをリアルタイムで受け取る (一覧表示と、引いた地図用)。
+ * 送信直後でサーバー時刻が未確定のものは、手元の推定時刻を入れる。
+ * @returns {() => void} 購読をやめる関数
+ */
+export function watchLatest(db, onChange, onError, max = 300) {
+  const q = query(collection(db, 'comments'), orderBy('createdAt', 'desc'), limit(max));
+  return onSnapshot(
+    q,
+    (snap) => onChange(snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }))),
     onError,
   );
 }

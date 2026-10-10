@@ -20,8 +20,19 @@
     <h1>マップコメント</h1>
     <p class="hint">地図をクリックしてコメント。<span id="rule"></span></p>
   </header>
-  <div id="map"></div>
-  <div id="notice" hidden>ズームするとコメントが見えます</div>
+  <main class="main">
+    <div id="map"></div>
+    <aside id="timeline" aria-label="コメント一覧">
+      <div class="tl-head">
+        <h2>みんなのコメント <small>新しい順</small></h2>
+        <button type="button" id="tlClose" class="tl-close" aria-label="一覧を閉じる">×</button>
+      </div>
+      <ol id="tlList" class="tl-list"></ol>
+      <p id="tlEmpty" class="tl-empty">まだコメントはありません</p>
+    </aside>
+  </main>
+  <button type="button" id="tlOpen" class="tl-open">コメント一覧</button>
+  <div id="notice" hidden>引いた地図では、各エリアの最新コメントを表示しています</div>
   <div id="toast" role="status" aria-live="polite" hidden></div>
   <script type="module" src="/app.js"></script>
 </body>

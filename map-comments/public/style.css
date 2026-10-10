@@ -19,7 +19,8 @@ body {
 .bar h1 { margin: 0; font-size: 18px; }
 .bar .hint { margin: 0; font-size: 13px; color: #666; }
 
-#map { flex: 1; }
+.main { flex: 1; display: flex; min-height: 0; }
+#map { flex: 1; min-width: 0; }
 .map-error { padding: 24px; line-height: 1.7; }
 
 /* 地図上の吹き出し */
@@ -106,4 +107,87 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, .3);
   font-size: 13px;
   z-index: 5;
+}
+
+/* 引いた地図: エリアの代表 (最新) コメント */
+.bubble.cluster { cursor: pointer; }
+.bubble .more {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* コメント一覧 */
+#timeline {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #ddd;
+  background: #fff;
+  min-height: 0;
+}
+.tl-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 6px; }
+.tl-head h2 { margin: 0; font-size: 15px; }
+.tl-head small { font-weight: normal; color: #666; font-size: 12px; margin-left: 4px; }
+.tl-close { display: none; border: 0; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: #666; }
+.tl-list { list-style: none; margin: 0; padding: 0 0 12px; overflow-y: auto; flex: 1; }
+.tl-list li { border-top: 1px solid #eee; }
+.tl-list button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.tl-list button:hover { background: #f5f8ff; }
+.tl-text { font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.tl-meta { margin-top: 2px; font-size: 11px; color: #888; }
+.tl-mine { color: #1a73e8; font-weight: bold; margin-left: 6px; }
+.tl-new { animation: tlnew 1.2s ease-out; }
+@keyframes tlnew { from { background: #fff4c2; } to { background: transparent; } }
+.tl-empty { margin: 12px; font-size: 13px; color: #888; }
+.tl-open { display: none; }
+
+@media (max-width: 720px) {
+  #timeline {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: 55%;
+    border-left: 0;
+    border-top: 1px solid #ddd;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, .2);
+    z-index: 8;
+    transform: translateY(100%);
+    transition: transform .2s ease-out;
+  }
+  #timeline.open { transform: none; }
+  .tl-close { display: block; }
+  .tl-open {
+    display: block;
+    position: fixed;
+    right: 16px;
+    bottom: 24px;
+    z-index: 7;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 999px;
+    background: #1a73e8;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+    cursor: pointer;
+  }
 }

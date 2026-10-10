@@ -3,10 +3,14 @@ import { connectAuthEmulator, getAuth, onAuthStateChanged, signInAnonymously } f
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import { firebaseConfig, googleMapsApiKey, googleMapsMapId } from './config.js';
 import { MAX_TEXT_LENGTH, VANISH_LIMIT, cellBounds, cellOf } from './lib/grid.js';
-import { deleteComment, getCell, postComment, watchComments } from './lib/comments.js';
+import { deleteComment, getCell, postComment, watchComments, watchLatest } from './lib/comments.js';
 
-// これより引いた地図ではコメントを読み込まない (読み込み量を抑えるため)
+// これより引いた地図では、1つずつではなくエリアごとの最新コメントだけを表示する
 const MIN_ZOOM = 14;
+// 引いた地図でまとめるエリアの大きさ (画面上のピクセル)
+const CLUSTER_PX = 90;
+// 一覧と引いた地図に使う、新しいコメントの件数
+const LATEST_MAX = 300;
 
 // localhost で開いたときは Firebase エミュレータにつなぐ (npm run dev)
 const USE_EMULATOR = ['localhost', '127.0.0.1'].includes(location.hostname);
@@ -144,18 +148,10 @@ async function main() {
     }
   }
 
-  // 表示範囲のコメントをリアルタイムで受け取る
+  // ---- 寄った地図: 表示範囲のコメントを1つずつ、リアルタイムで ----
   let unsubscribe = null;
   let firstSnapshot = true;
-  map.addListener('idle', () => {
-    unsubscribe?.();
-    unsubscribe = null;
-    const tooFar = map.getZoom() < MIN_ZOOM;
-    document.getElementById('notice').hidden = !tooFar;
-    if (tooFar) {
-      for (const id of [...markers.keys()]) removeMarker(id);
-      return;
-    }
+  function watchDetail() {
     const b = map.getBounds();
     const ne = b.getNorthEast();
     const sw = b.getSouthWest();
@@ -177,7 +173,139 @@ async function main() {
         toast('コメントを読み込めませんでした');
       },
     );
+  }
+
+  // ---- 引いた地図: 画面をエリアに区切り、各エリアの最新コメントだけを出す ----
+  let latest = [];
+  let clusterMarkers = [];
+  const zoomedOut = () => map.getZoom() < MIN_ZOOM;
+
+  function clearClusters() {
+    clusterMarkers.forEach((m) => { m.map = null; });
+    clusterMarkers = [];
+  }
+
+  function renderClusters() {
+    clearClusters();
+    if (!zoomedOut()) return;
+    const bounds = map.getBounds();
+    if (!bounds) return;
+    const size = (CLUSTER_PX * 360) / (256 * 2 ** map.getZoom()); // CLUSTER_PX 分の経度
+    const groups = new globalThis.Map();
+    // latest は新しい順なので、各エリアで最初に出てきたものが最新
+    for (const c of latest) {
+      if (!bounds.contains({ lat: c.lat, lng: c.lng })) continue;
+      const key = `${Math.floor(c.lat / size)}_${Math.floor(c.lng / size)}`;
+      const g = groups.get(key);
+      if (g) g.count++;
+      else groups.set(key, { comment: c, count: 1 });
+    }
+    for (const { comment, count } of groups.values()) {
+      const el = document.createElement('div');
+      el.className = comment.uid === uid ? 'bubble mine cluster' : 'bubble cluster';
+      el.textContent = comment.text.length > 30 ? `${comment.text.slice(0, 30)}…` : comment.text;
+      el.title = count > 1 ? `このあたりに ${count} 件。クリックで拡大` : 'クリックで拡大';
+      if (count > 1) {
+        const more = document.createElement('span');
+        more.className = 'more';
+        more.textContent = `+${count - 1}`;
+        el.append(more);
+      }
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        map.setCenter({ lat: comment.lat, lng: comment.lng });
+        map.setZoom(count > 1 ? Math.min(map.getZoom() + 3, MIN_ZOOM) : 17);
+      });
+      clusterMarkers.push(new AdvancedMarkerElement({
+        map,
+        position: { lat: comment.lat, lng: comment.lng },
+        content: el,
+        zIndex: Math.floor(comment.createdAt.toMillis() / 1000),
+      }));
+    }
+  }
+
+  map.addListener('idle', () => {
+    unsubscribe?.();
+    unsubscribe = null;
+    document.getElementById('notice').hidden = !zoomedOut();
+    if (zoomedOut()) {
+      for (const id of [...markers.keys()]) removeMarker(id);
+      renderClusters();
+    } else {
+      clearClusters();
+      watchDetail();
+    }
   });
+
+  // ---- コメント一覧 (新しい順) ----
+  const tlList = document.getElementById('tlList');
+  const timeline = document.getElementById('timeline');
+  const seen = new Set();
+  let firstLatest = true;
+
+  function timeAgo(date) {
+    const sec = Math.max(0, (Date.now() - date.getTime()) / 1000);
+    if (sec < 60) return 'たった今';
+    if (sec < 3600) return `${Math.floor(sec / 60)}分前`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)}時間前`;
+    if (sec < 86400 * 7) return `${Math.floor(sec / 86400)}日前`;
+    return date.toLocaleDateString('ja-JP');
+  }
+
+  function renderTimeline() {
+    tlList.replaceChildren(...latest.map((c) => {
+      const li = document.createElement('li');
+      if (!firstLatest && !seen.has(c.id)) li.className = 'tl-new';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const text = document.createElement('div');
+      text.className = 'tl-text';
+      text.textContent = c.text;
+      const meta = document.createElement('div');
+      meta.className = 'tl-meta';
+      const date = c.createdAt.toDate();
+      meta.textContent = timeAgo(date);
+      meta.title = date.toLocaleString('ja-JP');
+      if (c.uid === uid) {
+        const mine = document.createElement('span');
+        mine.className = 'tl-mine';
+        mine.textContent = '自分';
+        meta.append(mine);
+      }
+      btn.append(text, meta);
+      btn.addEventListener('click', () => {
+        map.setCenter({ lat: c.lat, lng: c.lng });
+        map.setZoom(Math.max(map.getZoom(), 17));
+        timeline.classList.remove('open');
+      });
+      li.append(btn);
+      return li;
+    }));
+    latest.forEach((c) => seen.add(c.id));
+    firstLatest = false;
+    document.getElementById('tlEmpty').hidden = latest.length > 0;
+  }
+
+  watchLatest(
+    db,
+    (comments) => {
+      latest = comments;
+      renderTimeline();
+      renderClusters();
+    },
+    (err) => {
+      console.error(err);
+      toast('コメント一覧を読み込めませんでした');
+    },
+    LATEST_MAX,
+  );
+  // 「◯分前」を更新する
+  setInterval(() => { if (latest.length) renderTimeline(); }, 60000);
+
+  // スマホでは一覧を下から引き出す
+  document.getElementById('tlOpen').addEventListener('click', () => timeline.classList.add('open'));
+  document.getElementById('tlClose').addEventListener('click', () => timeline.classList.remove('open'));
 
   // 地図クリックで投稿フォーム
   const infoWindow = new InfoWindow();

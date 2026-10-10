@@ -17,7 +17,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { cellOf, cellBounds } from '../public/lib/grid.js';
-import { deleteComment, getCell, postComment, watchComments } from '../public/lib/comments.js';
+import { deleteComment, getCell, postComment, watchComments, watchLatest } from '../public/lib/comments.js';
 
 const PROJECT = 'demo-map-comments';
 const apps = [];
@@ -120,6 +120,21 @@ test('watchComments で範囲内のコメントがリアルタイムに届く', 
   await new Promise((r) => setTimeout(r, 300));
   stop();
   assert.deepEqual(seen.at(-1), ['中']);
+});
+
+test('watchLatest で全コメントが新しい順に届く', async () => {
+  const alice = await user('alice');
+  const bob = await user('bob');
+  await postComment(alice.db, alice.uid, { lat: LAT, lng: LNG, text: '1つ目' });
+  await postComment(alice.db, alice.uid, { lat: LAT + 1, lng: LNG + 1, text: '2つ目' });
+  await postComment(alice.db, alice.uid, { lat: -33.8, lng: 151.2, text: '3つ目' });
+  const seen = [];
+  const stop = watchLatest(bob.db, (cs) => seen.push(cs), assert.fail, 2);
+  await new Promise((r) => setTimeout(r, 300));
+  stop();
+  const last = seen.at(-1);
+  assert.deepEqual(last.map((c) => c.text), ['3つ目', '2つ目']);
+  assert.ok(last[0].createdAt.toMillis() >= last[1].createdAt.toMillis());
 });
 
 test('ルールで不正な書き込みを防ぐ', async () => {

@@ -2,12 +2,12 @@
 // Firebase コンソール > プロジェクトの設定 > 全般 > マイアプリ (ウェブアプリ) の firebaseConfig をそのまま貼り付けます。
 // (これらの値は公開されても問題ありません。データはセキュリティルールで守られています)
 export const firebaseConfig = {
-  apiKey: '',
-  authDomain: '',
-  projectId: '',
-  storageBucket: '',
-  messagingSenderId: '',
-  appId: '',
+  apiKey: 'AIzaSyDr3rNdEtf9S8BhM2RhNeoBBSQPzJP1GjU',
+  authDomain: 'map-comments-30fab.firebaseapp.com',
+  projectId: 'map-comments-30fab',
+  storageBucket: 'map-comments-30fab.firebasestorage.app',
+  messagingSenderId: '322501203835',
+  appId: '1:322501203835:web:2a594ee7b943ae7d4a4fde',
 };
 
 // Google Maps の API キー (Maps JavaScript API)。

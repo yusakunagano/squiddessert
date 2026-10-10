@@ -65,16 +65,12 @@ export default async function handler(req, res) {
     .join("\n\n");
 
   try {
-    const response = await client.beta.messages.create({
-      model: "claude-opus-5-5",
-      max_tokens: 4000,
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 2000,
       output_config: {
-        effort: "low",
         format: { type: "json_schema", schema: RESULT_SCHEMA },
       },
-      // 安全分類器が辞退した場合はサーバー側で推奨モデルに自動フォールバック
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
       system: SYSTEM_PROMPT,
       messages: [
         {

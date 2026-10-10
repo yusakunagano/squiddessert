@@ -2,7 +2,7 @@
 // Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261016';
+import { firebaseConfig } from './firebase-config.js?v=20261017';
 
 // Name used for players who would rather not type one.
 const ANON_NAME = '名無しさん';
@@ -17,6 +17,10 @@ let last = null;        // result of the game that just ended
 let submitted = false;
 let lastId = null;      // id of the entry this browser just submitted, highlighted in the list
 let tab = 'daily';
+// Ranking lists already read, kept in memory for a few minutes so switching tabs or reopening
+// the ranking does not read the same entries again. Cleared when this browser registers a score.
+const CACHE_MS = 3 * 60 * 1000;
+let cache = {};         // collection path -> { at, rows: [{ id, v }] }
 
 function readName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }
 function writeName(v) { try { localStorage.setItem(NAME_KEY, v); } catch {} }
@@ -237,6 +241,7 @@ async function submit(nameArg) {
     await batch.commit();
     writeName(name);
     lastId = allRef.id;
+    cache = {};
     // The daily entry is written on its own, so weekly and all-time still work even if the
     // daily ranking is not allowed yet (for example before the Firestore rules are updated).
     let rankDay = null;
@@ -282,9 +287,14 @@ async function renderRanking() {
   try {
     const { F, auth } = await load();
     const col = want === 'daily' ? dayCol(weekId(today)) : want === 'weekly' ? weekCol(weekId(start)) : allCol();
-    const snap = await F.getDocs(F.query(col, F.orderBy('score', 'desc'), F.limit(RANK_SIZE)));
+    let hit = cache[col.path];
+    if (!hit || Date.now() - hit.at > CACHE_MS) {
+      const snap = await F.getDocs(F.query(col, F.orderBy('score', 'desc'), F.limit(RANK_SIZE)));
+      hit = cache[col.path] = { at: Date.now(), rows: snap.docs.map(d => ({ id: d.id, v: d.data() })) };
+    }
+    const rows = hit.rows;
     if (want !== tab) return;                 // tab switched while loading
-    if (snap.empty) {
+    if (!rows.length) {
       const when = want === 'daily' ? '今日は' : want === 'weekly' ? '今週は' : '';
       status.textContent = `${when}まだ誰も登録していません。最初の 1 人になろう！`;
       return;
@@ -292,8 +302,8 @@ async function renderRanking() {
     status.hidden = true;
     const me = auth.currentUser?.uid;
     let pos = 0, prevScore = null, shown = 0;
-    snap.forEach(d => {
-      const v = d.data();
+    rows.forEach(d => {
+      const v = d.v;
       shown++;
       if (v.score !== prevScore) { pos = shown; prevScore = v.score; }   // ties share a rank
       const li = document.createElement('li');

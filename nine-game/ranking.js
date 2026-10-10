@@ -2,7 +2,7 @@
 // Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261017';
+import { firebaseConfig } from './firebase-config.js?v=20261018';
 
 // Name used for players who would rather not type one.
 const ANON_NAME = '名無しさん';
@@ -17,6 +17,10 @@ let last = null;        // result of the game that just ended
 let submitted = false;
 let lastId = null;      // id of the entry this browser just submitted, highlighted in the list
 let tab = 'daily';
+// "自分" tab: this browser's own top scores, kept only in localStorage (no Firestore reads).
+const MINE_KEY = 'nine-game-mine';
+const MINE_SIZE = 10;
+let mineLast = null;    // `at` of the play that just ended, highlighted in the 自分 tab
 // Ranking lists already read, kept in memory for a few minutes so switching tabs or reopening
 // the ranking does not read the same entries again. Cleared when this browser registers a score.
 const CACHE_MS = 3 * 60 * 1000;
@@ -280,7 +284,10 @@ async function renderRanking() {
   status.hidden = false;
   status.className = 'note';
   const start = weekStart(), today = dayStart();
-  period.textContent = tab === 'daily' ? `今日 ${dayLabel(today)}` : tab === 'weekly' ? `今週 ${weekLabel(start)}` : 'これまでの全期間';
+  period.textContent = tab === 'daily' ? `今日 ${dayLabel(today)}` : tab === 'weekly' ? `今週 ${weekLabel(start)}`
+    : tab === 'mine' ? `この端末で遊んだ記録（上位${MINE_SIZE}件）` : 'これまでの全期間';
+  $('rankTop').hidden = tab === 'mine';
+  if (tab === 'mine') { renderMine(); return; }
   if (!firebaseConfig) { status.textContent = 'オンラインランキングは準備中です。'; return; }
   status.textContent = '読み込み中…';
   const want = tab;
@@ -325,6 +332,58 @@ async function renderRanking() {
   }
 }
 
+function readMine() {
+  try {
+    const rows = JSON.parse(localStorage.getItem(MINE_KEY) || 'null');
+    if (Array.isArray(rows)) return rows;
+    // First time: start from the best score saved by older versions (date unknown).
+    const best = Number(localStorage.getItem('nine-game-best')) || 0;
+    return best > 0 ? [{ score: best, level: null, at: null }] : [];
+  } catch { return []; }
+}
+
+// Adds a play to this browser's top list; returns its place there (1 = best), or 0 when outside.
+function addMine({ score, level }) {
+  if (!(score > 0)) return 0;
+  const at = Date.now();
+  const rows = readMine();
+  rows.push({ score, level, at });
+  rows.sort((a, b) => b.score - a.score || (a.at ?? 0) - (b.at ?? 0));   // ties: older first
+  const kept = rows.slice(0, MINE_SIZE);
+  try { localStorage.setItem(MINE_KEY, JSON.stringify(kept)); } catch {}
+  const i = kept.findIndex(r => r.at === at);
+  if (i < 0) return 0;
+  mineLast = at;
+  return kept.filter(r => r.score > score).length + 1;
+}
+
+function mineDate(at) {
+  if (!at) return '以前の記録';
+  const d = new Date(at), p = n => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function renderMine() {
+  const list = $('rankList'), status = $('rankStatus');
+  const rows = readMine();
+  if (!rows.length) { status.textContent = 'まだ記録がありません。遊ぶとここに残ります。'; return; }
+  status.hidden = true;
+  let pos = 0, prevScore = null;
+  rows.forEach((v, i) => {
+    if (v.score !== prevScore) { pos = i + 1; prevScore = v.score; }
+    const li = document.createElement('li');
+    li.classList.toggle('top', pos <= 3);
+    li.classList.toggle('me', !!v.at && v.at === mineLast);
+    const a = document.createElement('span'); a.className = 'pos';
+    if (pos <= 3) { a.innerHTML = crown(pos); a.setAttribute('aria-label', `${pos}位`); } else a.textContent = pos;
+    const b = document.createElement('span'); b.className = 'who'; b.textContent = mineDate(v.at);
+    if (v.level) { const s = document.createElement('small'); s.textContent = `Lv${v.level}`; b.appendChild(s); }
+    const c = document.createElement('span'); c.className = 'pts'; c.textContent = v.score;
+    li.append(a, b, c);
+    list.appendChild(li);
+  });
+}
+
 function showRanking() {
   $('rankOverlay').hidden = false;
   renderRanking();
@@ -332,6 +391,10 @@ function showRanking() {
 
 window.addEventListener('nine:gameover', e => {
   last = e.detail;
+  const place = addMine(last);
+  // "ベストスコア更新！" already covers 1st place; other top-10 places get their own line.
+  $('rMine').hidden = !(place > 1);
+  $('rMine').textContent = place > 1 ? `自分の記録で ${place} 位！` : '';
   submitted = false;
   failed = false;
   renaming = false;

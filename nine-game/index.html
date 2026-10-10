@@ -182,6 +182,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .rules-short li { font-size: .95rem; }
 .start-title { text-align: center; }
 #rulesBtnStart { align-self: center; }
+.policy-link { align-self: center; font-size: .75rem; color: var(--muted); }
 .start-title b { font-size: 1.7em; line-height: 1; vertical-align: -.08em; }
 .panel ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: .88rem; line-height: 1.55; }
 .panel .neg-text { color: var(--minus); font-weight: 800; }
@@ -292,6 +293,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     <button class="btn primary" id="startBtn" type="button">スタート</button>
     <button class="btn sound-toggle" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>サウンド OFF</span></button>
     <button class="btn" id="rankBtnStart" type="button">ランキングを見る</button>
+    <a class="policy-link" href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
   </div>
 </div>
 
@@ -1117,6 +1119,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
   function startGame() {
     clearTimeout(timerId);
+    window.dispatchEvent(new CustomEvent('nine:start'));
     cat.randomize();
     S = newState();
     S.running = true;
@@ -1283,6 +1286,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   render();
 })();
 </script>
-<script type="module" src="ranking.js?v=20261014"></script>
+<script type="module" src="ranking.js?v=20261015"></script>
+<script type="module" src="analytics.js?v=20261015"></script>
 </body>
 </html>

@@ -1,9 +1,11 @@
 // AI 職業診断 API（Vercel Serverless Function）
 // POST /api/diagnose  body: { name?: string, answers: [{ q: string, a: string }] }
-// 環境変数 ANTHROPIC_API_KEY が必要です（ブラウザには公開されません）。
-import Anthropic from "@anthropic-ai/sdk";
+// 環境変数 GEMINI_API_KEY が必要です（ブラウザには公開されません）。
+// API キーは Google AI Studio（https://aistudio.google.com/apikey）で発行できます。
+import { ApiError, GoogleGenAI } from "@google/genai";
 
-const client = new Anthropic();
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const MODEL = "gemini-flash-latest";
 
 const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザーとして「AI 職業診断」を担当します。
 ユーザーが答えた質問への回答から、その人の興味・得意なこと・価値観・働き方の好みを読み取り、
@@ -52,20 +54,20 @@ const RESULT_SCHEMA = {
     traits: {
       type: "object",
       properties: {
-        creativity: { type: "integer" },
-        teamwork: { type: "integer" },
-        analysis: { type: "integer" },
-        action: { type: "integer" },
+        creativity: { type: "integer", minimum: 0, maximum: 100 },
+        teamwork: { type: "integer", minimum: 0, maximum: 100 },
+        analysis: { type: "integer", minimum: 0, maximum: 100 },
+        action: { type: "integer", minimum: 0, maximum: 100 },
       },
       required: ["creativity", "teamwork", "analysis", "action"],
       additionalProperties: false,
     },
     top_job: JOB_SCHEMA,
-    other_jobs: { type: "array", items: JOB_SCHEMA },
-    unsuited_jobs: { type: "array", items: JOB_SCHEMA },
+    other_jobs: { type: "array", items: JOB_SCHEMA, minItems: 2, maxItems: 2 },
+    unsuited_jobs: { type: "array", items: JOB_SCHEMA, minItems: 2, maxItems: 2 },
     good_match: JOB_SCHEMA,
     bad_match: MATCH_SCHEMA,
-    strengths: { type: "array", items: { type: "string" } },
+    strengths: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 },
     advice: { type: "string" },
   },
   required: ["type_name", "catchphrase", "traits", "top_job", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "strengths", "advice"],
@@ -108,28 +110,20 @@ export default async function handler(req, res) {
     .join("\n\n");
 
   try {
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 3000,
-      output_config: {
-        format: { type: "json_schema", schema: RESULT_SCHEMA },
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: `名前: ${name}\n\n<answers>\n${answerText}\n</answers>`,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+        responseJsonSchema: RESULT_SCHEMA,
       },
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `名前: ${name}\n\n<answers>\n${answerText}\n</answers>`,
-        },
-      ],
     });
 
-    if (response.stop_reason === "refusal") {
-      return res.status(422).json({ error: "この回答では診断できませんでした。内容を変えてもう一度お試しください。" });
-    }
-
-    const text = response.content.find((block) => block.type === "text")?.text;
+    const text = response.text;
     if (!text) {
-      return res.status(502).json({ error: "診断結果を取得できませんでした" });
+      // 安全フィルタでブロックされた場合などは本文が空になる
+      return res.status(422).json({ error: "この回答では診断できませんでした。内容を変えてもう一度お試しください。" });
     }
 
     const result = JSON.parse(text);
@@ -141,12 +135,15 @@ export default async function handler(req, res) {
     result.strengths = result.strengths.slice(0, 3);
     return res.status(200).json({ name, ...result });
   } catch (err) {
-    if (err instanceof Anthropic.RateLimitError) {
-      return res.status(429).json({ error: "混み合っています。少し待ってからお試しください。" });
-    }
-    if (err instanceof Anthropic.APIError) {
-      console.error("Anthropic API error", err.status, err.message);
+    if (err instanceof ApiError) {
+      if (err.status === 429) {
+        return res.status(429).json({ error: "混み合っています。少し待ってからお試しください。" });
+      }
+      console.error("Gemini API error", err.status, err.message);
       return res.status(502).json({ error: "AI の呼び出しに失敗しました" });
+    }
+    if (err instanceof SyntaxError) {
+      return res.status(502).json({ error: "診断結果をうまく読み取れませんでした。もう一度お試しください。" });
     }
     console.error(err);
     return res.status(500).json({ error: "サーバーエラーが発生しました" });

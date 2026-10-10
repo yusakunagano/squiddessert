@@ -17,5 +17,6 @@ export const firebaseConfig = {
   projectId: "nine-game-158ac",
   storageBucket: "nine-game-158ac.firebasestorage.app",
   messagingSenderId: "951044365557",
-  appId: "1:951044365557:web:886c2523c825fa31aff9bc"
+  appId: "1:951044365557:web:886c2523c825fa31aff9bc",
+  measurementId: "G-RH8SN9RQ8M"
 };

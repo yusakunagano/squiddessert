@@ -64,4 +64,6 @@ export interface Settings {
   model: string;
   speechRate: number;
   voiceURI: string;
+  /** auto: 端末の声→だめならオンライン / device: 端末の声のみ / online: オンライン音声のみ */
+  speechEngine: "auto" | "device" | "online";
 }

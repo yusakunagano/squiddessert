@@ -6,10 +6,14 @@ import { eikenWordsByGrade } from "../data/eiken";
 import { generateWordInfo, hasAI } from "../lib/ai";
 import { freeLookup } from "../lib/dict";
 
+const PAGE = 50;
+
 export function WordsPage() {
   const [tab, setTab] = useState<"mine" | "eiken">("mine");
   const [grade, setGrade] = useState<GradeId>("5");
   const [query, setQuery] = useState("");
+  // 単語が多い級でも重くならないよう、少しずつ表示する
+  const [limit, setLimit] = useState(PAGE);
   const [editing, setEditing] = useState<Word | "new" | null>(null);
   const myWords = useAppState((s) => s.words);
 
@@ -20,10 +24,10 @@ export function WordsPage() {
   return (
     <div className="page">
       <div className="segmented">
-        <button className={tab === "mine" ? "active" : ""} onClick={() => setTab("mine")}>
+        <button className={tab === "mine" ? "active" : ""} onClick={() => (setTab("mine"), setLimit(PAGE))}>
           マイ単語 ({myWords.length})
         </button>
-        <button className={tab === "eiken" ? "active" : ""} onClick={() => setTab("eiken")}>
+        <button className={tab === "eiken" ? "active" : ""} onClick={() => (setTab("eiken"), setLimit(PAGE))}>
           英検単語
         </button>
       </div>
@@ -31,7 +35,7 @@ export function WordsPage() {
       {tab === "eiken" && (
         <div className="chips">
           {GRADES.map((g) => (
-            <button key={g.id} className={`chip ${grade === g.id ? "active" : ""}`} onClick={() => setGrade(g.id)}>
+            <button key={g.id} className={`chip ${grade === g.id ? "active" : ""}`} onClick={() => (setGrade(g.id), setLimit(PAGE))}>
               {g.label}
             </button>
           ))}
@@ -39,7 +43,7 @@ export function WordsPage() {
       )}
 
       <div className="row">
-        <input className="input grow" placeholder="🔍 検索" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input className="input grow" placeholder="🔍 検索" value={query} onChange={(e) => (setQuery(e.target.value), setLimit(PAGE))} />
         {tab === "mine" && (
           <button className="btn primary" onClick={() => setEditing("new")}>
             ＋ 単語を登録
@@ -56,7 +60,7 @@ export function WordsPage() {
       )}
 
       <div className="list">
-        {list.map((w) => (
+        {list.slice(0, limit).map((w) => (
           <WordCard
             key={w.id}
             word={w}
@@ -78,6 +82,11 @@ export function WordsPage() {
           />
         ))}
       </div>
+      {list.length > limit && (
+        <button className="btn" onClick={() => setLimit((n) => n + PAGE)}>
+          もっと見る（残り{list.length - limit}語）
+        </button>
+      )}
     </div>
   );
 }

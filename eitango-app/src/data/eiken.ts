@@ -1,7 +1,16 @@
-import type { GradeId, Word } from "../types";
+import { GRADES, type GradeId, type Word } from "../types";
 import { EIKEN2_VERBS } from "./eiken2-verbs";
 import { EIKEN2_NOUNS } from "./eiken2-nouns";
 import { EIKEN2_ADJECTIVES } from "./eiken2-adjectives";
+import { EIKEN2_MORE_VERBS1 } from "./eiken2-more-verbs1";
+import { EIKEN2_MORE_VERBS2 } from "./eiken2-more-verbs2";
+import { EIKEN2_MORE_NOUNS1 } from "./eiken2-more-nouns1";
+import { EIKEN2_MORE_NOUNS2 } from "./eiken2-more-nouns2";
+import { EIKEN2_MORE_NOUNS3 } from "./eiken2-more-nouns3";
+import { EIKEN2_MORE_ADJ1 } from "./eiken2-more-adj1";
+import { EIKEN2_MORE_ADJ2 } from "./eiken2-more-adj2";
+import { EIKEN2_IDIOMS1 } from "./eiken2-idioms1";
+import { EIKEN2_IDIOMS2 } from "./eiken2-idioms2";
 
 // 英検の級ごとのサンプル単語リスト。
 // 形式: [単語, 意味, 例文1(英), 例文1(和), 例文2(英), 例文2(和)]
@@ -119,6 +128,7 @@ const RAW: Record<GradeId, Row[]> = {
     ["benefit", "利益、恩恵", "Exercise has many benefits.", "運動には多くの利点があります。", "The new law will benefit families.", "新しい法律は家族の利益になるでしょう。"],
     ["vehicle", "乗り物、車両", "Electric vehicles are becoming popular.", "電気自動車が普及しつつあります。", "No vehicles are allowed in this area.", "この区域は車両進入禁止です。"],
   ],
+  "2i": [],
   p1: [
     ["abundant", "豊富な", "The region has abundant natural resources.", "その地域は天然資源が豊富です。", "Fish are abundant in this lake.", "この湖には魚がたくさんいます。"],
     ["accelerate", "加速する", "The car accelerated quickly.", "その車は急加速しました。", "Technology accelerates change.", "技術は変化を加速させます。"],
@@ -155,8 +165,21 @@ const RAW: Record<GradeId, Row[]> = {
   ],
 };
 
-// 2級は追加リスト（動詞・名詞・形容詞/副詞）も合わせる
-RAW["2"] = [...RAW["2"], ...EIKEN2_VERBS, ...EIKEN2_NOUNS, ...EIKEN2_ADJECTIVES];
+// 2級は追加リスト（動詞・名詞・形容詞/副詞）も合わせる。2級熟語は別の区分にする
+RAW["2"] = [
+  ...RAW["2"],
+  ...EIKEN2_VERBS,
+  ...EIKEN2_MORE_VERBS1,
+  ...EIKEN2_MORE_VERBS2,
+  ...EIKEN2_NOUNS,
+  ...EIKEN2_MORE_NOUNS1,
+  ...EIKEN2_MORE_NOUNS2,
+  ...EIKEN2_MORE_NOUNS3,
+  ...EIKEN2_ADJECTIVES,
+  ...EIKEN2_MORE_ADJ1,
+  ...EIKEN2_MORE_ADJ2,
+];
+RAW["2i"] = [...EIKEN2_IDIOMS1, ...EIKEN2_IDIOMS2];
 
 // 同じ単語が複数の級に入っていたら、下の級のほうだけ残す
 const seen = new Set<string>();
@@ -168,9 +191,10 @@ const dedupe = (rows: Row[]) =>
     return true;
   });
 
-export const EIKEN_WORDS: Word[] = (Object.keys(RAW) as GradeId[]).flatMap((grade) =>
+// 級の順番（5級→1級）に処理する。Object.keys だと数字の級が先に並んでしまうため GRADES を使う
+export const EIKEN_WORDS: Word[] = GRADES.map((g) => g.id).flatMap((grade) =>
   dedupe(RAW[grade]).map(([word, meaning, en1, ja1, en2, ja2]) => ({
-    id: `eiken-${grade}-${word.toLowerCase()}`,
+    id: `eiken-${grade}-${word.toLowerCase().replace(/\s+/g, "-")}`,
     word,
     meaning,
     examples: [

@@ -51,7 +51,12 @@ export function stopSpeaking() {
 
 /** 英語を読み上げる */
 export function speak(text: string) {
-  text = text.replace(/\s+/g, " ").trim();
+  // 熟語の ~ は「something」「doing」と読む
+  text = text
+    .replace(/~ing\b/g, "doing")
+    .replace(/~/g, "something")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!text) return;
   const engine = getState().settings.speechEngine;
   const wasSpeaking = stopSpeaking();

@@ -3,12 +3,9 @@ import { hasAI, streamChat, type FocusWord } from "../lib/ai";
 import { createRecognition, speak } from "../lib/speech";
 import { actions, useAppState } from "../store";
 import type { ChatMessage } from "../types";
-import { escapeRe } from "../components/WordCard";
+import { findInSentence } from "../lib/phrase";
 
-const usedIn = (text: string, word: string) => {
-  const stem = word.toLowerCase().replace(/e$/, "");
-  return new RegExp(`\\b${escapeRe(stem)}[a-z]*`, "i").test(text);
-};
+const usedIn = (text: string, word: string) => findInSentence(text, word).length > 0;
 
 /** 再テスト項目の単語を中心に、AIと英会話する */
 export function ChatPage({ onOpenSettings }: { onOpenSettings: () => void }) {

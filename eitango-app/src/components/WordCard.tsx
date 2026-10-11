@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Word } from "../types";
 import { gradeLabel } from "../types";
 import { speak } from "../lib/speech";
+import { splitSentence } from "../lib/phrase";
 
 interface Props {
   word: Word;
@@ -58,13 +59,7 @@ export function WordCard({ word, actions }: Props) {
   );
 }
 
-/** 例文の中の見出し語（活用形も含めてざっくり）を太字にする */
+/** 例文の中の見出し語（活用形・熟語も含めてざっくり）を太字にする */
 export function highlight(sentence: string, word: string) {
-  const stem = word.toLowerCase().replace(/e$/, "");
-  if (stem.length < 2) return sentence;
-  const re = new RegExp(`\\b(${escapeRe(stem)}[a-z]*)`, "gi");
-  const parts = sentence.split(re);
-  return parts.map((p, i) => (i % 2 === 1 ? <b key={i}>{p}</b> : p));
+  return splitSentence(sentence, word).map((p, i) => (i % 2 === 1 ? <b key={i}>{p}</b> : p));
 }
-
-export const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

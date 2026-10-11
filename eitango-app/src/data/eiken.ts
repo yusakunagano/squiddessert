@@ -11,6 +11,7 @@ import { EIKEN2_MORE_ADJ1 } from "./eiken2-more-adj1";
 import { EIKEN2_MORE_ADJ2 } from "./eiken2-more-adj2";
 import { EIKEN2_IDIOMS1 } from "./eiken2-idioms1";
 import { EIKEN2_IDIOMS2 } from "./eiken2-idioms2";
+import { EXTRA_WORDS } from "./words";
 
 // 英検の級ごとのサンプル単語リスト。
 // 形式: [単語, 意味, 例文1(英), 例文1(和), 例文2(英), 例文2(和)]
@@ -180,6 +181,9 @@ RAW["2"] = [
   ...EIKEN2_MORE_ADJ2,
 ];
 RAW["2i"] = [...EIKEN2_IDIOMS1, ...EIKEN2_IDIOMS2];
+
+// 各級の追加リスト（src/data/words/。ファイル名の先頭が級）
+for (const g of Object.keys(EXTRA_WORDS) as GradeId[]) RAW[g] = [...RAW[g], ...EXTRA_WORDS[g]];
 
 // 同じ単語が複数の級に入っていたら、下の級のほうだけ残す
 const seen = new Set<string>();

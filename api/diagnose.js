@@ -8,18 +8,20 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const MODEL = "gemini-flash-latest";
 
 const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザーとして「AI 職業診断」を担当します。
-ユーザーが答えた質問への回答から、その人の興味・得意なこと・価値観・働き方の好みを読み取り、
-向いている職業を提案してください。日本語で、前向きで親しみやすいトーンで書きます。
+ユーザーが答えた質問への回答から、その人の興味・得意なこと・価値観・働き方の好み・性格・生活習慣を読み取り、
+性格と向いている職業を診断してください。日本語で、前向きで親しみやすいトーンで書きます。
 
 - type_name: その人の仕事タイプ名（例：「ひらめきクリエイター」「縁の下のサポーター」。15文字以内）。
 - catchphrase: その人を一言で表すキャッチコピー（30文字以内）。
 - traits: 回答から見た傾向。creativity（創造力）、teamwork（協調性）、analysis（分析力）、action（行動力）をそれぞれ 0〜100 の整数で。
+- personality: その人の性格。summary は回答の具体的な内容に触れた性格の説明（150〜200文字）、keywords は性格を表す短い言葉をちょうど 3 つ（各 10 文字以内）。
 - top_job: いちばん向いている職業。title は日本に実在する具体的な職業名（例：「Web デザイナー」「理学療法士」）、reason は回答の具体的な内容に触れた理由（100〜150文字）。
 - other_jobs: ほかに向いている職業をちょうど 2 つ。top_job と異なる分野から選び、reason は 60〜100 文字。
 - unsuited_jobs: 向いていない可能性がある職業をちょうど 2 つ。reason は回答に触れた理由（60〜100文字）。「苦手そう」程度のやわらかい言い方にし、本人を否定しないこと。
 - good_match: 一緒に働くと相性の良い職業の人。title は職業名、reason はなぜ相性が良いか（60〜100文字）。
 - bad_match: 一緒に働くとぶつかりやすい職業の人。title は職業名、reason はぶつかりやすい理由（60〜100文字）、tip はうまく付き合うコツ（50文字以内）。相手の職業を悪く言わないこと。
 - strengths: 仕事で活きる強みを 3 つ（各 15 文字以内）。
+- life_cautions: その性格の人が生活する上で気を付けるとよいことをちょうど 3 つ。title は短い見出し（15文字以内）、detail は具体的な内容と対策（60〜90文字）。説教くさくせず、やさしい言い方で。
 - advice: その職業に近づくための最初の一歩になる具体的なアドバイス（80文字以内）。
 
 診断はあくまで参考であり、本人の可能性を狭める言い方は避けてください。
@@ -32,6 +34,26 @@ const JOB_SCHEMA = {
     reason: { type: "string" },
   },
   required: ["title", "reason"],
+  additionalProperties: false,
+};
+
+const PERSONALITY_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    keywords: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 },
+  },
+  required: ["summary", "keywords"],
+  additionalProperties: false,
+};
+
+const CAUTION_SCHEMA = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    detail: { type: "string" },
+  },
+  required: ["title", "detail"],
   additionalProperties: false,
 };
 
@@ -62,19 +84,21 @@ const RESULT_SCHEMA = {
       required: ["creativity", "teamwork", "analysis", "action"],
       additionalProperties: false,
     },
+    personality: PERSONALITY_SCHEMA,
     top_job: JOB_SCHEMA,
     other_jobs: { type: "array", items: JOB_SCHEMA, minItems: 2, maxItems: 2 },
     unsuited_jobs: { type: "array", items: JOB_SCHEMA, minItems: 2, maxItems: 2 },
     good_match: JOB_SCHEMA,
     bad_match: MATCH_SCHEMA,
     strengths: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 },
+    life_cautions: { type: "array", items: CAUTION_SCHEMA, minItems: 3, maxItems: 3 },
     advice: { type: "string" },
   },
-  required: ["type_name", "catchphrase", "traits", "top_job", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "strengths", "advice"],
+  required: ["type_name", "catchphrase", "traits", "personality", "top_job", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "strengths", "life_cautions", "advice"],
   additionalProperties: false,
 };
 
-const MAX_ANSWERS = 20;
+const MAX_ANSWERS = 30;
 const MAX_TEXT = 200;
 
 function clip(value) {
@@ -133,6 +157,8 @@ export default async function handler(req, res) {
     result.other_jobs = result.other_jobs.slice(0, 2);
     result.unsuited_jobs = result.unsuited_jobs.slice(0, 2);
     result.strengths = result.strengths.slice(0, 3);
+    result.personality.keywords = result.personality.keywords.slice(0, 3);
+    result.life_cautions = result.life_cautions.slice(0, 3);
     return res.status(200).json({ name, ...result });
   } catch (err) {
     if (err instanceof ApiError) {

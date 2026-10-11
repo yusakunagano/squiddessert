@@ -35,6 +35,8 @@ npm run build    # ../eitango/ に公開用ファイルを出力
 
 ## AI 機能（任意）
 
+「設定」で **Gemini**（Google AI Studio で無料のAPIキーを作れる・回数制限あり）か **Claude** を選べます。
+
 「設定」で Claude の API キー（[Anthropic Console](https://console.anthropic.com/) で発行）を入れると、次の機能が有効になります。
 
 - 手書き文字の読み取りによる自動採点（キーがない場合は答えを見て自分で ○× をつけます）

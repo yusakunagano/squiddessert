@@ -61,8 +61,12 @@ export interface ChatMessage {
 }
 
 export interface Settings {
+  /** 使うAI */
+  provider: "claude" | "gemini";
   apiKey: string;
   model: string;
+  geminiKey: string;
+  geminiModel: string;
   speechRate: number;
   voiceURI: string;
   /** auto: 端末の声→だめならオンライン / device: 端末の声のみ / online: オンライン音声のみ */

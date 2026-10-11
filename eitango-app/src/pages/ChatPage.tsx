@@ -68,7 +68,7 @@ export function ChatPage({ onOpenSettings }: { onOpenSettings: () => void }) {
       <div className="page">
         <div className="card">
           <h2>💬 AIと英会話</h2>
-          <p>AIとの会話には Claude の APIキーが必要です。「設定」画面で入力してください。</p>
+          <p>AIとの会話にはAPIキーが必要です。「設定」画面でGemini（無料枠あり）かClaudeのキーを入力してください。</p>
           <button className="btn primary" onClick={onOpenSettings}>
             設定を開く
           </button>

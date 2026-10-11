@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { HandwritingCanvas, type HandwritingHandle } from "../components/HandwritingCanvas";
 import { eikenWordsByGrade } from "../data/eiken";
-import { hasAI, recognizeHandwriting } from "../lib/ai";
 import { speak } from "../lib/speech";
 import { answerOf, maskSentence } from "../lib/phrase";
 import { actions, findWord, useAppState } from "../store";
@@ -150,9 +149,7 @@ function SetupView({
         )}
 
         <p className="hint">
-          {hasAI()
-            ? "✍️ 手書きの文字はAIが読み取って採点します。"
-            : "✍️ 手書きしたあと、答えを見て自分で○×をつけます（設定でAPIキーを入れるとAIが自動採点します）。"}
+          ✍️ 手書きしたあと、答えを見て自分で○×をつけます。
         </p>
         <button className="btn primary big" disabled={pool.length === 0} onClick={begin}>
           テスト開始
@@ -174,10 +171,9 @@ function QuizView({
 }) {
   const [index, setIndex] = useState(0);
   const [results, setResults] = useState<TestItemResult[]>([]);
-  const [phase, setPhase] = useState<"write" | "checking" | "judged">("write");
-  const [written, setWritten] = useState("");
+  // 速さを優先して、テストではAIを使わず自己採点にする
+  const [phase, setPhase] = useState<"write" | "judged">("write");
   const [correct, setCorrect] = useState<boolean | null>(null);
-  const [error, setError] = useState("");
   const [showExampleJa, setShowExampleJa] = useState(false);
   const canvas = useRef<HandwritingHandle>(null);
 
@@ -186,41 +182,23 @@ function QuizView({
   const blanked = example ? maskSentence(example.en, w.word) : null;
   const answer = answerOf(w.word);
 
-  const check = async () => {
-    setError("");
-    if (!hasAI()) {
-      setPhase("judged");
-      setCorrect(null); // 自己採点
-      return;
-    }
-    if (canvas.current?.isEmpty()) return setError("文字を書いてから答え合わせしてください。");
-    setPhase("checking");
-    try {
-      const text = await recognizeHandwriting(canvas.current!.toPngBase64());
-      setWritten(text);
-      setCorrect(normalize(text) === normalize(answer));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setCorrect(null);
-    }
+  const check = () => {
+    setCorrect(null); // 自己採点
     setPhase("judged");
   };
 
   const giveUp = () => {
-    setWritten("");
     setCorrect(false);
     setPhase("judged");
   };
 
   const next = (isCorrect: boolean) => {
-    const r = [...results, { wordId: w.id, word: w.word, meaning: w.meaning, written, correct: isCorrect }];
+    const r = [...results, { wordId: w.id, word: w.word, meaning: w.meaning, written: "", correct: isCorrect }];
     if (index + 1 >= words.length) return onFinish(r);
     setResults(r);
     setIndex(index + 1);
     setPhase("write");
-    setWritten("");
     setCorrect(null);
-    setError("");
     setShowExampleJa(false);
     canvas.current?.clear();
   };
@@ -288,8 +266,6 @@ function QuizView({
           答え合わせ
         </button>
       )}
-      {phase === "checking" && <p className="center">✍️ 読み取り中…</p>}
-      {error && <p className="error">{error}</p>}
 
       {phase === "judged" && (
         <div className={`card verdict ${correct === true ? "ok" : correct === false ? "ng" : ""}`}>
@@ -299,11 +275,6 @@ function QuizView({
               🔊
             </button>
           </div>
-          {correct !== null && hasAI() && written !== "" && (
-            <div>
-              読み取り結果: <span className="mono">{written || "（読み取れず）"}</span>
-            </div>
-          )}
           {correct === true && <div className="verdict-mark">⭕ 正解！</div>}
           {correct === false && <div className="verdict-mark">❌ 不正解</div>}
           {correct === null && <div>書いた答えと見くらべて、○か×を選んでください。</div>}

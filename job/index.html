@@ -171,6 +171,12 @@
   .match.love { background: var(--accent-soft); }
   .match.love .tag { color: var(--accent); }
   .match .tip { font-size: .88rem; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+  .companies { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 6px 12px; padding: 0; margin: 0; list-style: none; counter-reset: co; }
+  .companies li { counter-increment: co; display: flex; gap: 6px; align-items: baseline; min-width: 0; font-size: .92rem; overflow-wrap: anywhere; }
+  .companies li::before { content: counter(co); flex: none; width: 1.4rem; text-align: right; color: var(--muted); font-size: .78rem; font-variant-numeric: tabular-nums; }
+  .quals { display: grid; gap: 6px; padding: 0; margin: 0; list-style: none; }
+  .quals li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+  .quals .kind { flex: none; font-size: .75rem; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
   .chips li { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
   .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
@@ -254,6 +260,15 @@
         <section class="block">
           <h2>向いている理由</h2>
           <p style="margin:0" id="rReason"></p>
+        </section>
+        <section class="block">
+          <h2 id="rCompaniesTitle">代表的な会社</h2>
+          <ol class="companies" id="rCompanies"></ol>
+        </section>
+        <section class="block">
+          <h2>目指すなら取りたい資格</h2>
+          <ul class="quals" id="rQuals"></ul>
+          <p class="note">会社名と資格は AI が挙げた例です。実在するか、採用状況や受験条件は各社・各団体の公式サイトで確認してください。</p>
         </section>
         <section class="block">
           <h2>あなたの傾向</h2>
@@ -589,6 +604,13 @@
     $("rTypeName").textContent = r.type_name ?? "";
     $("rCatch").textContent = r.catchphrase ? `「${r.catchphrase}」` : "";
     $("rReason").textContent = r.top_job?.reason ?? "";
+    $("rCompaniesTitle").textContent = r.top_job?.title ? `${r.top_job.title}が活躍する代表的な会社` : "代表的な会社";
+    $("rCompanies").replaceChildren(...(r.companies ?? []).slice(0, 10).map((c) => el("li", c)));
+    $("rQuals").replaceChildren(...(r.qualifications ?? []).slice(0, 5).map((q) => {
+      const li = el("li");
+      li.append(el("span", q.name), el("span", q.kind, "kind"));
+      return li;
+    }));
     $("rAdvice").textContent = r.advice ?? "";
 
     const traits = r.traits ?? {};

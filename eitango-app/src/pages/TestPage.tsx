@@ -225,8 +225,25 @@ function QuizView({
   const [correct, setCorrect] = useState<boolean | null>(null);
   const [showExampleJa, setShowExampleJa] = useState(false);
   const canvas = useRef<HandwritingHandle>(null);
+  const myWords = useAppState((s) => s.words);
+  const misses = useAppState((s) => s.misses);
 
   const w = words[index];
+  const inMyWords = myWords.some((x) => x.word.toLowerCase() === w.word.toLowerCase());
+  const inRetest = misses.some((m) => m.wordId === w.id && m.retest);
+  const markButtons = (
+    <div className="mark-buttons">
+      <button className={`chip ${inMyWords ? "active" : ""}`} onClick={() => actions.toggleMyWord(w)}>
+        {inMyWords ? "★ マイ単語" : "☆ マイ単語に入れる"}
+      </button>
+      <button
+        className={`chip retest ${inRetest ? "active" : ""}`}
+        onClick={() => actions.toggleRetest({ wordId: w.id, word: w.word, meaning: w.meaning })}
+      >
+        {inRetest ? "🔁 再テスト項目" : "🔁 再テストにする"}
+      </button>
+    </div>
+  );
   const example = w.examples[0];
   const blanked = example ? maskSentence(example.en, w.word) : null;
   const answer = answerOf(w.word);
@@ -314,6 +331,7 @@ function QuizView({
               {showExampleJa ? <div className="example-ja">{example!.ja}</div> : <div className="muted small">タップで訳</div>}
             </div>
           )}
+          {markButtons}
         </div>
       ) : (
         <div className="card question">
@@ -329,7 +347,8 @@ function QuizView({
               {phase === "judged" && <div className="example-ja">{example.ja}</div>}
             </div>
           )}
-          {phase === "write" && <div className="muted small">意味を思い浮かべてから「答えを見る」を押してください</div>}
+          {phase === "write" && <div className="muted small">意味を思い浮かべてから答えを見てください</div>}
+          {markButtons}
         </div>
       )}
 

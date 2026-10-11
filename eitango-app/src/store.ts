@@ -107,6 +107,24 @@ export const actions = {
       return { ...s, misses };
     });
   },
+  /** テスト中などに、間違えていなくても再テスト項目にする／外す */
+  toggleRetest(item: { wordId: string; word: string; meaning: string }) {
+    setState((s) => {
+      const m = s.misses.find((x) => x.wordId === item.wordId);
+      if (m) return { ...s, misses: s.misses.map((x) => (x.wordId === item.wordId ? { ...x, retest: !x.retest } : x)) };
+      return { ...s, misses: [{ ...item, missCount: 0, lastMissedAt: Date.now(), retest: true }, ...s.misses] };
+    });
+  },
+  /** 英検単語などをマイ単語に入れる／外す（同じつづりの単語があれば外す） */
+  toggleMyWord(word: Word) {
+    setState((s) => {
+      const key = word.word.toLowerCase();
+      if (s.words.some((w) => w.word.toLowerCase() === key))
+        return { ...s, words: s.words.filter((w) => w.word.toLowerCase() !== key) };
+      const copy: Word = { id: uid(), word: word.word, meaning: word.meaning, examples: word.examples, source: "user", createdAt: Date.now() };
+      return { ...s, words: [copy, ...s.words] };
+    });
+  },
   setRetest(wordIds: string[], retest: boolean) {
     const ids = new Set(wordIds);
     setState((s) => ({

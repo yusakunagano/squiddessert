@@ -20,6 +20,7 @@ const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザー
 - unsuited_jobs: 向いていない可能性がある職業をちょうど 2 つ。reason は回答に触れた理由（60〜100文字）。「苦手そう」程度のやわらかい言い方にし、本人を否定しないこと。
 - good_match: 一緒に働くと相性の良い職業の人。title は職業名、reason はなぜ相性が良いか（60〜100文字）。
 - bad_match: 一緒に働くとぶつかりやすい職業の人。title は職業名、reason はぶつかりやすい理由（60〜100文字）、tip はうまく付き合うコツ（50文字以内）。相手の職業を悪く言わないこと。
+- marriage_match: 結婚するとしたら相性の良い相手の職業。title は職業名、reason は性格や生活リズム、価値観の面からなぜ相性が良いか（80〜120文字）。相手の性別は決めつけず、楽しい占いのような前向きなトーンで。
 - strengths: 仕事で活きる強みを 3 つ（各 15 文字以内）。
 - life_caution: その性格の人が生活する上で気を付けるとよいことを、箇条書きや見出しを使わず、ひとつながりの自然な文章で（120〜180文字）。具体的な対策も入れ、説教くさくせず、やさしい言い方で。
 - advice: その職業に近づくための最初の一歩になる具体的なアドバイス（80文字以内）。
@@ -80,11 +81,12 @@ const RESULT_SCHEMA = {
     unsuited_jobs: { type: "array", items: JOB_SCHEMA, minItems: 2, maxItems: 2 },
     good_match: JOB_SCHEMA,
     bad_match: MATCH_SCHEMA,
+    marriage_match: JOB_SCHEMA,
     strengths: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 },
     life_caution: { type: "string" },
     advice: { type: "string" },
   },
-  required: ["type_name", "catchphrase", "traits", "personality", "top_job", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "strengths", "life_caution", "advice"],
+  required: ["type_name", "catchphrase", "traits", "personality", "top_job", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "marriage_match", "strengths", "life_caution", "advice"],
   additionalProperties: false,
 };
 

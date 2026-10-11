@@ -168,6 +168,8 @@
   .match.bad .tag { color: var(--bad); }
   .match b { font-size: 1.05rem; }
   .match p { margin: 0; font-size: .92rem; }
+  .match.love { background: var(--accent-soft); }
+  .match.love .tag { color: var(--accent); }
   .match .tip { font-size: .88rem; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
   .chips li { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
@@ -279,6 +281,14 @@
               <p id="rBadReason"></p>
               <p class="tip" id="rBadTip"></p>
             </div>
+          </div>
+        </section>
+        <section class="block">
+          <h2>結婚するならこの職業の人</h2>
+          <div class="match love">
+            <span class="tag">♡ 結婚相手として相性の良い職業</span>
+            <b id="rLoveTitle"></b>
+            <p id="rLoveReason"></p>
           </div>
         </section>
         <section class="block">
@@ -425,7 +435,7 @@
       b.type = "button";
       b.innerHTML = type === "ladybug" ? LADYBUG_SVG : FLY_SVG;
       b.setAttribute("aria-label", type === "ladybug" ? "てんとう虫" : "コバエ");
-      const bug = { el: b, type, ...randomSpot(), vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, born: performance.now() };
+      const bug = { el: b, type, ...randomSpot(), vx: (Math.random() - .5) * 2.5, vy: (Math.random() - .5) * 2.5, born: performance.now() };
       b.onclick = (e) => { e.stopPropagation(); hit(bug); };
       desk.append(b);
       bugs.push(bug);
@@ -473,15 +483,15 @@
           bug.vx += (Math.random() - .5) * .1;
           bug.vy += (Math.random() - .5) * .1;
           const sp = Math.hypot(bug.vx, bug.vy) || 1;
-          bug.vx = bug.vx / sp * .8;
-          bug.vy = bug.vy / sp * .8;
+          bug.vx = bug.vx / sp * .6;
+          bug.vy = bug.vy / sp * .6;
         } else {
           // ふらふら飛んで、ときどき急にダッシュする
-          bug.vx += (Math.random() - .5) * 1.4;
-          bug.vy += (Math.random() - .5) * 1.4;
-          if (Math.random() < .015) { bug.vx *= 4; bug.vy *= 4; }
+          bug.vx += (Math.random() - .5) * .8;
+          bug.vy += (Math.random() - .5) * .8;
+          if (Math.random() < .01) { bug.vx *= 2.5; bug.vy *= 2.5; }
           const sp = Math.hypot(bug.vx, bug.vy);
-          const max = slow ? 1.5 : 4.5;
+          const max = slow ? 1 : 2.6;
           if (sp > max) { bug.vx = bug.vx / sp * max; bug.vy = bug.vy / sp * max; }
         }
         bug.x += bug.vx * dt;
@@ -601,6 +611,8 @@
     $("rGoodReason").textContent = r.good_match?.reason ?? "";
     $("rBadTitle").textContent = r.bad_match?.title ?? "";
     $("rBadReason").textContent = r.bad_match?.reason ?? "";
+    $("rLoveTitle").textContent = r.marriage_match?.title ?? "";
+    $("rLoveReason").textContent = r.marriage_match?.reason ?? "";
     $("rBadTip").textContent = r.bad_match?.tip ? `うまく付き合うコツ：${r.bad_match.tip}` : "";
     $("rPersonality").textContent = r.personality?.summary ?? "";
     $("rKeywords").replaceChildren(...(r.personality?.keywords ?? []).slice(0, 3).map((k) => el("li", k)));

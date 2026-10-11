@@ -78,6 +78,21 @@ export function SettingsPage() {
       <div className="card">
         <h2>🔊 読み上げの設定</h2>
         <label className="field">
+          音声の種類
+          <select
+            className="input"
+            value={settings.speechEngine}
+            onChange={(e) => actions.updateSettings({ speechEngine: e.target.value as typeof settings.speechEngine })}
+          >
+            <option value="auto">自動（おすすめ）</option>
+            <option value="device">端末の音声（オフラインでも使える）</option>
+            <option value="online">オンライン音声（マナーモードでも鳴る）</option>
+          </select>
+        </label>
+        <p className="muted small">
+          音が出ないときは、音量を上げる・iPhoneのマナーモードを解除する・「オンライン音声」に切り替える、を試してください。
+        </p>
+        <label className="field">
           話す速さ: {settings.speechRate.toFixed(1)}
           <input
             type="range"
@@ -89,7 +104,7 @@ export function SettingsPage() {
           />
         </label>
         <label className="field">
-          声
+          声（端末の音声のとき）
           <select className="input" value={settings.voiceURI} onChange={(e) => actions.updateSettings({ voiceURI: e.target.value })}>
             <option value="">自動</option>
             {voices.map((v) => (

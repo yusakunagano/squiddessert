@@ -1,9 +1,12 @@
 import type { GradeId, Word } from "../types";
+import { EIKEN2_VERBS } from "./eiken2-verbs";
+import { EIKEN2_NOUNS } from "./eiken2-nouns";
+import { EIKEN2_ADJECTIVES } from "./eiken2-adjectives";
 
 // 英検の級ごとのサンプル単語リスト。
 // 形式: [単語, 意味, 例文1(英), 例文1(和), 例文2(英), 例文2(和)]
 // 単語を増やしたいときはこの配列に行を追加するだけでよい。
-type Row = [string, string, string, string, string, string];
+export type Row = [string, string, string, string, string, string];
 
 const RAW: Record<GradeId, Row[]> = {
   "5": [
@@ -152,8 +155,21 @@ const RAW: Record<GradeId, Row[]> = {
   ],
 };
 
+// 2級は追加リスト（動詞・名詞・形容詞/副詞）も合わせる
+RAW["2"] = [...RAW["2"], ...EIKEN2_VERBS, ...EIKEN2_NOUNS, ...EIKEN2_ADJECTIVES];
+
+// 同じ単語が複数の級に入っていたら、下の級のほうだけ残す
+const seen = new Set<string>();
+const dedupe = (rows: Row[]) =>
+  rows.filter(([word]) => {
+    const key = word.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
 export const EIKEN_WORDS: Word[] = (Object.keys(RAW) as GradeId[]).flatMap((grade) =>
-  RAW[grade].map(([word, meaning, en1, ja1, en2, ja2]) => ({
+  dedupe(RAW[grade]).map(([word, meaning, en1, ja1, en2, ja2]) => ({
     id: `eiken-${grade}-${word.toLowerCase()}`,
     word,
     meaning,

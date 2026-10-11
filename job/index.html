@@ -291,7 +291,7 @@
         </section>
         <section class="block">
           <h2>生活する上で気を付けること</h2>
-          <div class="jobs" id="rCautions"></div>
+          <p style="margin:0" id="rCaution"></p>
         </section>
         <section class="block">
           <h2>最初の一歩</h2>
@@ -557,11 +557,7 @@
     $("rBadTip").textContent = r.bad_match?.tip ? `うまく付き合うコツ：${r.bad_match.tip}` : "";
     $("rPersonality").textContent = r.personality?.summary ?? "";
     $("rKeywords").replaceChildren(...(r.personality?.keywords ?? []).slice(0, 3).map((k) => el("li", k)));
-    $("rCautions").replaceChildren(...(r.life_cautions ?? []).slice(0, 3).map((c) => {
-      const box = el("div", null, "job");
-      box.append(el("b", c.title), el("p", c.detail));
-      return box;
-    }));
+    $("rCaution").textContent = r.life_caution ?? "";
     $("rStrengths").replaceChildren(...(r.strengths ?? []).slice(0, 3).map((s) => el("li", s)));
     $("copyNote").textContent = "";
     show("result");

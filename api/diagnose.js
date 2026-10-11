@@ -21,7 +21,7 @@ const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザー
 - good_match: 一緒に働くと相性の良い職業の人。title は職業名、reason はなぜ相性が良いか（60〜100文字）。
 - bad_match: 一緒に働くとぶつかりやすい職業の人。title は職業名、reason はぶつかりやすい理由（60〜100文字）、tip はうまく付き合うコツ（50文字以内）。相手の職業を悪く言わないこと。
 - strengths: 仕事で活きる強みを 3 つ（各 15 文字以内）。
-- life_cautions: その性格の人が生活する上で気を付けるとよいことをちょうど 3 つ。title は短い見出し（15文字以内）、detail は具体的な内容と対策（60〜90文字）。説教くさくせず、やさしい言い方で。
+- life_caution: その性格の人が生活する上で気を付けるとよいことを、箇条書きや見出しを使わず、ひとつながりの自然な文章で（120〜180文字）。具体的な対策も入れ、説教くさくせず、やさしい言い方で。
 - advice: その職業に近づくための最初の一歩になる具体的なアドバイス（80文字以内）。
 
 診断はあくまで参考であり、本人の可能性を狭める言い方は避けてください。
@@ -44,16 +44,6 @@ const PERSONALITY_SCHEMA = {
     keywords: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 },
   },
   required: ["summary", "keywords"],
-  additionalProperties: false,
-};
-
-const CAUTION_SCHEMA = {
-  type: "object",
-  properties: {
-    title: { type: "string" },
-    detail: { type: "string" },
-  },
-  required: ["title", "detail"],
   additionalProperties: false,
 };
 
@@ -91,10 +81,10 @@ const RESULT_SCHEMA = {
     good_match: JOB_SCHEMA,
     bad_match: MATCH_SCHEMA,
     strengths: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 },
-    life_cautions: { type: "array", items: CAUTION_SCHEMA, minItems: 3, maxItems: 3 },
+    life_caution: { type: "string" },
     advice: { type: "string" },
   },
-  required: ["type_name", "catchphrase", "traits", "personality", "top_job", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "strengths", "life_cautions", "advice"],
+  required: ["type_name", "catchphrase", "traits", "personality", "top_job", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "strengths", "life_caution", "advice"],
   additionalProperties: false,
 };
 
@@ -158,7 +148,6 @@ export default async function handler(req, res) {
     result.unsuited_jobs = result.unsuited_jobs.slice(0, 2);
     result.strengths = result.strengths.slice(0, 3);
     result.personality.keywords = result.personality.keywords.slice(0, 3);
-    result.life_cautions = result.life_cautions.slice(0, 3);
     return res.status(200).json({ name, ...result });
   } catch (err) {
     if (err instanceof ApiError) {

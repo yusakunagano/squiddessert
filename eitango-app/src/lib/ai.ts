@@ -3,8 +3,9 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { getState } from "../store";
 import type { ChatMessage, Example } from "../types";
+import { geminiGenerate, geminiStream, type GeminiContent } from "./gemini";
 
-// Claude API をブラウザから直接呼び出す。
+// Claude API または Gemini API をブラウザから直接呼び出す（「設定」で選ぶ）。
 // APIキーは「設定」画面で入力し、この端末の localStorage にだけ保存される。
 
 export const MODEL_OPTIONS = [
@@ -16,7 +17,12 @@ export const MODEL_OPTIONS = [
 // サーバー側フォールバック（安全分類器が誤って拒否したときに別モデルで再実行）に対応したモデル
 const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-sonnet-5-5"]);
 
-export const hasAI = () => getState().settings.apiKey.trim().length > 0;
+const useGemini = () => getState().settings.provider === "gemini";
+
+export const hasAI = () => {
+  const s = getState().settings;
+  return (s.provider === "gemini" ? s.geminiKey : s.apiKey).trim().length > 0;
+};
 
 function client() {
   const { apiKey } = getState().settings;
@@ -44,16 +50,36 @@ function checkRefusal(stopReason: string | null) {
 }
 
 /** 手書き画像 (PNG の base64) から書かれた英字を読み取る */
+const HANDWRITING_SYSTEM =
+  "You transcribe handwritten English letters for a spelling test. " +
+      "Report exactly the letters the student wrote, even if the spelling is wrong. " +
+      "Never correct or guess the intended word. If a letter is unclear, pick the closest letter shape. " +
+      "Reply with only the letters (no quotes, no explanation). If nothing is written, reply with an empty line.";
+
+const cleanLetters = (text: string) => text.trim().split("\n")[0].replace(/[^A-Za-z' -]/g, "").trim();
+
 export async function recognizeHandwriting(pngBase64: string): Promise<string> {
+  if (useGemini()) {
+    return cleanLetters(
+      await geminiGenerate({
+        system: HANDWRITING_SYSTEM,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { inline_data: { mime_type: "image/png", data: pngBase64 } },
+              { text: "What letters are handwritten in this image?" },
+            ],
+          },
+        ],
+      }),
+    );
+  }
   const res = await client().beta.messages.create({
     ...baseParams(),
     max_tokens: 2000,
     output_config: { effort: "low" },
-    system:
-      "You transcribe handwritten English letters for a spelling test. " +
-      "Report exactly the letters the student wrote, even if the spelling is wrong. " +
-      "Never correct or guess the intended word. If a letter is unclear, pick the closest letter shape. " +
-      "Reply with only the letters (no quotes, no explanation). If nothing is written, reply with an empty line.",
+    system: HANDWRITING_SYSTEM,
     messages: [
       {
         role: "user",
@@ -65,7 +91,7 @@ export async function recognizeHandwriting(pngBase64: string): Promise<string> {
     ],
   });
   checkRefusal(res.stop_reason);
-  return textOf(res.content).split("\n")[0].replace(/[^A-Za-z' -]/g, "").trim();
+  return cleanLetters(textOf(res.content));
 }
 
 const WordInfoSchema = z.object({
@@ -84,19 +110,34 @@ export async function generateWordInfo(
   const existing = opts.existing?.length
     ? `\nすでにある例文（これとは違う場面・用法の例文にしてください）:\n${opts.existing.map((e) => "- " + e.en).join("\n")}`
     : "";
+  const prompt =
+    `英単語「${word}」について、日本人の英語学習者${opts.level ? `（${opts.level}レベル）` : ""}向けに、` +
+          `日本語の意味と、その単語を使った例文を${count}個作ってください。` +
+          `例文は短めで、さまざまな場面・用法がわかるものにしてください。${existing}`;
+  if (useGemini()) {
+    const text = await geminiGenerate({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      json: {
+        type: "OBJECT",
+        properties: {
+          meaning: { type: "STRING", description: "日本語の意味（主なものを簡潔に。複数ある場合は読点で区切る）" },
+          examples: {
+            type: "ARRAY",
+            items: { type: "OBJECT", properties: { en: { type: "STRING" }, ja: { type: "STRING" } }, required: ["en", "ja"] },
+          },
+        },
+        required: ["meaning", "examples"],
+      },
+    });
+    const parsed = WordInfoSchema.safeParse(JSON.parse(text));
+    if (!parsed.success) throw new Error("AIの応答を読み取れませんでした。");
+    return parsed.data;
+  }
   const res = await client().beta.messages.parse({
     ...baseParams(),
     max_tokens: 4000,
     output_config: { effort: "low", format: betaZodOutputFormat(WordInfoSchema) },
-    messages: [
-      {
-        role: "user",
-        content:
-          `英単語「${word}」について、日本人の英語学習者${opts.level ? `（${opts.level}レベル）` : ""}向けに、` +
-          `日本語の意味と、その単語を使った例文を${count}個作ってください。` +
-          `例文は短めで、さまざまな場面・用法がわかるものにしてください。${existing}`,
-      },
-    ],
+    messages: [{ role: "user", content: prompt }],
   });
   checkRefusal(res.stop_reason);
   if (!res.parsed_output) throw new Error("AIの応答を読み取れませんでした。");
@@ -105,11 +146,13 @@ export async function generateWordInfo(
 
 /** 英文を日本語に訳す */
 export async function translateToJapanese(text: string): Promise<string> {
+  const prompt = `次の英文を自然な日本語に訳してください。訳文だけを答えてください。\n\n${text}`;
+  if (useGemini()) return geminiGenerate({ contents: [{ role: "user", parts: [{ text: prompt }] }] });
   const res = await client().beta.messages.create({
     ...baseParams(),
     max_tokens: 2000,
     output_config: { effort: "low" },
-    messages: [{ role: "user", content: `次の英文を自然な日本語に訳してください。訳文だけを答えてください。\n\n${text}` }],
+    messages: [{ role: "user", content: prompt }],
   });
   checkRefusal(res.stop_reason);
   return textOf(res.content);
@@ -147,6 +190,13 @@ export async function streamChat(
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m) => ({ role: m.role, content: m.text }));
   if (messages.length === 0 || messages[0].role !== "user") {
     messages.unshift({ role: "user", content: "Hi! Let's start our conversation practice." });
+  }
+  if (useGemini()) {
+    const contents: GeminiContent[] = messages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content as string }],
+    }));
+    return geminiStream({ system: chatSystemPrompt(focus), contents }, onText);
   }
   const stream = client().beta.messages.stream({
     ...baseParams(),

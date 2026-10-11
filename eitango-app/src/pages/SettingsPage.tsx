@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { MODEL_OPTIONS } from "../lib/ai";
+import { GEMINI_MODEL_OPTIONS } from "../lib/gemini";
 import { englishVoices, speak } from "../lib/speech";
 import { actions, getState, useAppState } from "../store";
 
 export function SettingsPage() {
   const settings = useAppState((s) => s.settings);
-  const [key, setKey] = useState(settings.apiKey);
-  const [saved, setSaved] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>(englishVoices());
 
   useEffect(() => {
@@ -17,7 +16,7 @@ export function SettingsPage() {
   }, []);
 
   const exportData = () => {
-    const blob = new Blob([JSON.stringify({ ...getState(), settings: { ...getState().settings, apiKey: "" } }, null, 2)], {
+    const blob = new Blob([JSON.stringify({ ...getState(), settings: { ...getState().settings, apiKey: "", geminiKey: "" } }, null, 2)], {
       type: "application/json",
     });
     const a = document.createElement("a");
@@ -29,50 +28,75 @@ export function SettingsPage() {
   return (
     <div className="page">
       <div className="card">
-        <h2>🤖 AI（Claude）の設定</h2>
+        <h2>🤖 AIの設定</h2>
         <p className="muted small">
-          APIキーを入れると「手書き文字のAI採点」「例文の自動作成」「AIとの英会話」が使えます。キーは
-          <a href="https://console.anthropic.com/" target="_blank" rel="noreferrer">
-            Anthropic Console
-          </a>
-          で発行できます。キーはこの端末のブラウザ内にだけ保存されます。
+          APIキーを入れると「手書き文字のAI採点」「例文の自動作成」「AIとの英会話」が使えます。キーはこの端末のブラウザ内にだけ保存されます。
         </p>
-        <label className="field">
-          APIキー
-          <input
-            className="input"
-            type="password"
-            value={key}
-            onChange={(e) => {
-              setKey(e.target.value);
-              setSaved(false);
-            }}
-            placeholder="sk-ant-..."
-            autoComplete="off"
-          />
-        </label>
-        <div className="row">
+        <div className="segmented">
           <button
-            className="btn primary"
-            onClick={() => {
-              actions.updateSettings({ apiKey: key.trim() });
-              setSaved(true);
-            }}
+            className={settings.provider === "gemini" ? "active" : ""}
+            onClick={() => actions.updateSettings({ provider: "gemini" })}
           >
-            保存
+            Gemini（無料枠あり）
           </button>
-          {saved && <span className="success">保存しました</span>}
+          <button
+            className={settings.provider === "claude" ? "active" : ""}
+            onClick={() => actions.updateSettings({ provider: "claude" })}
+          >
+            Claude
+          </button>
         </div>
-        <label className="field">
-          使うモデル
-          <select className="input" value={settings.model} onChange={(e) => actions.updateSettings({ model: e.target.value })}>
-            {MODEL_OPTIONS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </label>
+
+        {settings.provider === "gemini" ? (
+          <>
+            <p className="muted small">
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
+                Google AI Studio
+              </a>
+              でGoogleアカウントにログインし「APIキーを作成」を押すと、無料のキーが作れます（1分・1日あたりの回数制限あり）。無料枠で送った内容はGoogleのサービス改善に使われることがあります。
+            </p>
+            <KeyInput
+              value={settings.geminiKey}
+              placeholder="AIza..."
+              onSave={(v) => actions.updateSettings({ geminiKey: v })}
+            />
+            <label className="field">
+              使うモデル
+              <select
+                className="input"
+                value={settings.geminiModel}
+                onChange={(e) => actions.updateSettings({ geminiModel: e.target.value })}
+              >
+                {GEMINI_MODEL_OPTIONS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        ) : (
+          <>
+            <p className="muted small">
+              キーは
+              <a href="https://console.anthropic.com/" target="_blank" rel="noreferrer">
+                Anthropic Console
+              </a>
+              で発行できます（使った分だけ料金がかかります）。
+            </p>
+            <KeyInput value={settings.apiKey} placeholder="sk-ant-..." onSave={(v) => actions.updateSettings({ apiKey: v })} />
+            <label className="field">
+              使うモデル
+              <select className="input" value={settings.model} onChange={(e) => actions.updateSettings({ model: e.target.value })}>
+                {MODEL_OPTIONS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
       </div>
 
       <div className="card">
@@ -148,5 +172,41 @@ export function SettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function KeyInput({ value, placeholder, onSave }: { value: string; placeholder: string; onSave: (v: string) => void }) {
+  const [key, setKey] = useState(value);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => setKey(value), [value]);
+  return (
+    <>
+      <label className="field">
+        APIキー
+        <input
+          className="input"
+          type="password"
+          value={key}
+          onChange={(e) => {
+            setKey(e.target.value);
+            setSaved(false);
+          }}
+          placeholder={placeholder}
+          autoComplete="off"
+        />
+      </label>
+      <div className="row">
+        <button
+          className="btn primary"
+          onClick={() => {
+            onSave(key.trim());
+            setSaved(true);
+          }}
+        >
+          保存
+        </button>
+        {saved && <span className="success">保存しました</span>}
+      </div>
+    </>
   );
 }

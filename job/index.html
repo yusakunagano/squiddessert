@@ -21,7 +21,8 @@
     --accent-soft: #e6ebfa;
     --on-accent: #ffffff;
     --marker: #f2c94c;
-    --stamp: #d0342c;
+    --ladybug: #d0342c;
+    --wing: #8f9bb0;
     --desk: #e9edf3;
     --good: #1f7a4d;
     --good-soft: #e3f3ea;
@@ -35,7 +36,7 @@
       --paper: #12151c; --card: #1b2029; --ink: #e9edf4; --muted: #a2abba;
       --line: #2f3644; --accent: #8ea6ff; --accent-soft: #232c45; --on-accent: #10142a; --marker: #c9a43a;
       --good: #6fd29c; --good-soft: #1a3328; --bad: #f0b264; --bad-soft: #3a2c19;
-      --stamp: #ff6a5c; --desk: #161a22;
+      --ladybug: #ff6a5c; --wing: #6d778a; --desk: #161a22;
       color-scheme: dark;
     }
   }
@@ -43,7 +44,7 @@
     --paper: #12151c; --card: #1b2029; --ink: #e9edf4; --muted: #a2abba;
     --line: #2f3644; --accent: #8ea6ff; --accent-soft: #232c45; --on-accent: #10142a; --marker: #c9a43a;
       --good: #6fd29c; --good-soft: #1a3328; --bad: #f0b264; --bad-soft: #3a2c19;
-      --stamp: #ff6a5c; --desk: #161a22;
+      --ladybug: #ff6a5c; --wing: #6d778a; --desk: #161a22;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -97,40 +98,35 @@
   .note { font-size: .85rem; color: var(--muted); margin: 0; }
   .wait { font-weight: 700; margin: 0; }
 
-  /* 待ち時間ミニゲーム：ハンコ連打 */
+  /* 待ち時間ミニゲーム：コバエたたき */
   .game { width: 100%; display: grid; gap: 8px; text-align: left; }
   .game-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .game-title { font-family: var(--font-display); font-weight: 900; font-size: 1.05rem; margin: 0; }
   .game-stats { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
   .desk {
-    position: relative; height: 260px; border-radius: 8px; overflow: hidden;
+    position: relative; height: 280px; border-radius: 8px; overflow: hidden; cursor: crosshair;
     background: var(--desk); border: 1px solid var(--line); touch-action: manipulation; user-select: none;
   }
-  .doc {
-    position: absolute; width: 96px; height: 120px; padding: 10px 8px;
-    background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 3px;
-    font: inherit; font-size: .72rem; line-height: 1.4; text-align: left; cursor: pointer;
-    box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .45);
-    transition: left .25s ease, top .25s ease;
+  .bug {
+    position: absolute; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; padding: 9px;
+    border: none; border-radius: 50%; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
-  .doc b { display: block; font-size: .85rem; margin-bottom: 4px; }
-  .doc .lines { display: grid; gap: 5px; margin-top: 6px; }
-  .doc .lines i { display: block; height: 3px; background: var(--line); border-radius: 2px; }
-  .doc.trap b { color: var(--stamp); }
-  .doc:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .hanko {
-    position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
-    border: 3px solid var(--stamp); color: var(--stamp); display: grid; place-items: center;
-    font-family: var(--font-display); font-weight: 900; font-size: .8rem; letter-spacing: -.02em;
-    opacity: .85; pointer-events: none; animation: stamp .5s ease-out forwards;
+  .bug.ladybug { padding: 5px; }
+  .bug svg { display: block; width: 100%; height: 100%; }
+  .bug:focus-visible { outline: 2px solid var(--accent); }
+  .pop {
+    position: absolute; translate: -50% -50%; font-family: var(--font-display); font-weight: 900; font-size: .9rem;
+    color: var(--ink); pointer-events: none; white-space: nowrap; animation: pop .7s ease-out forwards;
   }
-  @keyframes stamp { 0% { scale: 1.6; opacity: 0; } 25% { scale: 1; opacity: .9; } 100% { opacity: 0; } }
-  .boss {
+  .pop.miss { color: var(--muted); font-size: .8rem; }
+  .pop.dodge { color: var(--accent); }
+  @keyframes pop { 0% { opacity: 0; scale: .6; } 20% { opacity: 1; scale: 1.15; } 100% { opacity: 0; scale: 1; translate: -50% -110%; } }
+  .shout {
     position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 8px 10px; border-radius: 6px;
     background: var(--ink); color: var(--paper); font-size: .85rem; pointer-events: none;
   }
   .done { display: grid; gap: 8px; justify-items: center; text-align: center; }
-  @media (prefers-reduced-motion: reduce) { .doc { transition: none; } .hanko { animation-duration: .01s; } }
+  @media (prefers-reduced-motion: reduce) { .pop { animation-duration: .01s; } }
 
   /* 名刺 */
   .meishi {
@@ -222,10 +218,10 @@
     </div>
     <div class="game">
       <div class="game-head">
-        <p class="game-title">待ち時間ゲーム：ハンコ連打</p>
-        <span class="game-stats" id="gameStats">承認 0 枚</span>
+        <p class="game-title">待ち時間ゲーム：コバエたたき</p>
+        <span class="game-stats" id="gameStats">退治 0 匹</span>
       </div>
-      <p class="note">書類をタップしてハンコを押そう。「退職届」には押さないこと。書類はたまに逃げます。</p>
+      <p class="note">飛び回るコバエをタップして退治しよう。てんとう虫は益虫なので叩かないこと。コバエはたまによけます。</p>
       <div class="desk" id="desk"></div>
     </div>
     <button class="ghost" id="stopBtn" type="button" style="justify-self:center">診断を中止する</button>
@@ -385,93 +381,144 @@
     else diagnose();
   }
 
-  // 待ち時間ゲーム：ハンコ連打（わざと理不尽なクソゲー）
+  // 待ち時間ゲーム：コバエたたき（わざと理不尽なクソゲー）
   const game = (() => {
     const desk = $("desk");
-    const DOCS = ["稟議書", "経費精算", "企画書", "議事録", "始末書", "見積書", "日報", "有給申請"];
-    const BOSS_LINES = [
-      "部長「ハンコがまっすぐすぎる。もっとお辞儀させて」",
-      "部長「その書類、昨日の日付だよ」",
-      "部長「やっぱり全部紙で出し直して」",
-      "部長「承認ありがとう。ところでこれ何の書類？」",
-    ];
-    let count = 0, best = 0, timer = null, bossTimer = null, running = false, current = null;
+    const slow = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const FLY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+      + '<ellipse cx="7.5" cy="9.5" rx="5" ry="3" fill="var(--wing)" opacity=".7" transform="rotate(-30 7.5 9.5)"/>'
+      + '<ellipse cx="16.5" cy="9.5" rx="5" ry="3" fill="var(--wing)" opacity=".7" transform="rotate(30 16.5 9.5)"/>'
+      + '<ellipse cx="12" cy="14.5" rx="3.4" ry="5" fill="var(--ink)"/>'
+      + '<circle cx="12" cy="8.8" r="2.6" fill="var(--ink)"/>'
+      + '<circle cx="10.9" cy="8.2" r="1" fill="var(--ladybug)"/><circle cx="13.1" cy="8.2" r="1" fill="var(--ladybug)"/></svg>';
+    const LADYBUG_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+      + '<circle cx="12" cy="5.5" r="3.2" fill="#1d1d1f"/>'
+      + '<circle cx="12" cy="13.5" r="8" fill="var(--ladybug)"/>'
+      + '<path d="M12 5.5v16" stroke="#1d1d1f" stroke-width="1.2"/>'
+      + '<circle cx="8.3" cy="11" r="1.6" fill="#1d1d1f"/><circle cx="15.7" cy="11" r="1.6" fill="#1d1d1f"/>'
+      + '<circle cx="8.6" cy="16.2" r="1.4" fill="#1d1d1f"/><circle cx="15.4" cy="16.2" r="1.4" fill="#1d1d1f"/></svg>';
+    const MAX_FLIES = 12;
+    let bugs = [], count = 0, best = 0, miss = 0, running = false, raf = 0, spawnTimer = 0, shoutTimer = 0, last = 0;
 
     function stats() {
-      $("gameStats").textContent = `承認 ${count} 枚 ・ 最高 ${best} 枚`;
+      $("gameStats").textContent = `退治 ${count} 匹 ・ 最高 ${best} 匹 ・ 空振り ${miss} 回`;
     }
-    function say(text) {
-      desk.querySelector(".boss")?.remove();
-      const b = el("div", text, "boss");
+    function pop(x, y, text, cls) {
+      const n = el("span", text, "pop" + (cls ? " " + cls : ""));
+      n.style.left = x + "px";
+      n.style.top = y + "px";
+      desk.append(n);
+      setTimeout(() => n.remove(), 750);
+    }
+    function shout(text) {
+      desk.querySelector(".shout")?.remove();
+      const n = el("div", text, "shout");
+      desk.append(n);
+      clearTimeout(shoutTimer);
+      shoutTimer = setTimeout(() => n.remove(), 1800);
+    }
+    function randomSpot() {
+      return { x: 22 + Math.random() * (desk.clientWidth - 44), y: 22 + Math.random() * (desk.clientHeight - 44) };
+    }
+    function addBug(type) {
+      const b = el("button", null, "bug" + (type === "ladybug" ? " ladybug" : ""));
+      b.type = "button";
+      b.innerHTML = type === "ladybug" ? LADYBUG_SVG : FLY_SVG;
+      b.setAttribute("aria-label", type === "ladybug" ? "てんとう虫" : "コバエ");
+      const bug = { el: b, type, ...randomSpot(), vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, born: performance.now() };
+      b.onclick = (e) => { e.stopPropagation(); hit(bug); };
       desk.append(b);
-      clearTimeout(bossTimer);
-      bossTimer = setTimeout(() => b.remove(), 1800);
+      bugs.push(bug);
+      draw(bug);
     }
-    function place(node) {
-      const w = desk.clientWidth - 96, h = desk.clientHeight - 120;
-      node.style.left = Math.max(0, Math.random() * w) + "px";
-      node.style.top = Math.max(0, Math.random() * h) + "px";
+    function removeBug(bug) {
+      bug.el.remove();
+      bugs = bugs.filter((x) => x !== bug);
     }
-    function spawn() {
+    function draw(bug) {
+      bug.el.style.transform = `translate(${bug.x}px, ${bug.y}px)`;
+    }
+    function hit(bug) {
       if (!running) return;
-      current?.remove();
-      const trap = Math.random() < 0.18;
-      const d = el("button", null, "doc" + (trap ? " trap" : ""));
-      d.type = "button";
-      const title = trap ? "退職届" : DOCS[Math.floor(Math.random() * DOCS.length)];
-      d.setAttribute("aria-label", `${title}にハンコを押す`);
-      d.append(el("b", title));
-      const lines = el("span", null, "lines");
-      for (let i = 0; i < 4; i++) lines.append(el("i"));
-      d.append(lines);
-      d.onclick = (e) => stampOn(d, trap, e);
-      desk.append(d);
-      place(d);
-      current = d;
-      clearTimeout(timer);
-      // 書類はたまに逃げる。退職届は放っておけば消える
-      timer = setTimeout(() => {
-        if (trap) spawn();
-        else if (Math.random() < 0.5) { place(d); timer = setTimeout(spawn, 1400); }
-        else spawn();
-      }, trap ? 1500 : 1300);
-    }
-    function stampOn(d, trap, e) {
-      if (!running) return;
-      const r = desk.getBoundingClientRect();
-      const x = e.clientX ? e.clientX - r.left : d.offsetLeft + 48;
-      const y = e.clientY ? e.clientY - r.top : d.offsetTop + 60;
-      const h = el("span", trap ? "受理" : "承認", "hanko");
-      h.style.left = x + "px";
-      h.style.top = y + "px";
-      h.style.rotate = (Math.random() * 70 - 35) + "deg";
-      desk.append(h);
-      setTimeout(() => h.remove(), 600);
-      if (trap) {
-        say(`部長「誰が退職届に押せと言った！」 承認 ${count} 枚 → 0 枚`);
+      if (bug.type === "ladybug") {
+        removeBug(bug);
+        pop(bug.x, bug.y, "あっ…", "dodge");
+        shout(`てんとう虫は益虫です！ 退治数 ${count} 匹 → 0 匹`);
         count = 0;
+      } else if (Math.random() < 0.18) {
+        // コバエはたまによける
+        pop(bug.x, bug.y, "ヒラリ", "dodge");
+        Object.assign(bug, randomSpot());
+        draw(bug);
       } else {
+        removeBug(bug);
+        pop(bug.x, bug.y, "ペチッ");
         count++;
         best = Math.max(best, count);
-        if (Math.random() < 0.08) {
-          say(BOSS_LINES[Math.floor(Math.random() * BOSS_LINES.length)] + " → やり直し");
-          count = Math.max(0, count - 3);
+        if (Math.random() < 0.07) {
+          shout("コバエが仲間を呼んだ！");
+          for (let i = 0; i < 4 && bugs.length < MAX_FLIES; i++) addBug("fly");
         }
       }
       stats();
-      spawn();
     }
+    function step(now) {
+      if (!running) return;
+      const dt = Math.min(50, now - (last || now)) / 16.7;
+      last = now;
+      const w = desk.clientWidth, h = desk.clientHeight;
+      for (const bug of [...bugs]) {
+        if (bug.type === "ladybug") {
+          if (now - bug.born > 4500) { removeBug(bug); continue; }
+          bug.vx += (Math.random() - .5) * .1;
+          bug.vy += (Math.random() - .5) * .1;
+          const sp = Math.hypot(bug.vx, bug.vy) || 1;
+          bug.vx = bug.vx / sp * .8;
+          bug.vy = bug.vy / sp * .8;
+        } else {
+          // ふらふら飛んで、ときどき急にダッシュする
+          bug.vx += (Math.random() - .5) * 1.4;
+          bug.vy += (Math.random() - .5) * 1.4;
+          if (Math.random() < .015) { bug.vx *= 4; bug.vy *= 4; }
+          const sp = Math.hypot(bug.vx, bug.vy);
+          const max = slow ? 1.5 : 4.5;
+          if (sp > max) { bug.vx = bug.vx / sp * max; bug.vy = bug.vy / sp * max; }
+        }
+        bug.x += bug.vx * dt;
+        bug.y += bug.vy * dt;
+        if (bug.x < 22 || bug.x > w - 22) { bug.vx *= -1; bug.x = Math.min(w - 22, Math.max(22, bug.x)); }
+        if (bug.y < 22 || bug.y > h - 22) { bug.vy *= -1; bug.y = Math.min(h - 22, Math.max(22, bug.y)); }
+        draw(bug);
+      }
+      raf = requestAnimationFrame(step);
+    }
+    desk.addEventListener("click", (e) => {
+      if (!running || e.target.closest(".bug")) return;
+      const r = desk.getBoundingClientRect();
+      miss++;
+      pop(e.clientX - r.left, e.clientY - r.top, "スカッ", "miss");
+      stats();
+    });
     return {
       start() {
-        running = true; count = 0;
+        running = true; count = 0; best = 0; miss = 0; last = 0;
+        bugs = [];
         desk.replaceChildren();
         stats();
-        spawn();
+        for (let i = 0; i < 3; i++) addBug("fly");
+        clearInterval(spawnTimer);
+        spawnTimer = setInterval(() => {
+          if (bugs.filter((b) => b.type === "fly").length < 6) addBug("fly");
+          if (Math.random() < 0.25 && !bugs.some((b) => b.type === "ladybug")) addBug("ladybug");
+        }, 1800);
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(step);
       },
       stop() {
         running = false;
-        clearTimeout(timer);
-        desk.querySelectorAll(".doc").forEach((n) => (n.disabled = true));
+        cancelAnimationFrame(raf);
+        clearInterval(spawnTimer);
+        bugs.forEach((b) => (b.el.disabled = true));
         return best;
       },
     };
@@ -495,7 +542,7 @@
       pendingResult = r;
       $("waiting").hidden = true;
       $("stopBtn").hidden = true;
-      $("doneScore").textContent = best > 0 ? `待っている間に、最高 ${best} 枚の書類を承認しました。` : "";
+      $("doneScore").textContent = best > 0 ? `待っている間に、最高 ${best} 匹のコバエを退治しました。` : "";
       $("done").hidden = false;
       $("showResultBtn").focus();
     } catch (e) {

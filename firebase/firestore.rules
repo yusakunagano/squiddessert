@@ -7,8 +7,9 @@ rules_version = '2';
 // - 名前は 1〜12 文字、スコアは 1〜100万点
 //
 // plays/{id}                 … 総合ランキング
-// weeks/{週の月曜日}/plays/{id} … 週間ランキング（例: weeks/2026-10-05/plays/xxxx）
 // days/{日付}/plays/{id}       … デイリーランキング（例: days/2026-10-09/plays/xxxx）
+// players/{uid}              … 日本ランキング（1人1行。自分の行だけ、点数を足す形で更新できる）
+// weeks/{週の月曜日}/plays/{id} … 週間ランキング（終了。古いページから登録しても失敗しないように残している）
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -21,6 +22,28 @@ service cloud.firestore {
         && d.score is int && d.score > 0 && d.score <= 1000000
         && d.nines is int && d.level is int
         && d.createdAt == request.time;
+    }
+
+    function validPlayer(uid) {
+      let d = request.resource.data;
+      return request.auth != null && request.auth.uid == uid
+        && d.keys().hasOnly(['name', 'uid', 'life', 'days', 'lastDay', 'updatedAt'])
+        && d.uid == uid
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 12
+        && d.life is int && d.days is map && d.days.size() <= 9
+        && d.lastDay is string && d.lastDay.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.updatedAt == request.time;
+    }
+
+    match /players/{uid} {
+      allow read: if true;
+      // 初回は、それまでのプレイの合計から始める（1000万点まで）
+      allow create: if validPlayer(uid)
+        && request.resource.data.life > 0 && request.resource.data.life <= 10000000;
+      // 2回目からは、1回分（100万点まで）を足すだけ
+      allow update: if validPlayer(uid)
+        && request.resource.data.life > resource.data.life
+        && request.resource.data.life - resource.data.life <= 1000000;
     }
 
     match /plays/{id} {

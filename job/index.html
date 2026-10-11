@@ -183,6 +183,12 @@
   .salary-scale { position: relative; height: 10px; border-radius: 5px; background: var(--line); }
   .salary-scale span { position: absolute; top: 0; bottom: 0; border-radius: 5px; background: var(--accent); }
   .salary-ticks { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stat-num { font-family: var(--font-display); font-weight: 900; font-size: 1.7rem; line-height: 1.2; margin: 0; font-variant-numeric: tabular-nums; }
+  .stat-num small { font-size: .95rem; margin-left: 2px; }
+  .outlook { display: inline-block; justify-self: start; font-size: .8rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; }
+  .outlook.up { color: var(--good); background: var(--good-soft); }
+  .outlook.flat { color: var(--accent); background: var(--accent-soft); }
+  .outlook.down { color: var(--bad); background: var(--bad-soft); }
   .match.fun { background: var(--good-soft); }
   .match.fun .tag { color: var(--good); }
   .match.hard { background: var(--bad-soft); }
@@ -281,6 +287,11 @@
           </div>
         </section>
         <section class="block">
+          <h2>日本でこの職業に就いている人の数</h2>
+          <p class="stat-num" id="rWorkforce"></p>
+          <p class="note" id="rWorkforceNote"></p>
+        </section>
+        <section class="block">
           <h2 id="rIndustryTitle">この業界で働くと</h2>
           <div class="matches">
             <div class="match fun">
@@ -294,13 +305,18 @@
           </div>
         </section>
         <section class="block">
+          <h2>これからこの職業に訪れる変化</h2>
+          <span class="outlook" id="rOutlook"></span>
+          <p style="margin:0" id="rFuture"></p>
+        </section>
+        <section class="block">
           <h2 id="rCompaniesTitle">代表的な会社</h2>
           <ol class="companies" id="rCompanies"></ol>
         </section>
         <section class="block">
           <h2>目指すなら取りたい資格</h2>
           <ul class="quals" id="rQuals"></ul>
-          <p class="note">年収・会社名・資格は AI が挙げた目安や例です。実在するか、採用状況や受験条件は各社・各団体の公式サイトで確認してください。</p>
+          <p class="note">年収・人数・会社名・資格・今後の見通しは AI が挙げた目安や例です。実在するか、採用状況や受験条件は各社・各団体の公式サイトで確認してください。</p>
         </section>
         <section class="block">
           <h2>あなたの傾向</h2>
@@ -642,6 +658,19 @@
     $("rSalaryBar").style.left = Math.min(100, sal[0] / SCALE * 100) + "%";
     $("rSalaryBar").style.width = Math.max(1.5, Math.min(100, sal[1] / SCALE * 100) - Math.min(100, sal[0] / SCALE * 100)) + "%";
     $("rSalaryNote").textContent = r.salary?.note ?? "";
+    const people = Math.max(0, Math.round(Number(r.workforce?.count) || 0));
+    $("rWorkforce").replaceChildren(
+      document.createTextNode("約 "),
+      ...(people >= 10000
+        ? [document.createTextNode((Math.round(people / 1000) / 10).toLocaleString()), el("small", "万人")]
+        : [document.createTextNode(people.toLocaleString()), el("small", "人")]),
+    );
+    $("rWorkforceNote").textContent = r.workforce?.note ?? "";
+    const OUTLOOK = { "増加傾向": "up", "横ばい": "flat", "減少傾向": "down" };
+    $("rOutlook").textContent = r.future?.outlook ? `人の需要：${r.future.outlook}` : "";
+    $("rOutlook").className = "outlook " + (OUTLOOK[r.future?.outlook] ?? "flat");
+    $("rOutlook").hidden = !r.future?.outlook;
+    $("rFuture").textContent = r.future?.text ?? "";
     $("rIndustryTitle").textContent = r.industry?.name ? `${r.industry.name}の業界で働くと` : "この業界で働くと";
     $("rFun").textContent = r.industry?.fun ?? "";
     $("rHard").textContent = r.industry?.hard ?? "";

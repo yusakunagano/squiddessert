@@ -20,6 +20,8 @@ const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザー
 - qualifications: top_job を目指すときに役立つ、日本で実在する資格を関連の深い順に最大 10 件（1 件以上）。name は正式な資格名、kind は「国家資格」「公的資格」「民間資格」のいずれか。存在が確かでない資格は作らず、確かなものが少なければ件数を減らすこと。
 - salary: top_job の日本での年収の目安（万円、整数）。min は新人・未経験に近い水準、max は経験を積んだ人や上位層の水準。note は幅が出る理由（勤め先の規模、経験年数、地域、独立など。60文字以内）。一般的な相場の範囲で、極端な数字にしないこと。
 - industry: top_job が属する業界・分野。name は業界名（20文字以内）、fun はその業界で働く楽しいこと・やりがい（80〜120文字）、hard はその業界の大変なこと（80〜120文字）。どちらも具体的に、実際に働く人の目線で、ひとつながりの文章で書くこと。
+- workforce: 日本で top_job の職業に就いている人のおおよその人数。count は人数（人、整数）。国勢調査や業界団体の統計など公的な数字の水準に近い概数にし、正確な値がわからなければ切りのよい数に丸めること。note は数え方の範囲や根拠の目安（60文字以内。例：「国勢調査の職業分類をもとにした概数」）。
+- future: これから 10 年ほどで top_job に訪れる変化。outlook は今後の人の需要の見通しで「増加傾向」「横ばい」「減少傾向」のいずれか。text は AI・自動化、人口減少、制度や技術の変化などを踏まえ、仕事の中身がどう変わるか、どんな人が求められるようになるかを具体的に（120〜180文字、ひとつながりの文章）。不安をあおらず、前向きに備え方も入れること。
 - other_jobs: ほかに向いている職業をちょうど 2 つ。top_job と異なる分野から選び、reason は 60〜100 文字。
 - unsuited_jobs: 向いていない可能性がある職業をちょうど 2 つ。reason は回答に触れた理由（60〜100文字）。「苦手そう」程度のやわらかい言い方にし、本人を否定しないこと。
 - good_match: 一緒に働くと相性の良い職業の人。title は職業名、reason はなぜ相性が良いか（60〜100文字）。
@@ -106,6 +108,24 @@ const RESULT_SCHEMA = {
       required: ["min", "max", "note"],
       additionalProperties: false,
     },
+    workforce: {
+      type: "object",
+      properties: {
+        count: { type: "integer", minimum: 0 },
+        note: { type: "string" },
+      },
+      required: ["count", "note"],
+      additionalProperties: false,
+    },
+    future: {
+      type: "object",
+      properties: {
+        outlook: { type: "string", enum: ["増加傾向", "横ばい", "減少傾向"] },
+        text: { type: "string" },
+      },
+      required: ["outlook", "text"],
+      additionalProperties: false,
+    },
     industry: {
       type: "object",
       properties: {
@@ -125,7 +145,7 @@ const RESULT_SCHEMA = {
     life_caution: { type: "string" },
     advice: { type: "string" },
   },
-  required: ["type_name", "catchphrase", "traits", "personality", "top_job", "companies", "qualifications", "salary", "industry", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "marriage_match", "strengths", "life_caution", "advice"],
+  required: ["type_name", "catchphrase", "traits", "personality", "top_job", "companies", "qualifications", "salary", "workforce", "industry", "future", "other_jobs", "unsuited_jobs", "good_match", "bad_match", "marriage_match", "strengths", "life_caution", "advice"],
   additionalProperties: false,
 };
 
@@ -187,6 +207,7 @@ export default async function handler(req, res) {
     }
     result.companies = result.companies.slice(0, 20);
     result.qualifications = result.qualifications.slice(0, 10);
+    result.workforce.count = Math.max(0, Math.round(Number(result.workforce.count) || 0));
     const salary = [result.salary.min, result.salary.max].map((v) => Math.max(0, Math.min(10000, Math.round(Number(v) || 0))));
     result.salary.min = Math.min(...salary);
     result.salary.max = Math.max(...salary);

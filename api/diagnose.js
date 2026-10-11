@@ -5,7 +5,7 @@
 import { ApiError, GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODEL = "gemini-flash-latest";
+const MODEL = "gemini-flash-lite-latest";
 
 const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザーとして「AI 職業診断」を担当します。
 ユーザーが答えた質問への回答から、その人の興味・得意なこと・価値観・働き方の好み・性格・生活習慣を読み取り、

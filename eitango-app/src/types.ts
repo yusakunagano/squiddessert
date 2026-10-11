@@ -1,4 +1,4 @@
-export type GradeId = "5" | "4" | "3" | "p2" | "2" | "p1" | "1";
+export type GradeId = "5" | "4" | "3" | "p2" | "2" | "2i" | "p1" | "1";
 
 export const GRADES: { id: GradeId; label: string }[] = [
   { id: "5", label: "5級" },
@@ -6,6 +6,7 @@ export const GRADES: { id: GradeId; label: string }[] = [
   { id: "3", label: "3級" },
   { id: "p2", label: "準2級" },
   { id: "2", label: "2級" },
+  { id: "2i", label: "2級熟語" },
   { id: "p1", label: "準1級" },
   { id: "1", label: "1級" },
 ];

@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { HandwritingCanvas, type HandwritingHandle } from "../components/HandwritingCanvas";
-import { escapeRe } from "../components/WordCard";
 import { eikenWordsByGrade } from "../data/eiken";
 import { hasAI, recognizeHandwriting } from "../lib/ai";
 import { speak } from "../lib/speech";
+import { answerOf, maskSentence } from "../lib/phrase";
 import { actions, findWord, useAppState } from "../store";
 import { GRADES, type TestItemResult, type Word } from "../types";
 
@@ -183,7 +183,8 @@ function QuizView({
 
   const w = words[index];
   const example = w.examples[0];
-  const blanked = example ? maskWord(example.en, w.word) : null;
+  const blanked = example ? maskSentence(example.en, w.word) : null;
+  const answer = answerOf(w.word);
 
   const check = async () => {
     setError("");
@@ -197,7 +198,7 @@ function QuizView({
     try {
       const text = await recognizeHandwriting(canvas.current!.toPngBase64());
       setWritten(text);
-      setCorrect(normalize(text) === normalize(w.word));
+      setCorrect(normalize(text) === normalize(answer));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setCorrect(null);
@@ -241,12 +242,20 @@ function QuizView({
       <div className="card question">
         <div className="q-meaning">{w.meaning || "（意味未登録）"}</div>
         <div className="q-hint">
-          {w.word.split("").map((c, i) => (
-            <span key={i} className="q-letter">
-              {phase === "judged" ? c : i === 0 ? c : c === " " ? " " : "＿"}
-            </span>
-          ))}
-          <span className="muted">（{w.word.replace(/ /g, "").length}文字）</span>
+          {hintTokens(w.word).map((t, i) =>
+            t.placeholder ? (
+              <span key={i} className="q-placeholder">
+                {t.text}
+              </span>
+            ) : (
+              t.text.split("").map((c, j) => (
+                <span key={`${i}-${j}`} className="q-letter">
+                  {phase === "judged" || (i === 0 && j === 0) || !/[a-z]/i.test(c) ? c : "＿"}
+                </span>
+              ))
+            ),
+          )}
+          <span className="muted">（{answer.replace(/[^a-z]/gi, "").length}文字）</span>
           <button className="icon-btn" onClick={() => speak(w.word)} aria-label="発音を聞く">
             🔊
           </button>
@@ -326,10 +335,14 @@ function QuizView({
   );
 }
 
-function maskWord(sentence: string, word: string): string {
-  const stem = word.toLowerCase().replace(/e$/, "");
-  const re = new RegExp(`\\b${escapeRe(stem)}[a-z]*`, "gi");
-  return re.test(sentence) ? sentence.replace(re, (m) => "＿".repeat(Math.min(m.length, 8))) : sentence;
+/** ヒント表示用に、~ や one's などの「書かなくてよい部分」を分ける */
+function hintTokens(word: string): { text: string; placeholder: boolean }[] {
+  const out: { text: string; placeholder: boolean }[] = [];
+  word.split(/\s+/).forEach((tok, i) => {
+    if (i > 0) out.push({ text: " ", placeholder: true });
+    out.push(tok.startsWith("~") ? { text: tok.replace("~", "～"), placeholder: true } : { text: tok, placeholder: false });
+  });
+  return out;
 }
 
 function ResultView({

@@ -30,7 +30,7 @@ export function SettingsPage() {
       <div className="card">
         <h2>🤖 AIの設定</h2>
         <p className="muted small">
-          APIキーを入れると「手書き文字のAI採点」「例文の自動作成」「AIとの英会話」が使えます。キーはこの端末のブラウザ内にだけ保存されます。
+          APIキーを入れると「例文の自動作成」「AIとの英会話」が使えます。キーはこの端末のブラウザ内にだけ保存されます。
         </p>
         <div className="segmented">
           <button

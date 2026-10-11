@@ -39,7 +39,7 @@ npm run build    # ../eitango/ に公開用ファイルを出力
 
 「設定」で Claude の API キー（[Anthropic Console](https://console.anthropic.com/) で発行）を入れると、次の機能が有効になります。
 
-- 手書き文字の読み取りによる自動採点（キーがない場合は答えを見て自分で ○× をつけます）
+
 - 意味・例文の自動作成（キーがない場合は無料の辞書 API／翻訳 API で自動入力します）
 - 再テスト単語を中心にした AI との英会話
 

@@ -535,7 +535,11 @@
   })();
 
   let pendingResult = null;
-  $("showResultBtn").onclick = () => { if (pendingResult) renderResult(pendingResult); };
+  $("showResultBtn").onclick = () => {
+    if (!pendingResult) return;
+    game.stop();
+    renderResult(pendingResult);
+  };
 
   async function diagnose() {
     show("loading");
@@ -548,11 +552,11 @@
     ctl = new AbortController();
     try {
       const r = await askAI($("name").value.trim().slice(0, 20), answers, ctl.signal);
-      const best = game.stop();
+      // 診断が終わってもコバエは飛び続ける。ゲームは「結果を見る」を押したときに止める
       pendingResult = r;
       $("waiting").hidden = true;
       $("stopBtn").hidden = true;
-      $("doneScore").textContent = best > 0 ? `待っている間に、最高 ${best} 匹のコバエを退治しました。` : "";
+      $("doneScore").textContent = "結果を見るまで、コバエたたきを続けられます。";
       $("done").hidden = false;
       $("showResultBtn").focus();
     } catch (e) {

@@ -39,7 +39,7 @@ const rows: Row[] = [
   ["disappointed", "がっかりした", "I was disappointed with the movie.", "その映画にはがっかりしました。", "He looked disappointed when he lost.", "負けたとき、彼はがっかりした様子でした。"],
   ["disappointing", "期待はずれの", "The test results were disappointing.", "テストの結果は期待はずれでした。", "It was a disappointing end to the season.", "それはシーズンの残念な終わり方でした。"],
   ["dramatic", "劇的な", "There was a dramatic change in the weather.", "天気が劇的に変わりました。", "The movie has a dramatic ending.", "その映画は劇的な結末を迎えます。"],
-  ["dry", "乾いた、雨の少ない", "The air is very dry in winter.", "冬は空気がとても乾燥しています。", "Make sure your hair is dry before you go out.", "出かける前に髪がしっかり乾いているか確かめなさい。"],
+  ["urgent", "緊急の、急を要する", "I have an urgent message for you.", "あなたに緊急の伝言があります。", "This problem is urgent.", "この問題は急を要します。"],
   ["economical", "経済的な、節約になる", "Small cars are more economical.", "小型車のほうが経済的です。", "Cooking at home is economical.", "家で料理するのは節約になります。"],
   ["elegant", "優雅な、上品な", "She wore an elegant dress to the party.", "彼女はパーティーに上品なドレスを着て行きました。", "The hotel has an elegant lobby.", "そのホテルには優雅なロビーがあります。"],
   ["embarrassing", "恥ずかしい、きまりの悪い", "It was embarrassing to fall in front of everyone.", "みんなの前で転んだのは恥ずかしかったです。", "He asked me an embarrassing question.", "彼は私にきまりの悪い質問をしました。"],

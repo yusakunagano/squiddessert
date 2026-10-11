@@ -7,9 +7,9 @@ rules_version = '2';
 // - 名前は 1〜12 文字、スコアは 1〜100万点
 //
 // plays/{id}                 … 総合ランキング
-// days/{日付}/plays/{id}       … デイリーランキング（例: days/2026-10-09/plays/xxxx）
-// players/{uid}              … 日本ランキング（1人1行。自分の行だけ、点数を足す形で更新できる）
-// weeks/{週の月曜日}/plays/{id} … 週間ランキング（終了。古いページから登録しても失敗しないように残している）
+// weeks/{週の月曜日}/plays/{id} … 週間ランキング（例: weeks/2026-10-05/plays/xxxx）
+// players/{uid}              … 日本ランカー（1人1行。自分の行だけ、点数を足す形で更新できる）
+// days/{日付}/plays/{id}       … デイリーランキング（終了。古いページから登録しても失敗しないように残している）
 service cloud.firestore {
   match /databases/{database}/documents {
 

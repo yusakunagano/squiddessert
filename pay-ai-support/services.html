@@ -18,7 +18,7 @@
 <body>
 <script src="gate.js"></script>
 <div class="app slide-in">
-  <div class="proto">※ UIプロトタイプです。特典内容は架空のものです</div>
+  <div class="proto">※ UIプロトタイプです。特典は公開情報（2026年時点）を参考にした例です</div>
   <header><a href="index.html" aria-label="戻る">‹</a><h1>利用サービス</h1><span style="width:20px"></span></header>
   <main>
     <p class="intro">ご利用中のサービスと特典です。条件が分かりにくいときは、各サービスの「AIでかんたん解説」か右下のAIに聞いてください。</p>
@@ -27,23 +27,33 @@
 </div>
 <script src="chat.js"></script>
 <script>
-// Fictional benefits, written in the dense style real terms tend to have — that's what the AI untangles.
+// Based on public info about the partner bank's 2026 rank program (5 ranks, free ATM / transfer counts).
+// Rank thresholds are not public in our sources, so RANK_RULES below are illustrative only.
+const RANKS = [
+  { name: 'プラチナVIP', atm: 20, tr: 20 },
+  { name: 'VIP',         atm: 15, tr: 15 },
+  { name: 'ゴールド',     atm: 10, tr: 10 },
+  { name: 'シルバー',     atm: 5,  tr: 5 },
+  { name: 'ベーシック',   atm: 1,  tr: 2 },
+];
+const TRANSFER_FEE = 77; // per extra transfer to other banks (税込)
+
 const BENEFITS = [
-  { id: 'card', tag: 'カード', name: 'Pay カード ゴールド',
-    fine: '年会費11,000円（税込）。ご利用金額100円（税込）につき1ポイント進呈（一部対象外取引あり）。通信料金のお支払いで、対象プランご契約の場合は税抜1,000円ごとに10%ポイント還元（端末代金等は対象外）。年間ご利用額（毎年12月16日〜翌年12月15日）が100万円以上で11,000円相当、200万円以上で22,000円相当の特典クーポンを進呈。',
-    plain: ['カードで払うと、いつでも1%のポイント', '対象プランなら、通信料金の10%がポイントで戻る', '年間100万円以上使うと、11,000円分のクーポン（＝年会費ぶん）'],
+  { id: 'rank', tag: '銀行', name: 'ランク別の優遇（5段階）',
+    fine: 'お取引状況に応じて「ベーシック」「シルバー」「ゴールド」「VIP」「プラチナVIP」の5段階のランクを判定し、ランクに応じてATM利用手数料・他行宛振込手数料の無料回数、デビットカードのポイント還元率等を優遇。プラチナVIP：ATM・他行振込 各月20回、VIP：各15回、ゴールド：各10回、シルバー：各5回、ベーシック：ATM月1回・他行振込月2回。同行および提携信託銀行宛の振込は回数無制限で無料。無料回数を超えた他行宛振込は1件77円（税込）。',
+    plain: ['ランクは5段階。上がるほどATMと振込の無料回数が増える', 'いちばん上なら、ATMも他行への振込も月20回まで無料', '同じ銀行あての振込はいつでも無料', '無料回数を超えた他行振込は1回77円'],
     entry: false },
-  { id: 'weekend', tag: 'キャンペーン', name: '金土ポイントアップ',
-    fine: '毎週金曜日・土曜日に、事前エントリーのうえアプリ払い（残高払い・カード払いを含む）でお支払いいただくと、通常ポイントに加えて＋2%の期間・用途限定ポイントを進呈。進呈上限は月間1,000ポイント。ネット通販での利用は対象外。進呈は翌月末頃。',
-    plain: ['金・土にアプリで払うと、いつもより＋2%', '先にエントリーが必要（1回だけ）', 'もらえるのは月1,000ポイントまで。ネット通販は対象外', 'もらえるポイントには期限と使い道の制限あり'],
-    entry: true },
-  { id: 'drug', tag: '特約店', name: 'ドラッグストア特約店',
-    fine: '特約店にてカードでお支払い（アプリ払いでの支払元をカードに設定した場合を含む）いただくと、通常ポイントに加えて＋2%を進呈。特約店ポイントは「金土ポイントアップ」と併用可能。一部店舗・商品（医薬品の一部、ギフトカード等）は対象外。',
-    plain: ['対象のドラッグストアでカード払いなら＋2%', 'アプリ払いでも、支払元をカードにすればOK', '金土ポイントアップと一緒にもらえる'],
+  { id: 'judge', tag: '銀行', name: 'ランクの決まり方',
+    fine: 'ランクは判定対象月の円普通預金・ハイブリッド預金の残高、または給与・年金の受取、口座振替等のお取引状況により判定し、判定対象月の翌々月（ランク適用月）に適用。口座開設直後は所定の期間「シルバー」を適用。2026年5月の改定により、一部の判定条件（スマート認証NEOの登録による優遇等）は廃止。',
+    plain: ['預金の残高や、給与の受け取り・口座振替などの使い方でランクが決まる', '今月の使い方が反映されるのは「再来月」', '口座を作ってしばらくはシルバー', '2026年5月から、アプリ認証の登録だけで優遇される条件はなくなった'],
     entry: false },
-  { id: 'online', tag: 'キャンペーン', name: 'ネット通販 20%還元',
-    fine: '期間中、キャンペーンページからエントリーのうえ、対象ネットショップにてアプリ払いで1回3,000円（税込）以上のお支払いで、お支払い金額の20%を期間・用途限定ポイントで進呈。進呈上限は期間中2,000ポイント。他の還元キャンペーンとの併用不可。キャンセル・返品の場合は進呈対象外。',
-    plain: ['対象ネットショップで1回3,000円以上をアプリで払うと20%', '先にエントリーが必要', '上限2,000ポイント＝1万円分の買い物で上限に達する', '金土ポイントアップとは一緒にもらえない'],
+  { id: 'debit', tag: 'デビット', name: 'デビットカードのポイント',
+    fine: '対象のデビットカード（プラチナデビットカード、デビットカード ポイント＋）のご利用で、ランクに応じたポイント還元率を適用。銀行独自のポイントはデビットカードのお支払い等に利用可能。還元率・対象取引の詳細は商品ページをご確認ください。',
+    plain: ['対象のデビットカードで払うとポイントが貯まる', 'ランクが高いほど還元率アップ', '貯まったポイントはデビットの支払いに使える'],
+    entry: false },
+  { id: 'dpoint', tag: '連携', name: 'ポイント連携',
+    fine: '2026年8月20日より、決済アプリの共通ポイントとの連携を開始。連携には双方のアカウント連携（エントリー）が必要。付与条件・対象取引は今後順次拡大予定。',
+    plain: ['銀行の使い方で、アプリの共通ポイントも貯まるようになった（2026年8月20日〜）', 'アカウントの連携（エントリー）が必要', '条件はまだ増えていく予定'],
     entry: true },
 ];
 
@@ -51,73 +61,68 @@ document.getElementById('list').innerHTML = BENEFITS.map(b => `
   <section class="svc">
     <span class="tag">${b.tag}</span><h2>${b.name}</h2>
     <p class="fine">${b.fine}</p>
+    ${b.id === 'rank' ? `<div class="data" style="margin-top:8px"><div class="h"><span>ランク</span><span>ATM / 他行振込（月）</span></div>${RANKS.map(r => `<div><span>${r.name}</span><b>${r.atm}回 / ${r.tr}回</b></div>`).join('')}</div>` : ''}
     <button class="ask" data-id="${b.id}">🤖 AIでかんたん解説</button>
   </section>`).join('');
 
-const DEFAULT_CHIPS = ['私はいくらおトク？', '一番おトクな使い方は？', 'エントリーが必要なのは？', '一緒に使える特典は？'];
-const pts = n => Math.round(n).toLocaleString('ja-JP') + 'pt';
+const DEFAULT_CHIPS = ['私は何ランク？', '無料回数で足りる？', 'ランクを上げるには？', 'エントリーが必要なのは？'];
 
 function explain(b, chat) {
-  chat.ai(`「${b.name}」をかんたんに言うと：\n\n${b.plain.map(s => '・' + s).join('\n')}${b.entry ? '\n\n⚠️ エントリーしないともらえません。' : ''}`);
-  chat.chips([`${b.name}で私はいくらもらえる？`, ...DEFAULT_CHIPS.slice(1)]);
+  chat.ai(`「${b.name}」をかんたんに言うと：\n\n${b.plain.map(s => '・' + s).join('\n')}${b.entry ? '\n\n⚠️ エントリー（連携）しないと対象になりません。' : ''}`);
+  chat.chips(DEFAULT_CHIPS);
 }
 
-// Monthly reward estimate per benefit from the user's (consented) spending + what the AI heard.
-function estimate(ans) {
-  const s = USER.spend, card = USER.usage.card.thisMonth, app = USER.usage.app.thisMonth;
-  const weekendShare = { よくする: 0.4, たまに: 0.2, しない: 0 }[ans.weekend] ?? 0.2;
-  return [
-    { id: 'card', v: card * 0.01 + (ans.plan === 'はい' ? 800 : 0), why: `カード払い ${yen(card)} の1%${ans.plan === 'はい' ? '＋通信料金の10%（税抜8,000円として）' : ''}` },
-    { id: 'weekend', v: Math.min(app * weekendShare * 0.02, 1000), why: `金・土のアプリ払い（月の約${Math.round(weekendShare * 100)}%）の＋2%` },
-    { id: 'drug', v: s.drugstore * 0.02, why: `ドラッグストア ${yen(s.drugstore)} の＋2%` },
-    { id: 'online', v: ans.online === 'する' ? Math.min(s.online * 0.2, 2000) : 0, why: ans.online === 'する' ? `ネット通販 ${yen(s.online)} の20%（上限2,000pt）` : '1回3,000円以上の買い物をしないため対象外' },
-  ];
+// Illustrative thresholds (not the bank's real rules).
+function rankFor(ans) {
+  const bal = { '10万円未満': 0, '10万〜100万円': 1, '100万〜300万円': 2, '300万円以上': 3 }[ans.balance];
+  const salary = ans.salary === 'はい';
+  if (bal >= 3 && salary) return RANKS[0];
+  if (bal >= 3 || (bal >= 2 && salary)) return RANKS[1];
+  if (bal >= 2 || salary) return RANKS[2];
+  if (bal >= 1) return RANKS[3];
+  return RANKS[4];
 }
 
-// The AI asks only what it can't know from the account data.
+// The AI asks only what the account data can't tell it.
 function hearAll(chat, done) {
-  hear(chat, 'いくつか教えてください。\n① 金曜・土曜にお買い物をしますか？', ['よくする', 'たまに', 'しない'], weekend =>
-    hear(chat, '② ネット通販で、1回3,000円以上のお買い物をしますか？', ['する', 'しない'], online =>
-      hear(chat, '③ 通信料金は対象プランですか？', ['はい', 'いいえ', 'わからない'], plan => {
-        if (plan === 'わからない') chat.ai('対象プランかどうかは、アプリの「ご契約内容」で確認できます。今回は対象外として計算します。');
-        done({ weekend, online, plan });
-      })));
+  hear(chat, 'いくつか教えてください。\n① 普通預金の残高はどのくらいですか？', ['10万円未満', '10万〜100万円', '100万〜300万円', '300万円以上'], balance =>
+    hear(chat, '② 給与や年金をこの口座で受け取っていますか？', ['はい', 'いいえ'], salary =>
+      hear(chat, '③ 他の銀行への振込は月に何回くらいですか？', ['0〜2回', '3〜5回', '6〜10回', '11回以上'], tr =>
+        done({ balance, salary, tr: { '0〜2回': 2, '3〜5回': 5, '6〜10回': 10, '11回以上': 15 }[tr] }))));
 }
 
-function showEstimate(chat, ans, only) {
-  const rows = estimate(ans).filter(r => !only || r.id === only);
-  const name = id => BENEFITS.find(b => b.id === id).name;
-  chat.card(`<div class="data"><div class="h"><span>1か月のおトク（目安）</span></div>${rows.map(r => `<div><span>${name(r.id)}<br><small style="color:var(--sub)">${r.why}</small></span><b>${pts(r.v)}</b></div>`).join('')}
-    ${only ? '' : `<div class="h"><span>合計</span><b>${pts(rows.reduce((a, r) => a + r.v, 0))}</b></div>`}</div>`);
-  return rows;
+function showRank(chat, ans) {
+  const r = rankFor(ans);
+  const over = Math.max(0, ans.tr - r.tr);
+  chat.card(`<div class="data"><div class="h"><span>あなたのランク（目安）</span><b>${r.name}</b></div>
+    <div><span>ATM無料</span><b>月${r.atm}回</b></div><div><span>他行振込無料</span><b>月${r.tr}回</b></div>
+    <div><span>あなたの他行振込</span><b>月${ans.tr}回くらい</b></div>
+    <div><span>はみ出す手数料</span><b>${over ? yen(over * TRANSFER_FEE) + '／月' : 'なし'}</b></div></div>`);
+  chat.ai('※ ランクの判定条件は例示です。実際の判定は「スマートプログラム」の最新の条件をご確認ください。');
+  return { r, over };
 }
 
 const chat = createChat({
   title: '特典AIサポート',
-  greet: () => ({ text: '特典の条件や「結局いくらおトクなの？」をわかりやすくお伝えします。\nあなたのご利用状況に合わせた計算は、許可をいただいてから行います。', chips: DEFAULT_CHIPS }),
+  greet: () => ({ text: 'ランクや手数料無料回数など、わかりにくい特典をかんたんにお伝えします。\nあなたに合わせた判定は、許可をいただいてから行います。', chips: DEFAULT_CHIPS }),
   handle(q, chat) {
     const b = BENEFITS.find(b => q.includes(b.name));
-    if (/いくら|おトク|お得|もらえる/.test(q) && !/一番/.test(q)) {
+    if (/何ランク|私のランク|足りる|上げる|上がる/.test(q)) {
       return withConsent(chat, ['history'], () => hearAll(chat, ans => {
-        const rows = showEstimate(chat, ans, b && b.id);
-        const missed = rows.filter(r => BENEFITS.find(x => x.id === r.id).entry && r.v > 0);
-        if (missed.length) chat.ai(`${missed.map(r => BENEFITS.find(x => x.id === r.id).name).join('・')} はエントリーが必要です。忘れずにエントリーしてください。`);
-        chat.chips(DEFAULT_CHIPS);
-      }));
-    }
-    if (q.includes('一番')) {
-      return withConsent(chat, ['history'], () => hearAll(chat, ans => {
-        const rows = showEstimate(chat, ans).sort((a, b) => b.v - a.v);
-        const top = BENEFITS.find(x => x.id === rows[0].id);
-        chat.ai(`あなたの場合、いちばん効くのは「${top.name}」です。\n${ans.online === 'する' ? 'ネット通販は1万円分で上限に届くので、まとめ買いを1回にするのがコツです。\n' : ''}ドラッグストアではアプリ払いの支払元をカードにしておくと、金土ポイントアップと特約店の両方がもらえます。`);
+        const { r, over } = showRank(chat, ans);
+        const i = RANKS.indexOf(r);
+        if (/上げ|上が/.test(q) || over) {
+          chat.ai(i === 0 ? 'すでに最上位のプラチナVIPです。' :
+            `「${RANKS[i - 1].name}」に上げると、無料回数が月${RANKS[i - 1].tr}回に増えます。\n${ans.salary === 'いいえ' ? '給与の受け取り口座をこの銀行にするのが、いちばん手軽な上げ方です。' : '預金残高を増やすと上がります。'}\n反映されるのは再来月なので、早めの切り替えがおすすめです。`);
+        } else chat.ai(`今の使い方なら、無料回数で足りています。`);
         chat.chips(DEFAULT_CHIPS);
       }));
     }
     if (b) return explain(b, chat);
-    if (q.includes('エントリー')) chat.ai(`エントリーが必要なのは：\n${BENEFITS.filter(b => b.entry).map(b => '・' + b.name).join('\n')}\n\nどちらもキャンペーンページから1回エントリーすればOKです。`);
-    else if (/一緒|併用/.test(q)) chat.ai('一緒にもらえる組み合わせ：\n・カードの1% ＋ 特約店＋2% ＋ 金土ポイントアップ（ドラッグストアで金・土にカード払い）\n\n一緒にもらえない組み合わせ：\n・ネット通販20%還元 と 金土ポイントアップ（ネット通販はそもそも金土の対象外）');
-    else if (/期間|用途|限定/.test(q)) chat.ai('「期間・用途限定ポイント」は、有効期限が短く、使えるお店が限られるポイントです。お買い物で「ポイントを使う」をオンにすると、期限が近いものから使われます。');
-    else chat.ai('すみません、うまく理解できませんでした。サービス名や「エントリー」「併用」「いくらおトク」などで聞いてみてください。');
+    if (q.includes('エントリー')) chat.ai('エントリー（連携）が必要なのは「ポイント連携」です。\nランクの優遇はエントリー不要で、毎月自動で判定されます。');
+    else if (/いつ|反映|翌々月|再来月/.test(q)) chat.ai('ランクは、ある月の使い方を見て「再来月」に反映されます。\n例：10月の残高・取引 → 12月のランクに反映');
+    else if (/手数料|77/.test(q)) chat.ai(`無料回数を超えた他行への振込は、1回${TRANSFER_FEE}円です。同じ銀行あての振込は何回でも無料です。`);
+    else chat.ai('すみません、うまく理解できませんでした。「ランク」「無料回数」「エントリー」などで聞いてみてください。');
     chat.chips(DEFAULT_CHIPS);
   },
 });

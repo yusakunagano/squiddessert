@@ -114,10 +114,11 @@ const STEPS = [
   { id: 'bank',    title: '金融機関を選択' },
   { id: 'account', title: '口座情報を入力' },
   { id: 'person',  title: '口座名義を確認' },
+  { id: 'kyc',     title: '本人確認' },
   { id: 'auth',    title: '金融機関で認証' },
   { id: 'done',    title: '登録完了' },
 ];
-const state = { step: 0, bank: '', branch: '', number: '', kana: '', errors: {}, failCount: 0, idleTimer: null };
+const state = { step: 0, bank: '', branch: '', number: '', kana: '', kyc: { doc: '', shots: {}, tries: {} }, errors: {}, failCount: 0, idleTimer: null };
 
 // ---------- Registration flow ----------
 const $ = id => document.getElementById(id);
@@ -150,6 +151,21 @@ function render() {
       <input id="kana" value="${state.kana}" placeholder="ヤマダ タロウ">
       <div class="err" id="e-kana"></div>
       <button class="primary" id="next">金融機関のサイトへ進む</button>`;
+  } else if (s === 'kyc') {
+    const k = state.kyc;
+    const docs = ['マイナンバーカード', '運転免許証', '在留カード'];
+    const shots = [['front', '書類の表面'], ['back', '書類の裏面'], ['face', '顔写真（自撮り）']];
+    v.innerHTML = `<h2>本人確認</h2>
+      <p class="lead">犯罪収益移転防止法に基づき、本人確認書類と顔写真を撮影します（デモのため実際には撮影しません）。</p>
+      <label>本人確認書類</label>
+      <div class="bank-list">${docs.map(d => `<button data-doc="${d}" class="${k.doc === d ? 'sel' : ''}">${d}</button>`).join('')}</div>
+      ${k.doc ? shots.map(([id, name]) => `<label>${name}</label>
+        <button class="shot" data-shot="${id}" style="width:100%;padding:12px;border-radius:8px;border:1px dashed ${k.shots[id] ? 'var(--ok)' : 'var(--line)'};background:#fff;cursor:pointer">
+          ${k.shots[id] ? '✓ 撮影済み' : '📷 撮影する'}</button>`).join('') : ''}
+      <div class="err" id="e-kyc">${state.errors.kyc || ''}</div>
+      <button class="primary" id="next" ${k.doc && shots.every(([id]) => k.shots[id]) ? '' : 'disabled'}>本人確認を送信</button>`;
+    v.querySelectorAll('[data-doc]').forEach(b => b.onclick = () => { k.doc = b.dataset.doc; k.shots = {}; state.errors = {}; render(); });
+    v.querySelectorAll('[data-shot]').forEach(b => b.onclick = () => shoot(b.dataset.shot));
   } else if (s === 'auth') {
     v.innerHTML = `<h2>${state.bank}で本人認証</h2>
       <p class="lead">（デモ）実際の流れでは金融機関のサイトに移動し、暗証番号やワンタイムパスワードで認証します。</p>
@@ -164,6 +180,19 @@ function render() {
   const next = $('next'); if (next) next.onclick = submit;
   v.querySelectorAll('input').forEach(i => i.addEventListener('input', resetIdle));
   resetIdle();
+}
+
+// Demo: the first attempt at the front side and the selfie fails, so the AI support has something to help with.
+const SHOT_ERRORS = { front: '光が反射して文字が読み取れませんでした', face: '顔が枠に収まっていないか、暗すぎます' };
+function shoot(id) {
+  const k = state.kyc;
+  k.tries[id] = (k.tries[id] || 0) + 1;
+  if (SHOT_ERRORS[id] && k.tries[id] === 1) {
+    state.errors = { kyc: SHOT_ERRORS[id] }; state.kycErr = id;
+    state.failCount++;
+    nudge(state.failCount >= 2 ? '撮影でお困りですか？AIがコツをお伝えします' : 'うまく撮れないときはAIに聞いてください');
+  } else { k.shots[id] = true; state.errors = {}; $('hint').style.display = 'none'; }
+  render();
 }
 
 function setErr(field, msg) {
@@ -195,11 +224,17 @@ function submit() {
   state.failCount = 0; state.step++; render();
 }
 
-$('back').onclick = () => { if (state.step > 0 && state.step < 4) { state.step--; render(); } };
+$('back').onclick = () => { if (state.step > 0 && state.step < STEPS.length - 1) { state.step--; render(); } };
 
 // ---------- AI support ----------
 // Context-aware FAQ: answers depend on the current step, bank and the errors on screen.
 const KB = [
+  { k: ['反射', '撮影', '読み取れ', '表面', 'ピント', 'ぼや', 'ブレ'], a: () => '書類撮影のコツです。\n・照明の真下を避け、少し斜めから光が当たる場所で撮る\n・無地で暗めの机の上に置く\n・書類の四隅が枠に収まるようにし、ピントが合うまで1〜2秒待つ\n・ホログラムやICチップ部分の反射が出たら、スマホを少し傾ける' },
+  { k: ['顔', '自撮り', 'セルフィー', '暗すぎ', '枠'], a: () => '顔写真のコツです。\n・明るい場所で、正面から光が当たるようにする（逆光はNG）\n・帽子・マスク・サングラスは外す\n・画面の枠に顔全体が収まる距離で、指示に合わせてゆっくり首を動かす' },
+  { k: ['書類', 'どれ', '持って', 'マイナンバー', '免許', '在留', 'パスポート', '保険証'], a: () => '使える本人確認書類は、マイナンバーカード・運転免許証・在留カードです。\n通知カード、健康保険証、パスポートは使えません。お手元にない場合は、書類を用意してから再開してください（入力内容は保持されます）。' },
+  { k: ['住所', '引っ越', '変わっ'], a: () => '書類の住所が現在の住所と違う場合、裏面に新しい住所の記載があれば裏面も撮影してください。記載がない場合は、先に書類の住所変更を行ってください。' },
+  { k: ['なぜ', '必要', '安全', '個人情報'], a: () => '本人確認は法律（犯罪収益移転防止法）で、口座からのチャージ前に必要と定められています。撮影した画像は本人確認の目的にのみ使用されます。' },
+  { k: ['暗証', 'パスワード', '認証', 'ワンタイム', 'ロック'], a: () => `${state.bank || '金融機関'}の認証では、キャッシュカードの暗証番号（4桁）やワンタイムパスワードが必要です。\n何度も間違えるとロックされる場合があるので、分からないときは無理に試さず金融機関にお問い合わせください。` },
   { k: ['支店', '店番', '記号'], a: () => state.bank === 'ゆうちょ銀行'
       ? 'ゆうちょ銀行は「記号（5桁）」と「番号（最大8桁）」を入力します。通帳の表紙や見開きに「記号 1XXX0 番号 XXXXXXX1」の形で書かれています。'
       : '支店番号（店番）は3桁の数字です。キャッシュカードの表面、または通帳の表紙裏に記載されています。支店名しか分からない場合は、銀行の公式サイトの「支店検索」で調べられます。' },
@@ -207,7 +242,6 @@ const KB = [
       ? 'ゆうちょ銀行の番号は最大8桁です。末尾の「1」も含めて入力してください。'
       : '口座番号は7桁です。6桁以下の場合は先頭に「0」を付けて7桁にしてください（例：123456 → 0123456）。' },
   { k: ['カナ', '名義', 'カタカナ', '半角'], a: () => '口座名義は全角カタカナで入力します。姓と名の間はスペースを入れてください。\n小さい文字（ャュョッ）も通帳の表記に合わせると確実です。半角カナは使えません。' },
-  { k: ['暗証', 'パスワード', '認証', 'ワンタイム', 'ロック'], a: () => `${state.bank || '金融機関'}の認証では、キャッシュカードの暗証番号（4桁）やワンタイムパスワードが必要です。\n何度も間違えるとロックされる場合があるので、分からないときは無理に試さず金融機関にお問い合わせください。` },
   { k: ['家族', '本人', '他人', '名義が違'], a: () => '登録できるのは アカウントのご本人名義の口座のみです。ご家族名義の口座は登録できません。' },
   { k: ['銀行がない', '見つから', '対応', '使える銀行'], a: () => '一覧にない金融機関は、このプロトタイプでは選べません。実際のサービスでは「その他の金融機関」から検索できる想定です。' },
   { k: ['手数料', 'お金', '費用'], a: () => '口座の登録自体に手数料はかかりません。' },
@@ -218,6 +252,7 @@ const STEP_CHIPS = {
   bank:    ['使える銀行は？', '手数料はかかる？', '家族の口座は使える？'],
   account: ['支店番号がわからない', '口座番号が6桁しかない', 'ゆうちょの記号・番号は？'],
   person:  ['カナの入力方法は？', '名義が違うと言われる'],
+  kyc:     ['使える書類は？', 'うまく撮影できない', '顔写真のコツは？', 'なぜ本人確認が必要？'],
   auth:    ['暗証番号を忘れた', 'ワンタイムパスワードとは？', 'オペレーターと話したい'],
   done:    ['手数料はかかる？'],
 };
@@ -234,7 +269,7 @@ function greeting() {
   if (errs.length) {
     // Explain the error currently on screen first — that's most likely why the user tapped.
     const [field] = errs[0];
-    const topic = { branch: '支店', number: '口座番号', kana: 'カナ', pin: '暗証' }[field];
+    const topic = { branch: '支店', number: '口座番号', kana: 'カナ', pin: '暗証', kyc: state.kycErr === 'face' ? '顔' : '反射' }[field];
     return `「${s.title}」でエラーが出ているようですね。\n\n${answer(topic)}`;
   }
   return `「${s.title}」の画面ですね。何にお困りですか？\nよくある質問から選ぶか、自由に入力してください。`;

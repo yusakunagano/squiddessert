@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="20 の質問に答えると、AI があなたの性格と向いている職業を診断します。">
+<!-- PAGE-START -->
+<title>AI 職業診断</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@700;900&family=BIZ+UDPGothic:wght@400;700&display=swap">
+<style>
+  /* Layout: one column like an entry sheet; the result is printed as a 名刺 (business card) carrying the suggested job title */
+  :root {
+    --paper: #f3f5f8;
+    --card: #ffffff;
+    --ink: #1c2230;
+    --muted: #5f6878;
+    --line: #dde2ea;
+    --accent: #2948b3;
+    --accent-soft: #e6ebfa;
+    --on-accent: #ffffff;
+    --marker: #f2c94c;
+    --ladybug: #d0342c;
+    --wing: #8f9bb0;
+    --desk: #e9edf3;
+    --good: #1f7a4d;
+    --good-soft: #e3f3ea;
+    --bad: #a35a00;
+    --bad-soft: #fbeedb;
+    --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    --font-body: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12151c; --card: #1b2029; --ink: #e9edf4; --muted: #a2abba;
+      --line: #2f3644; --accent: #8ea6ff; --accent-soft: #232c45; --on-accent: #10142a; --marker: #c9a43a;
+      --good: #6fd29c; --good-soft: #1a3328; --bad: #f0b264; --bad-soft: #3a2c19;
+      --ladybug: #ff6a5c; --wing: #6d778a; --desk: #161a22;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12151c; --card: #1b2029; --ink: #e9edf4; --muted: #a2abba;
+    --line: #2f3644; --accent: #8ea6ff; --accent-soft: #232c45; --on-accent: #10142a; --marker: #c9a43a;
+      --good: #6fd29c; --good-soft: #1a3328; --bad: #f0b264; --bad-soft: #3a2c19;
+      --ladybug: #ff6a5c; --wing: #6d778a; --desk: #161a22;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--font-body); font-size: 1rem; line-height: 1.8;
+    padding-inline: 16px;
+  }
+  main { max-width: 36rem; margin: 0 auto; padding-block: 40px 64px; display: grid; gap: 20px; }
+  header { display: grid; gap: 4px; }
+  .eyebrow { font-size: .78rem; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  h1 { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.2rem, 8vw, 3rem); line-height: 1.15; margin: 0; letter-spacing: .04em; text-wrap: balance; }
+  h1 mark { background: linear-gradient(transparent 62%, var(--marker) 62%); color: inherit; padding: 0 2px; }
+  .lead { color: var(--muted); margin: 6px 0 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; display: grid; gap: 16px; }
+  label { font-weight: 700; font-size: .9rem; }
+  input[type="text"] {
+    width: 100%; padding: 12px 14px; font: inherit;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink);
+  }
+  input[type="text"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btn {
+    font: inherit; font-weight: 700; padding: 12px 22px; border-radius: 8px; border: none;
+    background: var(--accent); color: var(--on-accent); cursor: pointer; justify-self: start;
+  }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn:focus-visible, .choice:focus-visible, .ghost:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .ghost { font: inherit; font-size: .88rem; background: none; border: none; color: var(--muted); cursor: pointer; padding: 6px 0; justify-self: start; }
+  .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .track { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+  .track span { height: 4px; border-radius: 2px; background: var(--line); }
+  .track span.on { background: var(--accent); }
+  .question { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; line-height: 1.5; margin: 0; text-wrap: balance; }
+  .choices { display: grid; gap: 8px; }
+  .choice {
+    font: inherit; text-align: left; padding: 12px 16px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer;
+  }
+  .choice:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .free { display: flex; gap: 8px; flex-wrap: wrap; }
+  .free input { flex: 1 1 12rem; min-width: 0; }
+  .free .btn { padding: 10px 18px; }
+  .loading { justify-items: center; text-align: center; padding-block: 40px; }
+  .dots { display: flex; gap: 8px; }
+  .dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: bob 1s ease-in-out infinite; }
+  .dots span:nth-child(2) { animation-delay: .15s; }
+  .dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bob { 50% { transform: translateY(-8px); opacity: .5; } }
+  @media (prefers-reduced-motion: reduce) { .dots span { animation: none; } }
+  .note { font-size: .85rem; color: var(--muted); margin: 0; }
+  .wait { font-weight: 700; margin: 0; }
+
+  /* 待ち時間ミニゲーム：コバエたたき */
+  .game { width: 100%; display: grid; gap: 8px; text-align: left; }
+  .game-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .game-title { font-family: var(--font-display); font-weight: 900; font-size: 1.05rem; margin: 0; }
+  .game-stats { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .desk {
+    position: relative; height: 280px; border-radius: 8px; overflow: hidden; cursor: crosshair;
+    background: var(--desk); border: 1px solid var(--line); touch-action: manipulation; user-select: none;
+  }
+  .bug {
+    position: absolute; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; padding: 9px;
+    border: none; border-radius: 50%; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .bug.ladybug { padding: 5px; }
+  .bug svg { display: block; width: 100%; height: 100%; }
+  .bug:focus-visible { outline: 2px solid var(--accent); }
+  .pop {
+    position: absolute; translate: -50% -50%; font-family: var(--font-display); font-weight: 900; font-size: .9rem;
+    color: var(--ink); pointer-events: none; white-space: nowrap; animation: pop .7s ease-out forwards;
+  }
+  .pop.miss { color: var(--muted); font-size: .8rem; }
+  .pop.dodge { color: var(--accent); }
+  @keyframes pop { 0% { opacity: 0; scale: .6; } 20% { opacity: 1; scale: 1.15; } 100% { opacity: 0; scale: 1; translate: -50% -110%; } }
+  .shout {
+    position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 8px 10px; border-radius: 6px;
+    background: var(--ink); color: var(--paper); font-size: .85rem; pointer-events: none;
+  }
+  .done { display: grid; gap: 8px; justify-items: center; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { .pop { animation-duration: .01s; } }
+
+  /* 名刺 */
+  .meishi {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    aspect-ratio: 91 / 55; max-width: 100%; padding: 6% 7%;
+    display: grid; grid-template-rows: auto 1fr auto; gap: 4px;
+    box-shadow: 0 10px 30px -18px rgba(20, 30, 60, .45);
+    border-top: 6px solid var(--accent);
+  }
+  .meishi-top { display: flex; justify-content: space-between; gap: 8px; font-size: .72rem; color: var(--muted); letter-spacing: .08em; }
+  .meishi-body { display: grid; align-content: center; gap: 2px; min-width: 0; }
+  .meishi-label { font-size: .78rem; color: var(--muted); }
+  .meishi-job { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.4rem, 6vw, 2rem); line-height: 1.25; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+  .meishi-name { font-size: .95rem; margin: 0; }
+  .meishi-foot { font-size: .72rem; color: var(--muted); text-align: right; }
+
+  .type { display: grid; gap: 2px; }
+  .type-name { font-family: var(--font-display); font-weight: 900; font-size: 1.35rem; margin: 0; }
+  .type-catch { color: var(--muted); margin: 0; }
+  h2 { font-size: .78rem; letter-spacing: .15em; font-weight: 700; color: var(--accent); margin: 0; }
+  section.block { display: grid; gap: 8px; }
+  .traits { display: grid; gap: 8px; }
+  .trait { display: grid; grid-template-columns: 4.5rem 1fr 2.5rem; align-items: center; gap: 10px; font-size: .9rem; }
+  .trait .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .trait .bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .8s ease-out; }
+  .trait .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .jobs { display: grid; gap: 10px; }
+  .job { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--paper); }
+  .job b { display: block; }
+  .job p { margin: 2px 0 0; font-size: .92rem; }
+  .jobs.muted .job { background: var(--card); border-style: dashed; }
+  .jobs.muted .job b { color: var(--muted); }
+  .matches { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 10px; }
+  .match { border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+  .match.good { background: var(--good-soft); }
+  .match.bad { background: var(--bad-soft); }
+  .match .tag { font-size: .75rem; font-weight: 700; letter-spacing: .08em; }
+  .match.good .tag { color: var(--good); }
+  .match.bad .tag { color: var(--bad); }
+  .match b { font-size: 1.05rem; }
+  .match p { margin: 0; font-size: .92rem; }
+  .match.love { background: var(--accent-soft); }
+  .match.love .tag { color: var(--accent); }
+  .match .tip { font-size: .88rem; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+  .companies { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 6px 12px; padding: 0; margin: 0; list-style: none; counter-reset: co; }
+  .companies li { counter-increment: co; display: flex; gap: 6px; align-items: baseline; min-width: 0; font-size: .92rem; overflow-wrap: anywhere; }
+  .companies li::before { content: counter(co); flex: none; width: 1.4rem; text-align: right; color: var(--muted); font-size: .78rem; font-variant-numeric: tabular-nums; }
+  .quals { display: grid; gap: 6px; padding: 0; margin: 0; list-style: none; }
+  .quals li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+  .quals .kind { flex: none; font-size: .75rem; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; }
+  .salary { display: grid; gap: 6px; }
+  .salary-num { font-family: var(--font-display); font-weight: 900; font-size: 1.7rem; line-height: 1.2; margin: 0; font-variant-numeric: tabular-nums; }
+  .salary-num small { font-size: .95rem; margin-left: 2px; }
+  .salary-scale { position: relative; height: 10px; border-radius: 5px; background: var(--line); }
+  .salary-scale span { position: absolute; top: 0; bottom: 0; border-radius: 5px; background: var(--accent); }
+  .salary-ticks { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stat-num { font-family: var(--font-display); font-weight: 900; font-size: 1.7rem; line-height: 1.2; margin: 0; font-variant-numeric: tabular-nums; }
+  .stat-num small { font-size: .95rem; margin-left: 2px; }
+  .outlook { display: inline-block; justify-self: start; font-size: .8rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; }
+  .outlook.up { color: var(--good); background: var(--good-soft); }
+  .outlook.flat { color: var(--accent); background: var(--accent-soft); }
+  .outlook.down { color: var(--bad); background: var(--bad-soft); }
+  .match.fun { background: var(--good-soft); }
+  .match.fun .tag { color: var(--good); }
+  .match.hard { background: var(--bad-soft); }
+  .match.hard .tag { color: var(--bad); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
+  .chips li { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .error { background: var(--accent-soft); color: var(--ink); border-left: 4px solid var(--accent); border-radius: 6px; padding: 12px 14px; margin: 0; }
+  footer { font-size: .75rem; color: var(--muted); text-align: center; }
+  .keylabel { display: block; margin-top: 12px; font-weight: 700; }
+  .keynote { font-size: 0.8rem; opacity: 0.75; margin: 6px 0 12px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="eyebrow">AI × キャリア診断</span>
+    <h1>AI <mark>職業診断</mark></h1>
+    <p class="lead">20 の質問に答えると、AI があなたの性格を読み解き、向いている職業と暮らしのヒントを提案します。</p>
+  </header>
+
+  <section id="start" class="card">
+    <label for="name">ニックネーム（任意・名刺に載ります）</label>
+    <input id="name" type="text" maxlength="20" placeholder="例：山田 いか" autocomplete="off">
+    <label for="apiKey" class="keylabel">Gemini API キー</label>
+    <input id="apiKey" type="password" placeholder="AIza..." autocomplete="off">
+    <p class="keynote">キーは <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> で無料発行できます。このブラウザにだけ保存され、Google 以外には送信されません。</p>
+    <button class="btn" id="startBtn" type="button">診断をはじめる</button>
+    <p class="note">選択肢から選んでも、自由に書いてもかまいません。回答は 3〜4 分ほど、診断には 30 秒〜1 分ほどかかります。</p>
+    <p class="note" id="aiNote" hidden></p>
+  </section>
+
+  <section id="quiz" class="card" hidden>
+    <div class="meta"><span id="progress"></span><span>選ぶか、自由に回答</span></div>
+    <div class="track" id="track"></div>
+    <p class="question" id="question"></p>
+    <div class="choices" id="choices"></div>
+    <form class="free" id="freeForm">
+      <input id="freeInput" type="text" maxlength="100" placeholder="自由に答える" autocomplete="off">
+      <button class="btn" type="submit">回答</button>
+    </form>
+    <button class="ghost" id="backBtn" type="button">← ひとつ戻る</button>
+  </section>
+
+  <section id="loading" class="card loading" hidden>
+    <div id="waiting" style="display:grid;gap:6px;justify-items:center">
+      <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
+      <p style="margin:0">AI があなたの性格と向いている職業を診断しています…</p>
+      <p class="wait">診断には 30 秒〜1 分ほどかかります。</p>
+      <p class="note" id="loadingNote"></p>
+    </div>
+    <div class="done" id="done" hidden>
+      <p class="wait">診断が終わりました！</p>
+      <p class="note" id="doneScore"></p>
+      <button class="btn" id="showResultBtn" type="button" style="justify-self:center">結果を見る</button>
+    </div>
+    <div class="game">
+      <div class="game-head">
+        <p class="game-title">待ち時間ゲーム：コバエたたき</p>
+        <span class="game-stats" id="gameStats">退治 0 匹</span>
+      </div>
+      <p class="note">飛び回るコバエをタップして退治しよう。てんとう虫は益虫なので叩かないこと。コバエはたまによけます。</p>
+      <div class="desk" id="desk"></div>
+    </div>
+    <button class="ghost" id="stopBtn" type="button" style="justify-self:center">診断を中止する</button>
+  </section>
+
+  <section id="result" hidden>
+    <div style="display:grid;gap:20px">
+      <div class="meishi">
+        <div class="meishi-top"><span>AI 職業診断</span><span id="rDate"></span></div>
+        <div class="meishi-body">
+          <span class="meishi-label">あなたに向いている職業</span>
+          <p class="meishi-job" id="rJob"></p>
+          <p class="meishi-name" id="rName"></p>
+        </div>
+        <div class="meishi-foot" id="rType"></div>
+      </div>
+
+      <div class="card">
+        <div class="type">
+          <p class="type-name" id="rTypeName"></p>
+          <p class="type-catch" id="rCatch"></p>
+        </div>
+        <section class="block">
+          <h2>あなたの性格</h2>
+          <p style="margin:0" id="rPersonality"></p>
+          <ul class="chips" id="rKeywords"></ul>
+        </section>
+        <section class="block">
+          <h2>向いている理由</h2>
+          <p style="margin:0" id="rReason"></p>
+        </section>
+        <section class="block">
+          <h2>年収の目安</h2>
+          <div class="salary">
+            <p class="salary-num" id="rSalary"></p>
+            <div class="salary-scale" aria-hidden="true"><span id="rSalaryBar"></span></div>
+            <div class="salary-ticks" aria-hidden="true"><span>0</span><span>500</span><span>1000</span><span>1500</span><span>2000万円</span></div>
+            <p class="note" id="rSalaryNote"></p>
+          </div>
+        </section>
+        <section class="block">
+          <h2>日本でこの職業に就いている人の数</h2>
+          <p class="stat-num" id="rWorkforce"></p>
+          <p class="note" id="rWorkforceNote"></p>
+        </section>
+        <section class="block">
+          <h2 id="rIndustryTitle">この業界で働くと</h2>
+          <div class="matches">
+            <div class="match fun">
+              <span class="tag">楽しいこと・やりがい</span>
+              <p id="rFun"></p>
+            </div>
+            <div class="match hard">
+              <span class="tag">大変なこと</span>
+              <p id="rHard"></p>
+            </div>
+          </div>
+        </section>
+        <section class="block">
+          <h2>これからこの職業に訪れる変化</h2>
+          <span class="outlook" id="rOutlook"></span>
+          <p style="margin:0" id="rFuture"></p>
+        </section>
+        <section class="block">
+          <h2 id="rCompaniesTitle">代表的な会社</h2>
+          <ol class="companies" id="rCompanies"></ol>
+        </section>
+        <section class="block">
+          <h2>目指すなら取りたい資格</h2>
+          <ul class="quals" id="rQuals"></ul>
+          <p class="note">年収・人数・会社名・資格・今後の見通しは AI が挙げた目安や例です。実在するか、採用状況や受験条件は各社・各団体の公式サイトで確認してください。</p>
+        </section>
+        <section class="block">
+          <h2>あなたの傾向</h2>
+          <div class="traits" id="rTraits"></div>
+        </section>
+        <section class="block">
+          <h2>こんな職業も向いています</h2>
+          <div class="jobs" id="rOthers"></div>
+        </section>
+        <section class="block">
+          <h2>向いていないかもしれない職業</h2>
+          <div class="jobs muted" id="rUnsuited"></div>
+        </section>
+        <section class="block">
+          <h2>一緒に働く人との相性</h2>
+          <div class="matches">
+            <div class="match good">
+              <span class="tag">◎ 相性の良い職業の人</span>
+              <b id="rGoodTitle"></b>
+              <p id="rGoodReason"></p>
+            </div>
+            <div class="match bad">
+              <span class="tag">△ ぶつかりやすい職業の人</span>
+              <b id="rBadTitle"></b>
+              <p id="rBadReason"></p>
+              <p class="tip" id="rBadTip"></p>
+            </div>
+          </div>
+        </section>
+        <section class="block">
+          <h2>結婚するならこの職業の人</h2>
+          <div class="match love">
+            <span class="tag">♡ 結婚相手として相性の良い職業</span>
+            <b id="rLoveTitle"></b>
+            <p id="rLoveReason"></p>
+          </div>
+        </section>
+        <section class="block">
+          <h2>仕事で活きる強み</h2>
+          <ul class="chips" id="rStrengths"></ul>
+        </section>
+        <section class="block">
+          <h2>生活する上で気を付けること</h2>
+          <p style="margin:0" id="rCaution"></p>
+        </section>
+        <section class="block">
+          <h2>最初の一歩</h2>
+          <p style="margin:0" id="rAdvice"></p>
+        </section>
+        <div class="row">
+          <button class="btn" id="copyBtn" type="button">結果をコピー</button>
+          <button class="ghost" id="retryBtn" type="button">もう一度診断する</button>
+        </div>
+        <p class="note" id="copyNote" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <p class="error" id="error" role="alert" hidden></p>
+  <footer>診断は AI による参考情報です。進路を決めるときは、いろいろな人の話も聞いてみてください。<br>回答は診断のために AI サービスへ送信されます。名前や連絡先などの個人情報は書かないでください。</footer>
+</main>
+
+<script src="diagnose.js"></script>
+<script>
+  const QUESTIONS = [
+    { q: "子どもの頃、夢中になっていた遊びは？", choices: ["絵を描く・工作をする", "外で体を動かす", "ゲームやパズルを解く", "ごっこ遊びや友だちとのおしゃべり"] },
+    { q: "休日の理想の過ごし方は？", choices: ["何かを作ったり描いたりする", "知らない場所へ出かける", "本や動画で新しいことを学ぶ", "友だちや家族と集まる"] },
+    { q: "グループで何かをするとき、あなたの役割は？", choices: ["全体をまとめるリーダー", "アイデアを出す人", "計画を立てて分析する人", "みんなを支えるサポート役"] },
+    { q: "仕事でいちばん大事にしたいことは？", choices: ["人の役に立っている実感", "しっかり稼げること", "時間や場所の自由", "専門性やスキルが身につくこと"] },
+    { q: "得意なことにいちばん近いのは？", choices: ["文章や話で伝えること", "数字やデータを扱うこと", "手を動かして作ること", "人の気持ちを察すること"] },
+    { q: "働く場所として惹かれるのは？", choices: ["オフィス", "自宅やカフェ", "屋外や現場", "お店や人が集まる場所"] },
+    { q: "困った問題が起きたら、まずどうする？", choices: ["とりあえず動いて試す", "原因をじっくり調べる", "誰かに相談する", "やり方やルールを確認する"] },
+    { q: "言われていちばんうれしい褒め言葉は？", choices: ["センスがいいね", "頼りになるね", "よく気がつくね", "詳しいね"] },
+    { q: "どちらかといえば苦手なのは？", choices: ["同じ作業の繰り返し", "大勢の前で話すこと", "細かい数字のチェック", "急な予定変更"] },
+    { q: "いちばん興味のある分野は？", choices: ["IT・テクノロジー", "医療・福祉・教育", "アート・エンタメ・デザイン", "ビジネス・お金・経営"] },
+    { q: "朝の過ごし方に近いのは？", choices: ["早起きして予定を立てる", "ギリギリまで寝ている", "その日の気分で変わる", "毎朝同じルーティン"] },
+    { q: "待ち合わせにはいつ着く？", choices: ["10 分前には着いている", "時間ちょうど", "少し遅れがち", "遅れそうなら先に連絡する"] },
+    { q: "買い物をするときは？", choices: ["じっくり比較してから買う", "直感で即決", "口コミやレビューを重視", "セールまで待つ"] },
+    { q: "自分の部屋の状態に近いのは？", choices: ["いつもきれいに整っている", "散らかっているけど場所は分かる", "たまに一気に片付ける", "物が少ないミニマリスト"] },
+    { q: "ストレスがたまったときの発散法は？", choices: ["体を動かす", "寝る・ひとりで休む", "誰かに話を聞いてもらう", "趣味に没頭する"] },
+    { q: "初対面の人と話すのは？", choices: ["得意。自分から話しかける", "相手から来れば話せる", "少し緊張する", "かなり苦手"] },
+    { q: "計画どおりに進まなかったときは？", choices: ["すぐ切り替えて別の方法を考える", "しばらく落ち込む", "原因をふり返る", "あまり気にしない"] },
+    { q: "お金の使い方に近いのは？", choices: ["しっかり貯金する", "経験や趣味にどんどん使う", "人へのプレゼントに使いがち", "あまり考えていない"] },
+    { q: "人から相談されることは？", choices: ["よくある", "たまにある", "あまりない", "自分が相談する側"] },
+    { q: "10 年後、どんな自分でいたい？", choices: ["好きなことを仕事にしている", "家族や仲間と穏やかに暮らしている", "専門家として頼られている", "世界を飛び回っている"] },
+  ];
+
+  const TRAIT_LABELS = { creativity: "創造力", teamwork: "協調性", analysis: "分析力", action: "行動力" };
+
+  const $ = (id) => document.getElementById(id);
+  const show = (id) => ["start", "quiz", "loading", "result"].forEach((s) => ($(s).hidden = s !== id));
+  let answers = [];
+  let lastResult = null;
+  let ctl = null;
+
+  /* AI-CALL-START */
+  // 利用者が自分の Gemini API キーを入力して使う（diagnose.js 参照）
+  const keyStore = {
+    get: () => { try { return localStorage.getItem("gemini_key") || ""; } catch { return ""; } },
+    set: (v) => { try { localStorage.setItem("gemini_key", v); } catch {} },
+  };
+  $("apiKey").value = keyStore.get();
+  $("apiKey").addEventListener("change", () => keyStore.set($("apiKey").value.trim()));
+
+  async function askAI(name, answers, signal) {
+    const key = $("apiKey").value.trim() || keyStore.get();
+    if (!key) throw new Error("最初の画面で Gemini API キーを入力してください。");
+    return window.diagnoseWithGemini(key, name, answers, signal);
+  }
+  /* AI-CALL-END */
+
+  $("track").replaceChildren(...QUESTIONS.map(() => document.createElement("span")));
+
+  function renderQuestion() {
+    const i = answers.length;
+    const item = QUESTIONS[i];
+    $("progress").textContent = `Q${i + 1} / ${QUESTIONS.length}`;
+    [...$("track").children].forEach((el, k) => el.classList.toggle("on", k <= i));
+    $("question").textContent = item.q;
+    $("choices").replaceChildren(...item.choices.map((c) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "choice";
+      b.textContent = c;
+      b.onclick = () => answer(c);
+      return b;
+    }));
+    $("freeInput").value = "";
+    $("backBtn").hidden = i === 0;
+  }
+
+  function answer(a) {
+    answers.push({ q: QUESTIONS[answers.length].q, a });
+    if (answers.length < QUESTIONS.length) renderQuestion();
+    else diagnose();
+  }
+
+  // 待ち時間ゲーム：コバエたたき（わざと理不尽なクソゲー）
+  const game = (() => {
+    const desk = $("desk");
+    const slow = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const FLY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+      + '<ellipse cx="7.5" cy="9.5" rx="5" ry="3" fill="var(--wing)" opacity=".7" transform="rotate(-30 7.5 9.5)"/>'
+      + '<ellipse cx="16.5" cy="9.5" rx="5" ry="3" fill="var(--wing)" opacity=".7" transform="rotate(30 16.5 9.5)"/>'
+      + '<ellipse cx="12" cy="14.5" rx="3.4" ry="5" fill="var(--ink)"/>'
+      + '<circle cx="12" cy="8.8" r="2.6" fill="var(--ink)"/>'
+      + '<circle cx="10.9" cy="8.2" r="1" fill="var(--ladybug)"/><circle cx="13.1" cy="8.2" r="1" fill="var(--ladybug)"/></svg>';
+    const LADYBUG_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+      + '<circle cx="12" cy="5.5" r="3.2" fill="#1d1d1f"/>'
+      + '<circle cx="12" cy="13.5" r="8" fill="var(--ladybug)"/>'
+      + '<path d="M12 5.5v16" stroke="#1d1d1f" stroke-width="1.2"/>'
+      + '<circle cx="8.3" cy="11" r="1.6" fill="#1d1d1f"/><circle cx="15.7" cy="11" r="1.6" fill="#1d1d1f"/>'
+      + '<circle cx="8.6" cy="16.2" r="1.4" fill="#1d1d1f"/><circle cx="15.4" cy="16.2" r="1.4" fill="#1d1d1f"/></svg>';
+    const MAX_FLIES = 12;
+    let bugs = [], count = 0, best = 0, miss = 0, running = false, raf = 0, spawnTimer = 0, shoutTimer = 0, last = 0;
+
+    function stats() {
+      $("gameStats").textContent = `退治 ${count} 匹 ・ 最高 ${best} 匹 ・ 空振り ${miss} 回`;
+    }
+    function pop(x, y, text, cls) {
+      const n = el("span", text, "pop" + (cls ? " " + cls : ""));
+      n.style.left = x + "px";
+      n.style.top = y + "px";
+      desk.append(n);
+      setTimeout(() => n.remove(), 750);
+    }
+    function shout(text) {
+      desk.querySelector(".shout")?.remove();
+      const n = el("div", text, "shout");
+      desk.append(n);
+      clearTimeout(shoutTimer);
+      shoutTimer = setTimeout(() => n.remove(), 1800);
+    }
+    function randomSpot() {
+      return { x: 22 + Math.random() * (desk.clientWidth - 44), y: 22 + Math.random() * (desk.clientHeight - 44) };
+    }
+    function addBug(type) {
+      const b = el("button", null, "bug" + (type === "ladybug" ? " ladybug" : ""));
+      b.type = "button";
+      b.innerHTML = type === "ladybug" ? LADYBUG_SVG : FLY_SVG;
+      b.setAttribute("aria-label", type === "ladybug" ? "てんとう虫" : "コバエ");
+      const bug = { el: b, type, ...randomSpot(), vx: (Math.random() - .5) * 2.5, vy: (Math.random() - .5) * 2.5, born: performance.now() };
+      b.onclick = (e) => { e.stopPropagation(); hit(bug); };
+      desk.append(b);
+      bugs.push(bug);
+      draw(bug);
+    }
+    function removeBug(bug) {
+      bug.el.remove();
+      bugs = bugs.filter((x) => x !== bug);
+    }
+    function draw(bug) {
+      bug.el.style.transform = `translate(${bug.x}px, ${bug.y}px)`;
+    }
+    function hit(bug) {
+      if (!running) return;
+      if (bug.type === "ladybug") {
+        removeBug(bug);
+        pop(bug.x, bug.y, "あっ…", "dodge");
+        shout(`てんとう虫は益虫です！ 退治数 ${count} 匹 → 0 匹`);
+        count = 0;
+      } else if (Math.random() < 0.18) {
+        // コバエはたまによける
+        pop(bug.x, bug.y, "ヒラリ", "dodge");
+        Object.assign(bug, randomSpot());
+        draw(bug);
+      } else {
+        removeBug(bug);
+        pop(bug.x, bug.y, "ペチッ");
+        count++;
+        best = Math.max(best, count);
+        if (Math.random() < 0.07) {
+          shout("コバエが仲間を呼んだ！");
+          for (let i = 0; i < 4 && bugs.length < MAX_FLIES; i++) addBug("fly");
+        }
+      }
+      stats();
+    }
+    function step(now) {
+      if (!running) return;
+      const dt = Math.min(50, now - (last || now)) / 16.7;
+      last = now;
+      const w = desk.clientWidth, h = desk.clientHeight;
+      for (const bug of [...bugs]) {
+        if (bug.type === "ladybug") {
+          if (now - bug.born > 4500) { removeBug(bug); continue; }
+          bug.vx += (Math.random() - .5) * .1;
+          bug.vy += (Math.random() - .5) * .1;
+          const sp = Math.hypot(bug.vx, bug.vy) || 1;
+          bug.vx = bug.vx / sp * .6;
+          bug.vy = bug.vy / sp * .6;
+        } else {
+          // ふらふら飛んで、ときどき急にダッシュする
+          bug.vx += (Math.random() - .5) * .8;
+          bug.vy += (Math.random() - .5) * .8;
+          if (Math.random() < .01) { bug.vx *= 2.5; bug.vy *= 2.5; }
+          const sp = Math.hypot(bug.vx, bug.vy);
+          const max = slow ? 1 : 2.6;
+          if (sp > max) { bug.vx = bug.vx / sp * max; bug.vy = bug.vy / sp * max; }
+        }
+        bug.x += bug.vx * dt;
+        bug.y += bug.vy * dt;
+        if (bug.x < 22 || bug.x > w - 22) { bug.vx *= -1; bug.x = Math.min(w - 22, Math.max(22, bug.x)); }
+        if (bug.y < 22 || bug.y > h - 22) { bug.vy *= -1; bug.y = Math.min(h - 22, Math.max(22, bug.y)); }
+        draw(bug);
+      }
+      raf = requestAnimationFrame(step);
+    }
+    desk.addEventListener("click", (e) => {
+      if (!running || e.target.closest(".bug")) return;
+      const r = desk.getBoundingClientRect();
+      miss++;
+      pop(e.clientX - r.left, e.clientY - r.top, "スカッ", "miss");
+      stats();
+    });
+    return {
+      start() {
+        running = true; count = 0; best = 0; miss = 0; last = 0;
+        bugs = [];
+        desk.replaceChildren();
+        stats();
+        for (let i = 0; i < 3; i++) addBug("fly");
+        clearInterval(spawnTimer);
+        spawnTimer = setInterval(() => {
+          if (bugs.filter((b) => b.type === "fly").length < 6) addBug("fly");
+          if (Math.random() < 0.25 && !bugs.some((b) => b.type === "ladybug")) addBug("ladybug");
+        }, 1800);
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(step);
+      },
+      stop() {
+        running = false;
+        cancelAnimationFrame(raf);
+        clearInterval(spawnTimer);
+        bugs.forEach((b) => (b.el.disabled = true));
+        return best;
+      },
+    };
+  })();
+
+  let pendingResult = null;
+  $("showResultBtn").onclick = () => {
+    if (!pendingResult) return;
+    game.stop();
+    renderResult(pendingResult);
+  };
+
+  async function diagnose() {
+    show("loading");
+    $("error").hidden = true;
+    $("waiting").hidden = false;
+    $("done").hidden = true;
+    $("stopBtn").hidden = false;
+    pendingResult = null;
+    game.start();
+    ctl = new AbortController();
+    try {
+      const r = await askAI($("name").value.trim().slice(0, 20), answers, ctl.signal);
+      // 診断が終わってもコバエは飛び続ける。ゲームは「結果を見る」を押したときに止める
+      pendingResult = r;
+      $("waiting").hidden = true;
+      $("stopBtn").hidden = true;
+      $("doneScore").textContent = "結果を見るまで、コバエたたきを続けられます。";
+      $("done").hidden = false;
+      $("showResultBtn").focus();
+    } catch (e) {
+      game.stop();
+      const cancelled = e?.name === "AbortError" || e?.code === "cancelled";
+      if (!cancelled) {
+        $("error").textContent = e?.message || "通信に失敗しました。もう一度お試しください。";
+        $("error").hidden = false;
+      }
+      answers.pop();
+      show("quiz");
+      renderQuestion();
+    }
+  }
+
+  function el(tag, text, cls) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = String(text);
+    return n;
+  }
+
+  function renderResult(r) {
+    lastResult = r;
+    const name = $("name").value.trim();
+    $("rDate").textContent = new Date().toLocaleDateString("ja-JP");
+    $("rJob").textContent = r.top_job?.title ?? "";
+    $("rName").textContent = name ? `${name} 様` : "";
+    $("rType").textContent = r.type_name ? `タイプ：${r.type_name}` : "";
+    $("rTypeName").textContent = r.type_name ?? "";
+    $("rCatch").textContent = r.catchphrase ? `「${r.catchphrase}」` : "";
+    $("rReason").textContent = r.top_job?.reason ?? "";
+    const sal = [Number(r.salary?.min) || 0, Number(r.salary?.max) || 0].sort((a, b) => a - b);
+    const SCALE = 2000;
+    $("rSalary").replaceChildren(document.createTextNode(`${sal[0].toLocaleString()}〜${sal[1].toLocaleString()}`), el("small", "万円"));
+    $("rSalaryBar").style.left = Math.min(100, sal[0] / SCALE * 100) + "%";
+    $("rSalaryBar").style.width = Math.max(1.5, Math.min(100, sal[1] / SCALE * 100) - Math.min(100, sal[0] / SCALE * 100)) + "%";
+    $("rSalaryNote").textContent = r.salary?.note ?? "";
+    const people = Math.max(0, Math.round(Number(r.workforce?.count) || 0));
+    $("rWorkforce").replaceChildren(
+      document.createTextNode("約 "),
+      ...(people >= 10000
+        ? [document.createTextNode((Math.round(people / 1000) / 10).toLocaleString()), el("small", "万人")]
+        : [document.createTextNode(people.toLocaleString()), el("small", "人")]),
+    );
+    $("rWorkforceNote").textContent = r.workforce?.note ?? "";
+    const OUTLOOK = { "増加傾向": "up", "横ばい": "flat", "減少傾向": "down" };
+    $("rOutlook").textContent = r.future?.outlook ? `人の需要：${r.future.outlook}` : "";
+    $("rOutlook").className = "outlook " + (OUTLOOK[r.future?.outlook] ?? "flat");
+    $("rOutlook").hidden = !r.future?.outlook;
+    $("rFuture").textContent = r.future?.text ?? "";
+    $("rIndustryTitle").textContent = r.industry?.name ? `${r.industry.name}の業界で働くと` : "この業界で働くと";
+    $("rFun").textContent = r.industry?.fun ?? "";
+    $("rHard").textContent = r.industry?.hard ?? "";
+    $("rCompaniesTitle").textContent = r.top_job?.title ? `${r.top_job.title}が活躍する代表的な会社` : "代表的な会社";
+    $("rCompanies").replaceChildren(...(r.companies ?? []).slice(0, 20).map((c) => el("li", c)));
+    $("rQuals").replaceChildren(...(r.qualifications ?? []).slice(0, 10).map((q) => {
+      const li = el("li");
+      li.append(el("span", q.name), el("span", q.kind, "kind"));
+      return li;
+    }));
+    $("rAdvice").textContent = r.advice ?? "";
+
+    const traits = r.traits ?? {};
+    const rows = Object.entries(TRAIT_LABELS).map(([key, label]) => {
+      const v = Math.max(0, Math.min(100, Math.round(Number(traits[key]) || 0)));
+      const row = el("div", null, "trait");
+      const bar = el("div", null, "bar");
+      const fill = el("span");
+      fill.dataset.v = v;
+      bar.append(fill);
+      row.append(el("span", label), bar, el("span", v, "num"));
+      return row;
+    });
+    $("rTraits").replaceChildren(...rows);
+
+    const jobBoxes = (list) => (list ?? []).slice(0, 2).map((j) => {
+      const box = el("div", null, "job");
+      box.append(el("b", j.title), el("p", j.reason));
+      return box;
+    });
+    $("rOthers").replaceChildren(...jobBoxes(r.other_jobs));
+    $("rUnsuited").replaceChildren(...jobBoxes(r.unsuited_jobs));
+    $("rGoodTitle").textContent = r.good_match?.title ?? "";
+    $("rGoodReason").textContent = r.good_match?.reason ?? "";
+    $("rBadTitle").textContent = r.bad_match?.title ?? "";
+    $("rBadReason").textContent = r.bad_match?.reason ?? "";
+    $("rLoveTitle").textContent = r.marriage_match?.title ?? "";
+    $("rLoveReason").textContent = r.marriage_match?.reason ?? "";
+    $("rBadTip").textContent = r.bad_match?.tip ? `うまく付き合うコツ：${r.bad_match.tip}` : "";
+    $("rPersonality").textContent = r.personality?.summary ?? "";
+    $("rKeywords").replaceChildren(...(r.personality?.keywords ?? []).slice(0, 3).map((k) => el("li", k)));
+    $("rCaution").textContent = r.life_caution ?? "";
+    $("rStrengths").replaceChildren(...(r.strengths ?? []).slice(0, 3).map((s) => el("li", s)));
+    $("copyNote").textContent = "";
+    show("result");
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $("rTraits").querySelectorAll(".bar span").forEach((s) => (s.style.width = s.dataset.v + "%"));
+    }));
+  }
+
+  $("startBtn").onclick = () => {
+    const key = $("apiKey").value.trim();
+    if (!key) { $("apiKey").focus(); $("apiKey").placeholder = "先に API キーを入力してください"; return; }
+    keyStore.set(key);
+    answers = []; $("error").hidden = true; show("quiz"); renderQuestion(); };
+  $("backBtn").onclick = () => { answers.pop(); renderQuestion(); };
+  $("stopBtn").onclick = () => ctl?.abort();
+  $("freeForm").onsubmit = (e) => {
+    e.preventDefault();
+    const v = $("freeInput").value.trim();
+    if (v) answer(v);
+  };
+  $("retryBtn").onclick = () => { answers = []; show("start"); };
+  $("copyBtn").onclick = async () => {
+    const r = lastResult;
+    const text = `私に向いている職業は「${r.top_job?.title}」！ タイプは「${r.type_name}」でした。 #AI職業診断`;
+    try {
+      await navigator.clipboard.writeText(text);
+      $("copyNote").textContent = "コピーしました。";
+    } catch {
+      $("copyNote").textContent = text;
+    }
+  };
+</script>
+<!-- PAGE-END -->
+</body>
+</html>

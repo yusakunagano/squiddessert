@@ -12,13 +12,11 @@ const USER = {
   bill: { amount: 52300, date: '11/10', bank: '三井住友銀行' },
   recent: [
     ['10/12', 'コンビニ', 'アプリ払い', 648],
-    ['10/11', 'ドラッグストア', 'カード', 3280],
+    ['10/11', 'レストラン', 'カード', 3280],
     ['10/09', 'ネット通販', 'カード', 12800],
     ['10/08', 'カフェ', 'アプリ払い', 520],
     ['10/05', 'スーパー', 'アプリ払い', 4210],
   ],
-  // Monthly spend by category, used by the benefits AI to estimate rewards.
-  spend: { convenience: 6000, drugstore: 5000, online: 15000, gas: 0, other: 22000 },
 };
 
 const SCOPES = {

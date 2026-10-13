@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="20 の質問に答えると、AI があなたの性格と向いている職業を診断します。">
 <!-- PAGE-START -->
-<title>AI 職業診断</title>
+<title>AI職業サポート</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@700;900&family=BIZ+UDPGothic:wght@400;700&display=swap">
@@ -204,7 +204,7 @@
 <main>
   <header>
     <span class="eyebrow">AI × キャリア診断</span>
-    <h1>AI <mark>職業診断</mark></h1>
+    <h1>AI<mark>職業サポート</mark></h1>
     <p class="lead">20 の質問に答えると、AI があなたの性格を読み解き、向いている職業と暮らしのヒントを提案します。</p>
   </header>
 
@@ -254,7 +254,7 @@
   <section id="result" hidden>
     <div style="display:grid;gap:20px">
       <div class="meishi">
-        <div class="meishi-top"><span>AI 職業診断</span><span id="rDate"></span></div>
+        <div class="meishi-top"><span>AI職業サポート</span><span id="rDate"></span></div>
         <div class="meishi-body">
           <span class="meishi-label">あなたに向いている職業</span>
           <p class="meishi-job" id="rJob"></p>
@@ -732,7 +732,7 @@
   $("retryBtn").onclick = () => { answers = []; show("start"); };
   $("copyBtn").onclick = async () => {
     const r = lastResult;
-    const text = `私に向いている職業は「${r.top_job?.title}」！ タイプは「${r.type_name}」でした。 #AI職業診断`;
+    const text = `私に向いている職業は「${r.top_job?.title}」！ タイプは「${r.type_name}」でした。 #AI職業サポート`;
     try {
       await navigator.clipboard.writeText(text);
       $("copyNote").textContent = "コピーしました。";

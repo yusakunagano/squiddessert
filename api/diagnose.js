@@ -1,4 +1,4 @@
-// AI 職業診断 API（Vercel Serverless Function）
+// AI職業サポート API（Vercel Serverless Function）
 // POST /api/diagnose  body: { name?: string, answers: [{ q: string, a: string }] }
 // 環境変数 GEMINI_API_KEY が必要です（ブラウザには公開されません）。
 // API キーは Google AI Studio（https://aistudio.google.com/apikey）で発行できます。
@@ -7,7 +7,7 @@ import { ApiError, GoogleGenAI } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const MODEL = "gemini-flash-lite-latest";
 
-const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザーとして「AI 職業診断」を担当します。
+const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザーとして「AI職業サポート」を担当します。
 ユーザーが答えた質問への回答から、その人の興味・得意なこと・価値観・働き方の好み・性格・生活習慣を読み取り、
 性格と向いている職業を診断してください。日本語で、前向きで親しみやすいトーンで書きます。
 

@@ -1,6 +1,6 @@
 # squiddessert
 
-## AI 職業診断
+## AI職業サポート
 
 20 の質問に答えると、Google Gemini（`gemini-flash-lite-latest`）があなたの性格と向いている職業を診断します。
 診断には 30 秒〜1 分ほどかかり、待っている間はミニゲーム「コバエたたき」で遊べます。

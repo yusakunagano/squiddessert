@@ -6,132 +6,188 @@
 <title>利用サービス（プロトタイプ）</title>
 <link rel="stylesheet" href="app.css">
 <style>
-  main { padding: 16px; }
-  .intro { font-size: 13px; color: var(--sub); margin: 0 0 12px; line-height: 1.6; }
-  .svc { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; }
-  .svc .tag { font-size: 11px; color: var(--brand); font-weight: 700; }
-  .svc h2 { font-size: 16px; margin: 4px 0 8px; }
-  .svc .fine { font-size: 11px; color: var(--sub); line-height: 1.7; }
-  .svc .ask { margin-top: 10px; width: 100%; padding: 10px; border-radius: 20px; border: 1px solid var(--brand); background: #fff; color: var(--brand); font-weight: 700; cursor: pointer; }
+  :root { --page: #efedeb; --mint: #e8f6ee; --check: #2bb36a; --red: #c80000; }
+  body { background: var(--page); }
+  .app { background: var(--page); padding: 0 16px 120px; }
+  .close-x { display: block; margin-left: auto; padding: 24px 0 8px; width: 32px; font-size: 28px; color: #444; text-decoration: none; text-align: right; }
+  .tabs { display: flex; gap: 6px; margin: 16px 0 28px; }
+  .tabs button { flex: 1; padding: 14px; border-radius: 28px; border: 0; font-size: 16px; font-weight: 700; background: #fafafa; color: #777; cursor: pointer; }
+  .tabs button.on { background: var(--red); color: #fff; }
+  .sec { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 12px; }
+  .sec h2 { font-size: 26px; margin: 0; }
+  .sec .max { font-size: 13px; font-weight: 700; color: #444; }
+  .sec .max b { font-size: 30px; }
+  .rows { border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 16px; background: #fff; border: 0; width: 100%; text-align: left; font-size: 15px; font-weight: 700; color: #333; cursor: pointer; }
+  .row.on { background: var(--mint); }
+  .row .ic { width: 20px; text-align: center; color: var(--check); }
+  .row .ic.n { width: 18px; height: 18px; border-radius: 50%; background: var(--red); color: #fff; font-size: 10px; line-height: 18px; }
+  .row .nm { flex: 1; }
+  .row .rt { font-size: 20px; }
+  .row .rt small { font-size: 11px; }
+  .row.off .rt { color: #ccc; }
+  .row .chev { color: #555; }
+  .box { background: #fff; border-radius: 14px; margin-top: 14px; }
+  .box .line { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px; font-weight: 700; color: #333; }
+  .box .line + .line { border-top: 1px solid #eee; }
+  .box .v { font-size: 26px; text-align: right; }
+  .box .v small { font-size: 13px; }
+  .box .v .up { display: block; font-size: 14px; color: var(--check); }
+  .hint { margin: 10px 2px 0; font-size: 12px; color: #777; }
+  .hist .line { font-weight: 400; font-size: 14px; }
+  /* detail sheet */
+  .detail { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 15; }
+  .detail.open { display: block; }
+  .detail .panel { position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 420px; background: #fff; border-radius: 16px 16px 0 0; padding: 20px 16px 28px; max-height: 80vh; overflow-y: auto; }
+  .detail h3 { margin: 0 0 4px; } .detail .fine { font-size: 12px; color: #666; line-height: 1.8; }
+  .detail .ask { width: 100%; margin-top: 12px; padding: 12px; border-radius: 22px; border: 1px solid var(--brand); background: #fff; color: var(--brand); font-weight: 700; cursor: pointer; }
 </style>
 </head>
 <body>
 <script src="gate.js"></script>
 <div class="app slide-in">
   <div class="proto">※ UIプロトタイプです。特典は公開情報（2026年時点）を参考にした例です</div>
-  <header><a href="index.html" aria-label="戻る">‹</a><h1>利用サービス</h1><span style="width:20px"></span></header>
-  <main>
-    <p class="intro">ご利用中のサービスと特典です。条件が分かりにくいときは、各サービスの「AIでかんたん解説」か右下のAIに聞いてください。</p>
-    <div id="list"></div>
-  </main>
+  <a class="close-x" href="index.html" aria-label="閉じる">✕</a>
+  <div class="tabs"><button data-tab="hist">利用履歴</button><button data-tab="svc" class="on">利用サービス</button></div>
+
+  <div id="svc">
+    <div class="sec"><h2>Pay</h2><span class="max">最大<b id="now"></b> / <span id="pot"></span>%還元</span></div>
+    <div class="rows" id="rows"></div>
+    <div class="box"><div class="line"><span>今月の利用総額</span><span class="v" id="total"></span></div></div>
+    <p class="hint">各特典をタップすると条件を確認できます。わかりにくいときは右下のAIへ。</p>
+    <div class="sec" style="margin-top:32px"><h2>ポイント</h2></div>
+    <div class="box">
+      <div class="line"><span>保有ポイント</span><span class="v">8<small>P</small></span></div>
+      <div class="line"><span>運用ポイント</span><span class="v">86,055<small>P</small><span class="up">+3,434P</span></span></div>
+    </div>
+  </div>
+  <div id="hist" hidden><div class="box hist" id="histList"></div></div>
 </div>
+<div class="detail" id="detail"><div class="panel" id="panel"></div></div>
+
 <script src="chat.js"></script>
 <script>
-// Based on public info about the partner bank's 2026 rank program (5 ranks, free ATM / transfer counts).
-// Rank thresholds are not public in our sources, so RANK_RULES below are illustrative only.
-const RANKS = [
-  { name: 'プラチナVIP', atm: 20, tr: 20 },
-  { name: 'VIP',         atm: 15, tr: 15 },
-  { name: 'ゴールド',     atm: 10, tr: 10 },
-  { name: 'シルバー',     atm: 5,  tr: 5 },
-  { name: 'ベーシック',   atm: 1,  tr: 2 },
-];
-const TRANSFER_FEE = 77; // per extra transfer to other banks (税込)
+const MONTH_TOTAL = 47140;
 
+// Structure follows the app's 利用サービス screen. Rates/conditions come from public info (2026);
+// rows marked `unverified` could not be confirmed from official pages and are approximations.
 const BENEFITS = [
-  { id: 'rank', tag: '銀行', name: 'ランク別の優遇（5段階）',
-    fine: 'お取引状況に応じて「ベーシック」「シルバー」「ゴールド」「VIP」「プラチナVIP」の5段階のランクを判定し、ランクに応じてATM利用手数料・他行宛振込手数料の無料回数、デビットカードのポイント還元率等を優遇。プラチナVIP：ATM・他行振込 各月20回、VIP：各15回、ゴールド：各10回、シルバー：各5回、ベーシック：ATM月1回・他行振込月2回。同行および提携信託銀行宛の振込は回数無制限で無料。無料回数を超えた他行宛振込は1件77円（税込）。',
-    plain: ['ランクは5段階。上がるほどATMと振込の無料回数が増える', 'いちばん上なら、ATMも他行への振込も月20回まで無料', '同じ銀行あての振込はいつでも無料', '無料回数を超えた他行振込は1回77円'],
-    entry: false },
-  { id: 'judge', tag: '銀行', name: 'ランクの決まり方',
-    fine: 'ランクは判定対象月の円普通預金・ハイブリッド預金の残高、または給与・年金の受取、口座振替等のお取引状況により判定し、判定対象月の翌々月（ランク適用月）に適用。口座開設直後は所定の期間「シルバー」を適用。2026年5月の改定により、一部の判定条件（スマート認証NEOの登録による優遇等）は廃止。',
-    plain: ['預金の残高や、給与の受け取り・口座振替などの使い方でランクが決まる', '今月の使い方が反映されるのは「再来月」', '口座を作ってしばらくはシルバー', '2026年5月から、アプリ認証の登録だけで優遇される条件はなくなった'],
-    entry: false },
-  { id: 'debit', tag: 'デビット', name: 'デビットカードのポイント',
-    fine: '対象のデビットカード（プラチナデビットカード、デビットカード ポイント＋）のご利用で、ランクに応じたポイント還元率を適用。銀行独自のポイントはデビットカードのお支払い等に利用可能。還元率・対象取引の詳細は商品ページをご確認ください。',
-    plain: ['対象のデビットカードで払うとポイントが貯まる', 'ランクが高いほど還元率アップ', '貯まったポイントはデビットの支払いに使える'],
-    entry: false },
-  { id: 'dpoint', tag: '連携', name: 'ポイント連携',
-    fine: '2026年8月20日より、決済アプリの共通ポイントとの連携を開始。連携には双方のアカウント連携（エントリー）が必要。付与条件・対象取引は今後順次拡大予定。',
-    plain: ['銀行の使い方で、アプリの共通ポイントも貯まるようになった（2026年8月20日〜）', 'アカウントの連携（エントリー）が必要', '条件はまだ増えていく予定'],
-    entry: true },
+  { id: 'pay', name: 'Pay', rate: 0.5, on: true, cap: null,
+    fine: 'アプリ払いのご利用で、200円（税込）ごとに1ポイント（0.5%）進呈。',
+    plain: ['アプリで払うだけで0.5%', 'エントリーなどは不要'] },
+  { id: 'card', name: 'Payカード', rate: 0.5, on: true, cap: null,
+    fine: 'アプリ払いのお支払い方法をPayカードに設定すると、カードのご利用分としてさらにポイントを進呈。2027年1月ご利用分より、一部カードの通常還元率が変更になります。',
+    plain: ['支払い方法をカードにすると、さらに＋0.5%', '2027年1月から一部カードの還元率が変わる予定'] },
+  { id: 'rank', name: 'ランク特典', rate: 1, on: true, cap: 200,
+    fine: 'ポイントクラブのランクに応じて、アプリ払いのご利用額に対し還元率を上乗せ。2026年9月1日より、毎月の進呈上限はランクにかかわらず一律200ポイント。',
+    plain: ['ランクに応じて＋1%', 'ただし毎月もらえるのは200ポイントまで（2026年9月〜）', '＝ 月2万円を超える分には付かない'] },
+  { id: 'bank', name: 'Payカード×提携銀行', rate: 2, on: false, cap: 3000, max: true,
+    fine: 'Payカードの引き落とし口座を提携銀行に設定し、アカウント連携のうえ引き落とし実績がある場合、スマホ決済のご利用分に＋2.0%を進呈（進呈上限：月3,000ポイント）。対象は初回引き落とし月から12か月間。13か月目以降は、前々月16日〜前月15日のカードご利用額とカードの種類に応じて還元率が変動（PLATINUMで月50万円以上のご利用時2.0%、GOLD／GOLD Uは最大1.0%、一般カードは0.25%）。対象支店・対象カードに限ります。',
+    plain: ['カードの引き落とし口座を提携銀行にすると＋2%（最初の12か月）', '必要なのは「口座開設」「アカウント連携」「引き落とし口座の変更」「1回の引き落とし」', 'もらえるのは月3,000ポイントまで', '13か月目からは、カードの種類と利用額で0.25〜2%に変わる'] },
+  { id: 'sec', name: 'Payカード×提携証券', rate: 1.5, on: true, cap: null, unverified: true,
+    fine: '提携証券の口座とPayカードを連携し、所定の条件（カード積立等）を満たすと、カードのご利用分に最大1.5%を上乗せ。条件の詳細は提携証券のページをご確認ください。',
+    plain: ['証券口座とカードを連携すると最大＋1.5%', '積立などの条件あり（詳しくは証券会社のページで確認）'] },
+  { id: 'poikatsu', name: 'ポイ活プラン', rate: 5, rate2: 10, on: true, cap: 2500, unverified: true,
+    fine: '対象の料金プランご契約で、アプリ払い・カード払いのご利用に対し最大5%（一部対象店舗・期間は10%）を期間・用途限定ポイントで進呈（進呈上限あり）。2026年12月ご利用分より、対象決済の進呈分を差し引いた金額が計算対象になります。',
+    plain: ['対象プランに入っていると最大5%（一部のお店や期間は10%）', 'もらえるのは期間・用途限定ポイント。上限あり', '2026年12月から計算方法が変わる予定'] },
 ];
 
-document.getElementById('list').innerHTML = BENEFITS.map(b => `
-  <section class="svc">
-    <span class="tag">${b.tag}</span><h2>${b.name}</h2>
-    <p class="fine">${b.fine}</p>
-    ${b.id === 'rank' ? `<div class="data" style="margin-top:8px"><div class="h"><span>ランク</span><span>ATM / 他行振込（月）</span></div>${RANKS.map(r => `<div><span>${r.name}</span><b>${r.atm}回 / ${r.tr}回</b></div>`).join('')}</div>` : ''}
-    <button class="ask" data-id="${b.id}">🤖 AIでかんたん解説</button>
-  </section>`).join('');
+const fmt = n => (Math.round(n * 10) / 10).toString();
+const pt = n => Math.floor(n).toLocaleString('ja-JP') + 'pt';
+const nowMax = BENEFITS.filter(b => b.on).reduce((a, b) => a + b.rate, 0);
+const potMax = BENEFITS.reduce((a, b) => a + (b.rate2 || b.rate), 0);
+document.getElementById('now').textContent = fmt(nowMax);
+document.getElementById('pot').textContent = fmt(potMax);
+document.getElementById('total').innerHTML = `${MONTH_TOTAL.toLocaleString()}<small>円</small>`;
+document.getElementById('rows').innerHTML = BENEFITS.map(b => `
+  <button class="row ${b.on ? 'on' : 'off'}" data-id="${b.id}">
+    <span class="ic ${b.on ? '' : 'n'}">${b.on ? '✓' : 'N'}</span><span class="nm">${b.name}</span>
+    <span class="rt">${b.max ? '<small>最大</small>' : ''}${fmt(b.rate)}${b.rate2 ? '/' + b.rate2 : ''}<small>%</small></span><span class="chev">›</span>
+  </button>`).join('');
 
-const DEFAULT_CHIPS = ['私は何ランク？', '無料回数で足りる？', 'ランクを上げるには？', 'エントリーが必要なのは？'];
+// Tabs
+document.querySelectorAll('.tabs button').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === t));
+  document.getElementById('svc').hidden = t.dataset.tab !== 'svc';
+  document.getElementById('hist').hidden = t.dataset.tab !== 'hist';
+});
+document.getElementById('histList').innerHTML = USER.recent.map(r => `<div class="line"><span>${r[0]} ${r[1]}<br><small style="color:#888">${r[2]}</small></span><b>${yen(r[3])}</b></div>`).join('');
+
+// Detail sheet per benefit
+const detail = document.getElementById('detail');
+detail.onclick = e => { if (e.target === detail) detail.classList.remove('open'); };
+document.querySelectorAll('.row').forEach(r => r.onclick = () => {
+  const b = BENEFITS.find(x => x.id === r.dataset.id);
+  document.getElementById('panel').innerHTML = `<h3>${b.name}</h3>
+    <div style="font-size:13px;margin-bottom:8px">${b.on ? '✅ 適用中' : '⚪ 未適用'}・${b.max ? '最大' : ''}${fmt(b.rate)}${b.rate2 ? '/' + b.rate2 : ''}%${b.cap ? `（上限 月${b.cap.toLocaleString()}pt）` : ''}</div>
+    <p class="fine">${b.fine}</p>
+    <button class="ask">🤖 AIでかんたん解説</button>`;
+  detail.classList.add('open');
+  document.querySelector('#panel .ask').onclick = () => {
+    detail.classList.remove('open'); chat.open();
+    chat.me(`「${b.name}」を解説して`); chat.later(() => explain(b, chat));
+  };
+});
+
+// ---------- AI ----------
+const DEFAULT_CHIPS = ['8.5%と15.5%の違いは？', '今月いくらもらえる？', '銀行特典をつけるといくら増える？', '上限に届いている特典は？'];
 
 function explain(b, chat) {
-  chat.ai(`「${b.name}」をかんたんに言うと：\n\n${b.plain.map(s => '・' + s).join('\n')}${b.entry ? '\n\n⚠️ エントリー（連携）しないと対象になりません。' : ''}`);
+  chat.ai(`「${b.name}」をかんたんに言うと：\n\n${b.plain.map(s => '・' + s).join('\n')}${b.on ? '\n\n✅ あなたはすでに適用中です。' : '\n\n⚪ まだ適用されていません。'}${b.unverified ? '\n\n※ この特典の条件はプロトタイプ用の目安です。' : ''}`);
   chat.chips(DEFAULT_CHIPS);
 }
 
-// Illustrative thresholds (not the bank's real rules).
-function rankFor(ans) {
-  const bal = { '10万円未満': 0, '10万〜100万円': 1, '100万〜300万円': 2, '300万円以上': 3 }[ans.balance];
-  const salary = ans.salary === 'はい';
-  if (bal >= 3 && salary) return RANKS[0];
-  if (bal >= 3 || (bal >= 2 && salary)) return RANKS[1];
-  if (bal >= 2 || salary) return RANKS[2];
-  if (bal >= 1) return RANKS[3];
-  return RANKS[4];
+// Points per benefit for a monthly spend (caps applied). Poikatsu uses the base 5%.
+function calc(spend, withBank) {
+  return BENEFITS.filter(b => b.on || (withBank && b.id === 'bank')).map(b => {
+    const raw = spend * b.rate / 100;
+    return { b, raw, v: b.cap ? Math.min(raw, b.cap) : raw, capped: b.cap && raw > b.cap };
+  });
+}
+function table(rows, title) {
+  const sum = rows.reduce((a, r) => a + r.v, 0);
+  return `<div class="data"><div class="h"><span>${title}</span></div>${rows.map(r => `<div><span>${r.b.name}${r.capped ? ' <small style="color:var(--brand)">上限到達</small>' : ''}</span><b>${pt(r.v)}</b></div>`).join('')}
+    <div class="h"><span>合計</span><b>${pt(sum)}</b></div></div>`;
 }
 
-// The AI asks only what the account data can't tell it.
-function hearAll(chat, done) {
-  hear(chat, 'いくつか教えてください。\n① 普通預金の残高はどのくらいですか？', ['10万円未満', '10万〜100万円', '100万〜300万円', '300万円以上'], balance =>
-    hear(chat, '② 給与や年金をこの口座で受け取っていますか？', ['はい', 'いいえ'], salary =>
-      hear(chat, '③ 他の銀行への振込は月に何回くらいですか？', ['0〜2回', '3〜5回', '6〜10回', '11回以上'], tr =>
-        done({ balance, salary, tr: { '0〜2回': 2, '3〜5回': 5, '6〜10回': 10, '11回以上': 15 }[tr] }))));
-}
-
-function showRank(chat, ans) {
-  const r = rankFor(ans);
-  const over = Math.max(0, ans.tr - r.tr);
-  chat.card(`<div class="data"><div class="h"><span>あなたのランク（目安）</span><b>${r.name}</b></div>
-    <div><span>ATM無料</span><b>月${r.atm}回</b></div><div><span>他行振込無料</span><b>月${r.tr}回</b></div>
-    <div><span>あなたの他行振込</span><b>月${ans.tr}回くらい</b></div>
-    <div><span>はみ出す手数料</span><b>${over ? yen(over * TRANSFER_FEE) + '／月' : 'なし'}</b></div></div>`);
-  chat.ai('※ ランクの判定条件は例示です。実際の判定は「スマートプログラム」の最新の条件をご確認ください。');
-  return { r, over };
+const SPEND = { 今月と同じくらい: MONTH_TOTAL, もっと多い: 100000, もっと少ない: 20000 };
+function hearSpend(chat, done) {
+  hear(chat, 'ふだんの1か月のご利用額は、今月（47,140円）と比べてどうですか？', Object.keys(SPEND), a => done(SPEND[a]));
 }
 
 const chat = createChat({
   title: '特典AIサポート',
-  greet: () => ({ text: 'ランクや手数料無料回数など、わかりにくい特典をかんたんにお伝えします。\nあなたに合わせた判定は、許可をいただいてから行います。', chips: DEFAULT_CHIPS }),
+  greet: () => ({ text: '特典の条件や「結局いくらもらえるの？」をわかりやすくお伝えします。\nご利用額をもとにした計算は、許可をいただいてから行います。', chips: DEFAULT_CHIPS }),
   handle(q, chat) {
     const b = BENEFITS.find(b => q.includes(b.name));
-    if (/何ランク|私のランク|足りる|上げる|上がる/.test(q)) {
-      return withConsent(chat, ['history'], () => hearAll(chat, ans => {
-        const { r, over } = showRank(chat, ans);
-        const i = RANKS.indexOf(r);
-        if (/上げ|上が/.test(q) || over) {
-          chat.ai(i === 0 ? 'すでに最上位のプラチナVIPです。' :
-            `「${RANKS[i - 1].name}」に上げると、無料回数が月${RANKS[i - 1].tr}回に増えます。\n${ans.salary === 'いいえ' ? '給与の受け取り口座をこの銀行にするのが、いちばん手軽な上げ方です。' : '預金残高を増やすと上がります。'}\n反映されるのは再来月なので、早めの切り替えがおすすめです。`);
-        } else chat.ai(`今の使い方なら、無料回数で足りています。`);
+    if (/8\.5|15\.5|違い/.test(q)) {
+      chat.ai(`「最大${fmt(nowMax)}%」は、あなたが今適用中の特典を全部足した還元率です。\n「${fmt(potMax)}%」は、まだ適用されていない特典（Payカード×提携銀行 ＋2%）と、ポイ活プランの最大10%を含めた場合の最大値です。\n\n⚠️ 特典ごとに月の上限があるので、使った金額×${fmt(nowMax)}%がそのままもらえるわけではありません。「今月いくらもらえる？」で実際の目安を計算できます。`);
+    } else if (/いくらもらえ|今月いくら/.test(q)) {
+      return withConsent(chat, ['history'], () => {
+        const rows = calc(MONTH_TOTAL, false);
+        chat.card(table(rows, `今月のもらえるポイント（目安）・ご利用 ${yen(MONTH_TOTAL)}`));
+        const capped = rows.filter(r => r.capped);
+        chat.ai(capped.length ? `「${capped.map(r => r.b.name).join('」「')}」は上限に届いているため、これ以上使っても増えません。` : 'まだどの特典も上限に届いていません。');
         chat.chips(DEFAULT_CHIPS);
-      }));
-    }
-    if (b) return explain(b, chat);
-    if (q.includes('エントリー')) chat.ai('エントリー（連携）が必要なのは「ポイント連携」です。\nランクの優遇はエントリー不要で、毎月自動で判定されます。');
-    else if (/いつ|反映|翌々月|再来月/.test(q)) chat.ai('ランクは、ある月の使い方を見て「再来月」に反映されます。\n例：10月の残高・取引 → 12月のランクに反映');
-    else if (/手数料|77/.test(q)) chat.ai(`無料回数を超えた他行への振込は、1回${TRANSFER_FEE}円です。同じ銀行あての振込は何回でも無料です。`);
-    else chat.ai('すみません、うまく理解できませんでした。「ランク」「無料回数」「エントリー」などで聞いてみてください。');
+      });
+    } else if (/銀行/.test(q) && /いくら|増え|つけ/.test(q)) {
+      return withConsent(chat, ['history'], () => hearSpend(chat, spend =>
+        hear(chat, 'お持ちのカードの種類は？（13か月目以降の還元率に関係します）', ['一般', 'GOLD / GOLD U', 'PLATINUM'], kind => {
+          const first = Math.min(spend * 0.02, 3000);
+          const later = kind === 'PLATINUM' ? (spend >= 500000 ? 0.02 : 0.01) : kind === '一般' ? 0.0025 : 0.01;
+          chat.card(`<div class="data"><div class="h"><span>銀行特典で増えるポイント（目安）</span></div>
+            <div><span>最初の12か月</span><b>＋${pt(first)}／月</b></div>
+            <div><span>13か月目以降（${kind}）</span><b>＋${pt(Math.min(spend * later, 3000))}／月</b></div>
+            <div><span>最初の1年の合計</span><b>＋${pt(first * 12)}</b></div></div>`);
+          chat.ai(`始めるには、次の4つが必要です。\n① 提携銀行の口座を開設\n② アカウント連携\n③ カードの引き落とし口座を提携銀行に変更\n④ 1回目の引き落とし\n\n12か月のカウントは「初回の引き落とし月」から始まります。`);
+          chat.chips(DEFAULT_CHIPS);
+        })));
+    } else if (/上限/.test(q)) {
+      chat.ai(`月の上限がある特典：\n${BENEFITS.filter(b => b.cap).map(b => `・${b.name}：月${b.cap.toLocaleString()}pt（＝月${Math.round(b.cap / b.rate * 100).toLocaleString()}円の利用で到達）`).join('\n')}\n\nあなたの今月の到達状況は「今月いくらもらえる？」で確認できます。`);
+    } else if (b) return explain(b, chat);
+    else chat.ai('すみません、うまく理解できませんでした。特典の名前や「上限」「いくらもらえる」などで聞いてみてください。');
     chat.chips(DEFAULT_CHIPS);
   },
-});
-
-document.querySelectorAll('.ask').forEach(btn => btn.onclick = () => {
-  chat.open();
-  const b = BENEFITS.find(x => x.id === btn.dataset.id);
-  chat.me(`「${b.name}」を解説して`);
-  chat.later(() => explain(b, chat));
 });
 </script>
 </body>

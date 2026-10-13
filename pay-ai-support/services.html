@@ -111,6 +111,7 @@ document.querySelectorAll('.tabs button').forEach(t => t.onclick = () => {
   document.getElementById('svc').hidden = t.dataset.tab !== 'svc';
   document.getElementById('hist').hidden = t.dataset.tab !== 'hist';
 });
+if (location.hash === '#hist') document.querySelector('[data-tab=hist]').click();
 document.getElementById('histList').innerHTML = USER.recent.map(r => `<div class="line"><span>${r[0]} ${r[1]}<br><small style="color:#888">${r[2]}</small></span><b>${yen(r[3])}</b></div>`).join('');
 
 // Detail sheet per benefit

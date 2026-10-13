@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>利用サービス（プロトタイプ）</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  main { padding: 16px; }
+  .intro { font-size: 13px; color: var(--sub); margin: 0 0 12px; line-height: 1.6; }
+  .svc { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  .svc .tag { font-size: 11px; color: var(--brand); font-weight: 700; }
+  .svc h2 { font-size: 16px; margin: 4px 0 8px; }
+  .svc .fine { font-size: 11px; color: var(--sub); line-height: 1.7; }
+  .svc .ask { margin-top: 10px; width: 100%; padding: 10px; border-radius: 20px; border: 1px solid var(--brand); background: #fff; color: var(--brand); font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+<script src="gate.js"></script>
+<div class="app slide-in">
+  <div class="proto">※ UIプロトタイプです。特典内容は架空のものです</div>
+  <header><a href="index.html" aria-label="戻る">‹</a><h1>利用サービス</h1><span style="width:20px"></span></header>
+  <main>
+    <p class="intro">ご利用中のサービスと特典です。条件が分かりにくいときは、各サービスの「AIでかんたん解説」か右下のAIに聞いてください。</p>
+    <div id="list"></div>
+  </main>
+</div>
+<script src="chat.js"></script>
+<script>
+// Fictional benefits, written in the dense style real terms tend to have — that's what the AI untangles.
+const BENEFITS = [
+  { id: 'card', tag: 'カード', name: 'Pay カード ゴールド',
+    fine: '年会費11,000円（税込）。ご利用金額100円（税込）につき1ポイント進呈（一部対象外取引あり）。通信料金のお支払いで、対象プランご契約の場合は税抜1,000円ごとに10%ポイント還元（端末代金等は対象外）。年間ご利用額（毎年12月16日〜翌年12月15日）が100万円以上で11,000円相当、200万円以上で22,000円相当の特典クーポンを進呈。',
+    plain: ['カードで払うと、いつでも1%のポイント', '対象プランなら、通信料金の10%がポイントで戻る', '年間100万円以上使うと、11,000円分のクーポン（＝年会費ぶん）'],
+    entry: false },
+  { id: 'weekend', tag: 'キャンペーン', name: '金土ポイントアップ',
+    fine: '毎週金曜日・土曜日に、事前エントリーのうえアプリ払い（残高払い・カード払いを含む）でお支払いいただくと、通常ポイントに加えて＋2%の期間・用途限定ポイントを進呈。進呈上限は月間1,000ポイント。ネット通販での利用は対象外。進呈は翌月末頃。',
+    plain: ['金・土にアプリで払うと、いつもより＋2%', '先にエントリーが必要（1回だけ）', 'もらえるのは月1,000ポイントまで。ネット通販は対象外', 'もらえるポイントには期限と使い道の制限あり'],
+    entry: true },
+  { id: 'drug', tag: '特約店', name: 'ドラッグストア特約店',
+    fine: '特約店にてカードでお支払い（アプリ払いでの支払元をカードに設定した場合を含む）いただくと、通常ポイントに加えて＋2%を進呈。特約店ポイントは「金土ポイントアップ」と併用可能。一部店舗・商品（医薬品の一部、ギフトカード等）は対象外。',
+    plain: ['対象のドラッグストアでカード払いなら＋2%', 'アプリ払いでも、支払元をカードにすればOK', '金土ポイントアップと一緒にもらえる'],
+    entry: false },
+  { id: 'online', tag: 'キャンペーン', name: 'ネット通販 20%還元',
+    fine: '期間中、キャンペーンページからエントリーのうえ、対象ネットショップにてアプリ払いで1回3,000円（税込）以上のお支払いで、お支払い金額の20%を期間・用途限定ポイントで進呈。進呈上限は期間中2,000ポイント。他の還元キャンペーンとの併用不可。キャンセル・返品の場合は進呈対象外。',
+    plain: ['対象ネットショップで1回3,000円以上をアプリで払うと20%', '先にエントリーが必要', '上限2,000ポイント＝1万円分の買い物で上限に達する', '金土ポイントアップとは一緒にもらえない'],
+    entry: true },
+];
+
+document.getElementById('list').innerHTML = BENEFITS.map(b => `
+  <section class="svc">
+    <span class="tag">${b.tag}</span><h2>${b.name}</h2>
+    <p class="fine">${b.fine}</p>
+    <button class="ask" data-id="${b.id}">🤖 AIでかんたん解説</button>
+  </section>`).join('');
+
+const DEFAULT_CHIPS = ['私はいくらおトク？', '一番おトクな使い方は？', 'エントリーが必要なのは？', '一緒に使える特典は？'];
+const pts = n => Math.round(n).toLocaleString('ja-JP') + 'pt';
+
+function explain(b, chat) {
+  chat.ai(`「${b.name}」をかんたんに言うと：\n\n${b.plain.map(s => '・' + s).join('\n')}${b.entry ? '\n\n⚠️ エントリーしないともらえません。' : ''}`);
+  chat.chips([`${b.name}で私はいくらもらえる？`, ...DEFAULT_CHIPS.slice(1)]);
+}
+
+// Monthly reward estimate per benefit from the user's (consented) spending + what the AI heard.
+function estimate(ans) {
+  const s = USER.spend, card = USER.usage.card.thisMonth, app = USER.usage.app.thisMonth;
+  const weekendShare = { よくする: 0.4, たまに: 0.2, しない: 0 }[ans.weekend] ?? 0.2;
+  return [
+    { id: 'card', v: card * 0.01 + (ans.plan === 'はい' ? 800 : 0), why: `カード払い ${yen(card)} の1%${ans.plan === 'はい' ? '＋通信料金の10%（税抜8,000円として）' : ''}` },
+    { id: 'weekend', v: Math.min(app * weekendShare * 0.02, 1000), why: `金・土のアプリ払い（月の約${Math.round(weekendShare * 100)}%）の＋2%` },
+    { id: 'drug', v: s.drugstore * 0.02, why: `ドラッグストア ${yen(s.drugstore)} の＋2%` },
+    { id: 'online', v: ans.online === 'する' ? Math.min(s.online * 0.2, 2000) : 0, why: ans.online === 'する' ? `ネット通販 ${yen(s.online)} の20%（上限2,000pt）` : '1回3,000円以上の買い物をしないため対象外' },
+  ];
+}
+
+// The AI asks only what it can't know from the account data.
+function hearAll(chat, done) {
+  hear(chat, 'いくつか教えてください。\n① 金曜・土曜にお買い物をしますか？', ['よくする', 'たまに', 'しない'], weekend =>
+    hear(chat, '② ネット通販で、1回3,000円以上のお買い物をしますか？', ['する', 'しない'], online =>
+      hear(chat, '③ 通信料金は対象プランですか？', ['はい', 'いいえ', 'わからない'], plan => {
+        if (plan === 'わからない') chat.ai('対象プランかどうかは、アプリの「ご契約内容」で確認できます。今回は対象外として計算します。');
+        done({ weekend, online, plan });
+      })));
+}
+
+function showEstimate(chat, ans, only) {
+  const rows = estimate(ans).filter(r => !only || r.id === only);
+  const name = id => BENEFITS.find(b => b.id === id).name;
+  chat.card(`<div class="data"><div class="h"><span>1か月のおトク（目安）</span></div>${rows.map(r => `<div><span>${name(r.id)}<br><small style="color:var(--sub)">${r.why}</small></span><b>${pts(r.v)}</b></div>`).join('')}
+    ${only ? '' : `<div class="h"><span>合計</span><b>${pts(rows.reduce((a, r) => a + r.v, 0))}</b></div>`}</div>`);
+  return rows;
+}
+
+const chat = createChat({
+  title: '特典AIサポート',
+  greet: () => ({ text: '特典の条件や「結局いくらおトクなの？」をわかりやすくお伝えします。\nあなたのご利用状況に合わせた計算は、許可をいただいてから行います。', chips: DEFAULT_CHIPS }),
+  handle(q, chat) {
+    const b = BENEFITS.find(b => q.includes(b.name));
+    if (/いくら|おトク|お得|もらえる/.test(q) && !/一番/.test(q)) {
+      return withConsent(chat, ['history'], () => hearAll(chat, ans => {
+        const rows = showEstimate(chat, ans, b && b.id);
+        const missed = rows.filter(r => BENEFITS.find(x => x.id === r.id).entry && r.v > 0);
+        if (missed.length) chat.ai(`${missed.map(r => BENEFITS.find(x => x.id === r.id).name).join('・')} はエントリーが必要です。忘れずにエントリーしてください。`);
+        chat.chips(DEFAULT_CHIPS);
+      }));
+    }
+    if (q.includes('一番')) {
+      return withConsent(chat, ['history'], () => hearAll(chat, ans => {
+        const rows = showEstimate(chat, ans).sort((a, b) => b.v - a.v);
+        const top = BENEFITS.find(x => x.id === rows[0].id);
+        chat.ai(`あなたの場合、いちばん効くのは「${top.name}」です。\n${ans.online === 'する' ? 'ネット通販は1万円分で上限に届くので、まとめ買いを1回にするのがコツです。\n' : ''}ドラッグストアではアプリ払いの支払元をカードにしておくと、金土ポイントアップと特約店の両方がもらえます。`);
+        chat.chips(DEFAULT_CHIPS);
+      }));
+    }
+    if (b) return explain(b, chat);
+    if (q.includes('エントリー')) chat.ai(`エントリーが必要なのは：\n${BENEFITS.filter(b => b.entry).map(b => '・' + b.name).join('\n')}\n\nどちらもキャンペーンページから1回エントリーすればOKです。`);
+    else if (/一緒|併用/.test(q)) chat.ai('一緒にもらえる組み合わせ：\n・カードの1% ＋ 特約店＋2% ＋ 金土ポイントアップ（ドラッグストアで金・土にカード払い）\n\n一緒にもらえない組み合わせ：\n・ネット通販20%還元 と 金土ポイントアップ（ネット通販はそもそも金土の対象外）');
+    else if (/期間|用途|限定/.test(q)) chat.ai('「期間・用途限定ポイント」は、有効期限が短く、使えるお店が限られるポイントです。お買い物で「ポイントを使う」をオンにすると、期限が近いものから使われます。');
+    else chat.ai('すみません、うまく理解できませんでした。サービス名や「エントリー」「併用」「いくらおトク」などで聞いてみてください。');
+    chat.chips(DEFAULT_CHIPS);
+  },
+});
+
+document.querySelectorAll('.ask').forEach(btn => btn.onclick = () => {
+  chat.open();
+  const b = BENEFITS.find(x => x.id === btn.dataset.id);
+  chat.me(`「${b.name}」を解説して`);
+  chat.later(() => explain(b, chat));
+});
+</script>
+</body>
+</html>

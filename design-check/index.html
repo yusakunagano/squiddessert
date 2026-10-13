@@ -79,7 +79,7 @@
     <input type="password" id="apikey" placeholder="AIza..." autocomplete="off">
     <p class="meta">キーは <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> で無料発行できます。キーはこのブラウザ内にだけ保存され、Google 以外には送信されません。</p>
     <label for="model">モデル</label>
-    <input type="text" id="model" value="gemini-2.5-flash">
+    <input type="text" id="model" value="gemini-flash-latest">
   </section>
 
   <form class="card" id="form">
@@ -124,7 +124,9 @@ const store = {
 };
 
 $('apikey').value = store.get('gemini_key');
-$('model').value = store.get('gemini_model') || $('model').value;
+// 提供終了した旧モデルが保存されていたら、最新版の別名に置き換える
+const savedModel = store.get('gemini_model');
+$('model').value = savedModel && !/^gemini-(1\.|2\.)/.test(savedModel) ? savedModel : $('model').value;
 $('apikey').onchange = () => store.set('gemini_key', $('apikey').value.trim());
 $('model').onchange = () => store.set('gemini_model', $('model').value.trim());
 
@@ -186,7 +188,7 @@ const SYSTEM_PROMPT = `あなたは経験豊富なUI/UXデザインレビュア�
 
 async function review(blob, keys, context, url, device) {
   const apiKey = $('apikey').value.trim();
-  const model = $('model').value.trim() || 'gemini-2.5-flash';
+  const model = $('model').value.trim() || 'gemini-flash-latest';
   const prompt = [
     '## 参照するガイドライン', buildGuidelineText(keys),
     context ? `## 補足情報（対象ユーザー・目的など）\n${context}` : '',

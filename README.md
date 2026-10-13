@@ -22,8 +22,10 @@ Gemini API には無料枠があります（回数の上限あり）。無料枠
 2. 環境変数 `GEMINI_API_KEY` を設定
 3. デプロイ後 `https://<your-app>.vercel.app/job/` を開く
 
-API キーはサーバー側だけで使われ、ブラウザには公開されません。
-GitHub Pages など静的ホスティングにページを置く場合は、`job/index.html` の `API_URL` を Vercel 側の URL に変更してください（その場合は CORS の設定が必要です）。
+API キーはサーバー側だけで使われ、ブラウザには公開されません。利用者が API キーを入力する必要はありません。
+
+GitHub Pages の `job/` ページから使う場合は、`job/index.html` の `API_ORIGIN` に Vercel の URL（例：`https://squiddessert.vercel.app`）を書きます。
+API は `https://yusakunagano.github.io` からの呼び出しを許可しています（`api/diagnose.js` の `ALLOWED_ORIGINS`）。
 
 ### ローカルで動かす
 

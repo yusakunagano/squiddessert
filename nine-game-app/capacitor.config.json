@@ -1,0 +1,8 @@
+{
+  "appId": "com.squiddessert.ninegame",
+  "appName": "ナインゲーム",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#15233a"
+  }
+}

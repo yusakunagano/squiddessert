@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UI/UX デザインチェッカー</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1d1f23; --muted:#5f6670; --line:#e1e4e8; --accent:#2f6fed;
+          --high:#d93025; --medium:#e37400; --low:#1e8e3e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --card:#1d2026; --text:#eceef1; --muted:#9aa2ad; --line:#30343b; --accent:#7aa5ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif; background:var(--bg); color:var(--text); line-height:1.7; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .tabs { display:flex; gap:8px; margin-bottom:16px; }
+  .tabs button { flex:1; padding:12px; border:1px solid var(--line); background:transparent; color:var(--text); border-radius:8px; font-size:1rem; cursor:pointer; min-height:44px; }
+  .tabs button[aria-selected=true] { background: var(--accent); color:#fff; border-color: var(--accent); }
+  label { display:block; font-weight:600; margin: 12px 0 6px; }
+  input[type=url], textarea, select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); font-size:1rem; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding: 32px; text-align:center; color:var(--muted); cursor:pointer; }
+  .drop.over { border-color: var(--accent); }
+  .drop img { max-width:100%; max-height:240px; display:block; margin: 0 auto 8px; }
+  .guides { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap:8px; }
+  .guides label { font-weight: normal; display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:8px; padding:10px; margin:0; cursor:pointer; }
+  .run { width:100%; margin-top:20px; padding:14px; font-size:1.05rem; font-weight:700; background:var(--accent); color:#fff; border:0; border-radius:10px; cursor:pointer; min-height:48px; }
+  .run:disabled { opacity:.6; cursor:wait; }
+  .error { color: var(--high); }
+  .result { display:grid; grid-template-columns: 340px 1fr; gap:20px; }
+  @media (max-width: 800px) { .result { grid-template-columns: 1fr; } }
+  .shot { max-height: 80vh; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+  .shot img { width:100%; display:block; }
+  .score { font-size: 2.6rem; font-weight: 800; }
+  .issue { border-left: 4px solid var(--line); padding: 8px 12px; margin: 12px 0; background: var(--bg); border-radius: 0 8px 8px 0; }
+  .issue.high { border-color: var(--high); } .issue.medium { border-color: var(--medium); } .issue.low { border-color: var(--low); }
+  .badge { font-size:.75rem; padding:2px 8px; border-radius:999px; color:#fff; margin-right:6px; }
+  .badge.high { background: var(--high); } .badge.medium { background: var(--medium); } .badge.low { background: var(--low); }
+  .meta { color: var(--muted); font-size: .85rem; }
+  .issue p { margin: 4px 0; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="gate" style="position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px">
+  <form id="gateForm" style="background:var(--card);color:var(--text);padding:24px;border-radius:12px;width:100%;max-width:320px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+    <h2 style="margin-top:0;font-size:18px">ログイン</h2>
+    <label style="display:block;margin:12px 0 4px">ID</label><input id="gid" style="width:100%;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:8px;box-sizing:border-box" autocomplete="username">
+    <label style="display:block;margin:12px 0 4px">パスワード</label><input id="gpw" type="password" style="width:100%;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:8px;box-sizing:border-box" autocomplete="current-password">
+    <div id="gerr" style="color:#d0021b;font-size:12px;min-height:1em;margin-top:6px"></div>
+    <button style="width:100%;margin-top:16px;padding:12px;font-size:16px;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer">ログイン</button>
+  </form>
+</div>
+<script>
+// Client-side gate (GitHub Pages can't do server-side Basic auth). Only the hash is stored.
+(() => {
+  const H = '386c24563b9256a0cb0f39148b85b0663cff50b23e4dd0b8a9a5e3a4a6675ee8';
+  const gate = document.getElementById('gate');
+  try { if (sessionStorage.getItem('payAuth') === H) { gate.remove(); return; } } catch (e) {}
+  document.getElementById('gateForm').onsubmit = async e => {
+    e.preventDefault();
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(gid.value + ':' + gpw.value));
+    const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    if (hex !== H) { gerr.textContent = 'IDまたはパスワードが違います'; return; }
+    try { sessionStorage.setItem('payAuth', H); } catch (e) {}
+    gate.remove();
+  };
+})();
+</script>
+
+<main>
+  <h1>UI/UX デザインチェッカー</h1>
+  <p class="lead">スクリーンショットやURLを、Apple HIG・Material Design などのガイドラインに沿ってAIがレビューします。</p>
+
+  <section class="card">
+    <label for="apikey" style="margin-top:0">Gemini APIキー</label>
+    <input type="password" id="apikey" placeholder="AIza..." autocomplete="off">
+    <p class="meta">キーは <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> で無料発行できます。キーはこのブラウザ内にだけ保存され、Google 以外には送信されません。</p>
+    <label for="model">モデル</label>
+    <input type="text" id="model" value="gemini-flash-latest">
+  </section>
+
+  <form class="card" id="form">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" aria-selected="true" data-mode="image">画像をアップロード</button>
+      <button type="button" role="tab" aria-selected="false" data-mode="url">URLを入力</button>
+    </div>
+
+    <div id="mode-image">
+      <div class="drop" id="drop" tabindex="0">クリック or ドラッグ＆ドロップで画像を選択（PNG / JPEG / WebP）</div>
+      <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+    </div>
+    <div id="mode-url" hidden>
+      <label for="url">URL</label>
+      <input type="url" id="url" placeholder="https://example.com">
+      <label for="device">表示サイズ</label>
+      <select id="device"><option value="mobile">モバイル</option><option value="desktop">デスクトップ</option></select>
+      <p class="meta">URLの画面撮影には無料の外部サービス（microlink.io・1日50回まで）を使います。ログインが必要なページは撮影できないので、画像アップロードを使ってください。</p>
+    </div>
+
+    <label>参照するガイドライン</label>
+    <div class="guides" id="guides"></div>
+
+    <label for="context">補足（任意）：対象ユーザー・画面の目的など</label>
+    <textarea id="context" rows="2" placeholder="例：20〜60代向けの決済アプリのホーム画面"></textarea>
+
+    <button class="run" id="run">チェックする</button>
+    <p class="error" id="error" role="alert"></p>
+  </form>
+
+  <section class="card" id="result" hidden></section>
+</main>
+<script type="module">
+import { GUIDELINES, DEFAULT_GUIDELINES, buildGuidelineText } from './guidelines.js';
+
+const $ = (id) => document.getElementById(id);
+let mode = 'image', file = null;
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get: (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+
+$('apikey').value = store.get('gemini_key');
+// 提供終了した旧モデルが保存されていたら、最新版の別名に置き換える
+const savedModel = store.get('gemini_model');
+$('model').value = savedModel && !/^gemini-(1\.|2\.)/.test(savedModel) ? savedModel : $('model').value;
+$('apikey').onchange = () => store.set('gemini_key', $('apikey').value.trim());
+$('model').onchange = () => store.set('gemini_model', $('model').value.trim());
+
+$('guides').innerHTML = Object.entries(GUIDELINES).map(([id, g]) => `
+  <label><input type="checkbox" value="${id}" ${DEFAULT_GUIDELINES.includes(id) ? 'checked' : ''}>
+    <span>${esc(g.name)}${g.note ? '<br><span class="meta">※公式ガイドラインではなく傾向ベース</span>' : ''}</span></label>`).join('');
+
+document.querySelectorAll('[role=tab]').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('[role=tab]').forEach(x => x.setAttribute('aria-selected', x === b));
+  $('mode-image').hidden = mode !== 'image';
+  $('mode-url').hidden = mode !== 'url';
+});
+
+const drop = $('drop');
+const setFile = (f) => {
+  if (!f) return;
+  file = f;
+  drop.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="選択した画像">${esc(f.name)}`;
+};
+drop.onclick = () => $('file').click();
+drop.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') $('file').click(); };
+$('file').onchange = (e) => setFile(e.target.files[0]);
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); setFile(e.dataTransfer.files[0]); };
+document.addEventListener('paste', (e) => { const f = [...e.clipboardData.files][0]; if (f) setFile(f); });
+
+const blobToBase64 = (blob) => new Promise((ok, ng) => {
+  const r = new FileReader();
+  r.onload = () => ok(r.result.split(',')[1]);
+  r.onerror = ng;
+  r.readAsDataURL(blob);
+});
+
+// microlink.io の無料APIでURLのスクリーンショットを取得
+async function screenshotUrl(url, device) {
+  const vp = device === 'desktop'
+    ? '&viewport.width=1440&viewport.height=900'
+    : '&viewport.width=390&viewport.height=844&viewport.isMobile=true&viewport.deviceScaleFactor=2';
+  const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false${vp}`);
+  const data = await res.json();
+  if (data.status !== 'success') throw new Error(`画面を撮影できませんでした: ${data.message || res.status}`);
+  const img = await fetch(data.data.screenshot.url);
+  return img.blob();
+}
+
+const SYSTEM_PROMPT = `あなたは経験豊富なUI/UXデザインレビュアーです。
+与えられた画面のスクリーンショットを、指定されたガイドラインの観点に基づいてレビューしてください。
+- 画像から実際に確認できることだけを根拠にし、推測の場合は「推測」と明記する
+- 寸法やコントラスト比は画像からの目安として述べる
+- 改善点は具体的に（どの要素を・どう変えるか）
+- 良い点も挙げる
+- すべて日本語で書く
+出力は次の形のJSON:
+{"summary": "全体所見（2〜3文）", "score": 0〜100の整数, "good_points": ["..."],
+ "issues": [{"title": "短い見出し", "severity": "high|medium|low", "guideline": "根拠ガイドラインのid",
+   "rule": "該当する観点", "location": "画面上の場所", "problem": "何が問題か", "suggestion": "具体的な改善案"}]}`;
+
+async function review(blob, keys, context, url, device) {
+  const apiKey = $('apikey').value.trim();
+  const model = $('model').value.trim() || 'gemini-flash-latest';
+  const prompt = [
+    '## 参照するガイドライン', buildGuidelineText(keys),
+    context ? `## 補足情報（対象ユーザー・目的など）\n${context}` : '',
+    url ? `## 対象URL\n${url}（${device === 'desktop' ? 'デスクトップ' : 'モバイル'}表示）` : '',
+    'この画面をレビューしてください。',
+  ].filter(Boolean).join('\n\n');
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: 'user', parts: [
+        { inlineData: { mimeType: blob.type || 'image/png', data: await blobToBase64(blob) } },
+        { text: prompt },
+      ] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.4 },
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('無料枠の利用上限に達しました。少し時間をおくか、別のモデルを試してください。');
+    throw new Error(data.error?.message || `Gemini API エラー (${res.status})`);
+  }
+  const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('AIの応答を解析できませんでした。もう一度お試しください。');
+  return JSON.parse(m[0]);
+}
+
+$('form').onsubmit = async (e) => {
+  e.preventDefault();
+  $('error').textContent = '';
+  if (!$('apikey').value.trim()) return $('error').textContent = '先に Gemini APIキーを入力してください';
+  store.set('gemini_key', $('apikey').value.trim());
+  const keys = [...document.querySelectorAll('#guides input:checked')].map(i => i.value);
+  if (!keys.length) return $('error').textContent = 'ガイドラインを1つ以上選んでください';
+  if (mode === 'image' && !file) return $('error').textContent = '画像を選択してください';
+  if (mode === 'url' && !$('url').value) return $('error').textContent = 'URLを入力してください';
+
+  $('run').disabled = true; $('run').textContent = '分析中…（30秒ほどかかります）';
+  try {
+    const url = mode === 'url' ? $('url').value : '';
+    const device = $('device').value;
+    const blob = mode === 'image' ? file : await screenshotUrl(url, device);
+    const result = await review(blob, keys, $('context').value.slice(0, 2000), url, device);
+    render(result, URL.createObjectURL(blob));
+  } catch (err) {
+    $('error').textContent = err.message;
+  } finally {
+    $('run').disabled = false; $('run').textContent = 'チェックする';
+  }
+};
+
+function render(r, screenshot) {
+  const order = { high: 0, medium: 1, low: 2 };
+  const label = { high: '重要', medium: '中', low: '軽微' };
+  const issues = (r.issues || []).sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
+  $('result').hidden = false;
+  $('result').innerHTML = `
+    <div class="result">
+      <div class="shot"><img src="${screenshot}" alt="レビュー対象の画面"></div>
+      <div>
+        <div class="meta">総合スコア</div>
+        <div class="score">${esc(r.score)}<span class="meta"> / 100</span></div>
+        <p>${esc(r.summary)}</p>
+        <h3>良い点</h3>
+        <ul>${(r.good_points || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+        <h3>改善点（${issues.length}件）</h3>
+        ${issues.map(i => `
+          <div class="issue ${esc(i.severity)}">
+            <strong><span class="badge ${esc(i.severity)}">${label[i.severity] || esc(i.severity)}</span>${esc(i.title)}</strong>
+            <p class="meta">📍 ${esc(i.location)} ／ 根拠: ${esc(GUIDELINES[i.guideline]?.name || i.guideline)} — ${esc(i.rule)}</p>
+            <p><b>問題:</b> ${esc(i.problem)}</p>
+            <p><b>改善案:</b> ${esc(i.suggestion)}</p>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  $('result').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

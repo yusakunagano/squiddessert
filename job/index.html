@@ -412,8 +412,10 @@
   let ctl = null;
 
   /* AI-CALL-START */
-  // API のエンドポイント。別ドメインに API を置く場合はここを書き換えてください。
-  const API_URL = "/api/diagnose";
+  // 診断 API（Vercel のサーバーレス関数）。Gemini の API キーはサーバー側にだけあるので、利用者の入力は不要。
+  // GitHub Pages からも呼べるよう、Vercel で公開した URL をここに書く。空なら同じサイトの /api/diagnose を呼ぶ。
+  const API_ORIGIN = "";
+  const API_URL = API_ORIGIN + "/api/diagnose";
 
   async function askAI(name, answers, signal) {
     const res = await fetch(API_URL, {
@@ -423,7 +425,8 @@
       signal,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `エラーが発生しました (${res.status})`);
+    // API がまだ公開されていないときなど、API からのメッセージがなければ一般的な案内を出す
+    if (!res.ok) throw new Error(data.error || "AI に接続できませんでした。しばらくしてからもう一度お試しください。");
     return data;
   }
   /* AI-CALL-END */

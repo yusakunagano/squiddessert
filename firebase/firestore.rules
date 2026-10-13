@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// ナインゲームのランキング用ルール（ゲームセンター式: 1プレイ1行）。
+// - 誰でもランキングを読める
+// - 匿名ログインしたブラウザは、自分の uid を付けた新しい記録を追加できる
+// - 追加した記録は、あとから書き換えも削除もできない
+// - 名前は 1〜12 文字、スコアは 1〜100万点
+//
+// plays/{id}                 … 総合ランキング
+// weeks/{週の月曜日}/plays/{id} … 週間ランキング（例: weeks/2026-10-05/plays/xxxx）
+// players/{uid}              … 日本ランカー（1人1行。自分の行だけ、点数を足す形で更新できる）
+// days/{日付}/plays/{id}       … デイリーランキング（終了。古いページから登録しても失敗しないように残している）
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function validPlay() {
+      let d = request.resource.data;
+      return request.auth != null
+        && d.keys().hasOnly(['name', 'score', 'nines', 'level', 'uid', 'createdAt'])
+        && d.uid == request.auth.uid
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 12
+        && d.score is int && d.score > 0 && d.score <= 1000000
+        && d.nines is int && d.level is int
+        && d.createdAt == request.time;
+    }
+
+    function validPlayer(uid) {
+      let d = request.resource.data;
+      return request.auth != null && request.auth.uid == uid
+        && d.keys().hasOnly(['name', 'uid', 'life', 'days', 'lastDay', 'updatedAt'])
+        && d.uid == uid
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 12
+        && d.life is int && d.days is map && d.days.size() <= 9
+        && d.lastDay is string && d.lastDay.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.updatedAt == request.time;
+    }
+
+    match /players/{uid} {
+      allow read: if true;
+      // 初回は、それまでのプレイの合計から始める（1000万点まで）
+      allow create: if validPlayer(uid)
+        && request.resource.data.life > 0 && request.resource.data.life <= 10000000;
+      // 2回目からは、1回分（100万点まで）を足すだけ
+      allow update: if validPlayer(uid)
+        && request.resource.data.life > resource.data.life
+        && request.resource.data.life - resource.data.life <= 1000000;
+    }
+
+    match /plays/{id} {
+      allow read: if true;
+      allow create: if validPlay();
+    }
+
+    match /weeks/{week}/plays/{id} {
+      allow read: if true;
+      allow create: if week.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && validPlay();
+    }
+
+    match /days/{day}/plays/{id} {
+      allow read: if true;
+      allow create: if day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && validPlay();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

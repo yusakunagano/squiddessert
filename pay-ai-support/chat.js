@@ -44,7 +44,7 @@ function createChat({ title, greet, handle }) {
       <div class="sheet-head"><span>🤖</span><b>${title}</b><button class="close" aria-label="閉じる">×</button></div>
       <div class="msgs"></div>
       <div class="chips"></div>
-      <form class="composer"><input placeholder="質問を入力" autocomplete="off"><button>送信</button></form>
+      <form class="composer"><button type="button" class="mic" aria-label="音声で入力" hidden>🎤</button><input placeholder="質問を入力" autocomplete="off"><button>送信</button></form>
     </div>`;
   document.body.appendChild(root);
   const $ = s => root.querySelector(s);
@@ -71,7 +71,30 @@ function createChat({ title, greet, handle }) {
   $('.close').onclick = chat.close;
   $('.sheet-bg').onclick = chat.close;
   $('.composer').onsubmit = e => { e.preventDefault(); const i = $('.composer input'); const q = i.value.trim(); if (q) { chat.ask(q); i.value = ''; } };
+  setupVoice($('.mic'), $('.composer input'), q => chat.ask(q));
   return chat;
+}
+
+// Voice input via the browser's speech recognition (Chrome, Edge, Safari). Hidden where unsupported.
+function setupVoice(btn, input, onDone) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  btn.hidden = false;
+  let rec = null;
+  btn.onclick = () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR();
+    rec.lang = 'ja-JP';
+    rec.interimResults = true;
+    btn.classList.add('on'); input.placeholder = '話してください…';
+    rec.onresult = e => {
+      const r = e.results[e.results.length - 1];
+      input.value = [...e.results].map(x => x[0].transcript).join('');
+      if (r.isFinal) { const q = input.value.trim(); input.value = ''; if (q) onDone(q); }
+    };
+    rec.onend = rec.onerror = () => { rec = null; btn.classList.remove('on'); input.placeholder = '質問を入力'; };
+    rec.start();
+  };
 }
 
 // ---------- Account linking + consent ----------

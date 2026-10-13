@@ -39,8 +39,8 @@
   <nav class="menu">
     <a href="register.html"><span>🏦</span>銀行口座<br>登録</a>
     <a href="services.html" class="new"><span>🎁</span>利用<br>サービス</a>
-    <a href="#"><span>🧾</span>利用履歴</a>
-    <a href="#"><span>💸</span>送る</a>
+    <a href="services.html#hist"><span>🧾</span>利用履歴</a>
+    <a href="send.html"><span>💸</span>送る</a>
   </nav>
   <div class="banner"><span style="font-size:28px">🤖</span><div><b>AIアシスタントに聞いてみよう</b>アプリやカードの使い方、残高・ご利用額・請求のことまで答えます。</div></div>
   <button class="revoke" id="revoke">AI連携を解除</button>
@@ -51,7 +51,7 @@ document.getElementById('bal').textContent = yen(USER.balance);
 document.getElementById('pt').textContent = `ポイント ${USER.points.total.toLocaleString()}pt`;
 document.getElementById('revoke').onclick = () => { Link.revoke(); alert('AIとのアカウント連携を解除しました'); };
 
-const DEFAULT_CHIPS = ['今月いくら使った？', '次のカード請求はいつ？', 'ポイントの期限は？', 'お店での支払い方法は？', 'カードをなくした'];
+const DEFAULT_CHIPS = ['送金したい', '履歴を見たい', '今月いくら使った？', '次のカード請求はいつ？', 'ポイントの期限は？', 'カードをなくした'];
 
 // General questions: answered from public product info, no account data needed.
 const FAQ = [
@@ -60,11 +60,24 @@ const FAQ = [
   { k: ['チャージ'], a: 'ホームの「チャージ」から、登録した銀行口座・ATM・カードでチャージできます。\n銀行口座がまだの方は、メニューの「銀行口座登録」から登録できます。' },
   { k: ['なくし', '紛失', '盗', '落とし'], a: 'カードを紛失した場合は、すぐにカードの利用停止をしてください。\nアプリの「カード」→「カードの一時停止」から24時間いつでも止められます。不正利用の補償もあるので、あわせてカスタマーセンターへご連絡ください。' },
   { k: ['年会費'], a: 'カードの年会費はカードの種類（プラン）によって異なります。詳しくはカードの商品ページをご覧ください。' },
-  { k: ['送る', '送金', '割り勘'], a: 'メニューの「送る」から、電話番号やQRコードで相手に残高を送れます。割り勘の請求もできます。' },
   { k: ['ポイント', '貯め', 'たまる', '還元'], a: 'ポイントは、アプリ払い・カード払いのどちらでも貯まります。銀行のランク優遇やポイント連携の条件は「利用サービス」ページのAIが詳しくご案内します。' },
 ];
 
 // Personal questions: need account linking + consent, then the AI asks what exactly the user wants.
+// Requests to *do* something open that feature directly instead of answering in chat.
+const ACTIONS = [
+  { re: /送金|送り(たい|ます)|送って|送る|割り勘/, name: '送金', url: q => {
+      const amt = (q.match(/([0-9０-９,]+)\s*円/) || [])[1];
+      const to = (q.match(/(\S+?(?:さん|くん|ちゃん)?)に/) || [])[1];
+      const params = new URLSearchParams();
+      if (amt) params.set('amount', amt.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/,/g, ''));
+      if (to && !/送金|お金/.test(to)) params.set('to', to);
+      return 'send.html' + (params.toString() ? '?' + params : '');
+    } },
+  { re: /履歴|明細/, name: '利用履歴', url: () => 'services.html#hist' },
+  { re: /チャージ(したい|する|して)/, name: 'チャージ', url: () => null },
+];
+
 const PERSONAL = [
   { k: ['使った', '利用額', '使いすぎ', 'いくら使'], scopes: ['history'], run: chat =>
       hear(chat, 'どの支払いのご利用額を知りたいですか？', ['アプリ払い', 'カード', '両方'], how =>
@@ -93,18 +106,20 @@ const PERSONAL = [
         else chat.ai(`期間・用途限定ポイント ${p.limited}pt の期限が ${p.limitedExpire} です。\nお買い物の支払いに「ポイントを使う」をオンにすると、期限の近いポイントから使われます。`);
         chat.chips(DEFAULT_CHIPS);
       }) },
-  { k: ['明細', '履歴', '最近の'], scopes: ['history'], run: chat =>
-      hear(chat, 'どの明細を表示しますか？', ['直近5件', 'カードのみ', 'アプリ払いのみ'], what => {
-        const list = USER.recent.filter(r => what === '直近5件' || (what === 'カードのみ' ? r[2] === 'カード' : r[2] === 'アプリ払い'));
-        chat.card(`<div class="data"><div class="h"><span>${what}</span></div>${list.map(r => `<div><span>${r[0]} ${r[1]}（${r[2]}）</span><b>${yen(r[3])}</b></div>`).join('')}</div>`);
-        chat.chips(DEFAULT_CHIPS);
-      }) },
 ];
 
 const chat = createChat({
   title: 'AIアシスタント',
   greet: () => ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),
   handle(q, chat) {
+    const act = ACTIONS.find(a => a.re.test(q));
+    if (act) {
+      const url = act.url(q);
+      if (!url) { chat.ai(`${act.name}画面はこのプロトタイプにはまだありません。`); chat.chips(DEFAULT_CHIPS); return; }
+      chat.card(`<div class="launch">🚀 「${act.name}」を開きます…</div>`);
+      setTimeout(() => location.href = url, 900);
+      return;
+    }
     // Personal first: "ポイントの期限" must not fall through to the general points FAQ.
     const p = PERSONAL.find(e => e.k.some(k => q.includes(k)));
     if (p) return withConsent(chat, p.scopes, () => p.run(chat));

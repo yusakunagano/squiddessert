@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>送金（プロトタイプ）</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  main { padding: 16px; }
+  .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; font-weight: 700; margin: 0 0 6px; }
+  input { width: 100%; padding: 12px; font-size: 16px; border: 1px solid var(--line); border-radius: 8px; }
+  .amt { font-size: 28px; font-weight: 800; text-align: right; }
+  .contacts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .contacts button { padding: 6px 12px; border-radius: 16px; border: 1px solid var(--line); background: #fff; font-size: 13px; cursor: pointer; }
+  .note { font-size: 12px; color: var(--sub); margin-top: 6px; }
+  .from-ai { font-size: 12px; background: #eef3ff; border-radius: 10px; padding: 8px 10px; margin-bottom: 12px; }
+  .primary { display: block; width: 100%; padding: 14px; font-size: 16px; font-weight: 700; border: 0; border-radius: 24px; background: var(--brand); color: #fff; cursor: pointer; text-align: center; text-decoration: none; }
+  .primary:disabled { background: #ccc; }
+  .done { text-align: center; padding-top: 40px; }
+  .done .big { font-size: 56px; color: var(--ok); }
+</style>
+</head>
+<body>
+<script src="gate.js"></script>
+<div class="app slide-in">
+  <div class="proto">※ UIプロトタイプです。実際には送金されません</div>
+  <header><a href="index.html" aria-label="戻る">‹</a><h1>送る</h1><span style="width:20px"></span></header>
+  <main id="view"></main>
+</div>
+<script src="chat.js"></script>
+<script>
+const qs = new URLSearchParams(location.search);
+const CONTACTS = ['サトウ ハナコ', 'タナカ ケン', 'お母さん'];
+// Values come from the URL, so escape them before putting them in HTML.
+const esc = v => String(v).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+const state = { to: qs.get('to') || '', amount: qs.get('amount') || '' };
+
+function form() {
+  const fromAi = qs.has('to') || qs.has('amount');
+  document.getElementById('view').innerHTML = `
+    ${fromAi ? '<div class="from-ai">🤖 AIアシスタントがお話の内容を入力しました。内容を確認してください。</div>' : ''}
+    <div class="card"><label>送り先</label><input id="to" value="${esc(state.to)}" placeholder="名前・電話番号">
+      <div class="contacts">${CONTACTS.map(c => `<button type="button">${c}</button>`).join('')}</div></div>
+    <div class="card"><label>金額</label><input id="amount" class="amt" inputmode="numeric" value="${esc(state.amount)}" placeholder="0">
+      <div class="note">残高 ${yen(USER.balance)} から送ります</div></div>
+    <button class="primary" id="next">確認する</button>`;
+  document.querySelectorAll('.contacts button').forEach(b => b.onclick = () => { document.getElementById('to').value = b.textContent; });
+  document.getElementById('next').onclick = () => {
+    state.to = document.getElementById('to').value.trim();
+    state.amount = document.getElementById('amount').value.replace(/[^0-9]/g, '');
+    if (!state.to || !+state.amount) return alert('送り先と金額を入力してください');
+    if (+state.amount > USER.balance) return alert('残高が足りません');
+    confirmView();
+  };
+}
+function confirmView() {
+  document.getElementById('view').innerHTML = `
+    <div class="card"><div class="data"><div><span>送り先</span><b>${esc(state.to)}</b></div><div><span>金額</span><b>${yen(+state.amount)}</b></div></div></div>
+    <button class="primary" id="send">送る</button>`;
+  document.getElementById('send').onclick = () => {
+    document.getElementById('view').innerHTML = `<div class="done"><div class="big">✓</div><h2>${esc(state.to)} に ${yen(+state.amount)} 送りました</h2>
+      <p class="note">（デモのため実際には送金されていません）</p><a class="primary" href="index.html">ホームに戻る</a></div>`;
+  };
+}
+form();
+</script>
+</body>
+</html>

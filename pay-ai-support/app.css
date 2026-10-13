@@ -50,3 +50,7 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 .data div { display: flex; justify-content: space-between; padding: 8px 12px; border-top: 1px solid var(--line); }
 .data div:first-child { border-top: 0; }
 .data .h { background: var(--bg); font-weight: 700; }
+.composer .mic { background: var(--bg); color: var(--text); font-size: 18px; padding: 0 10px; }
+.composer .mic.on { background: var(--brand); color: #fff; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .6; } }
+.launch { padding: 12px; border-radius: 12px; background: #eef3ff; font-size: 13px; }

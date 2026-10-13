@@ -33,7 +33,7 @@
   .box .v { font-size: 26px; text-align: right; }
   .box .v small { font-size: 13px; }
   .box .v .up { display: block; font-size: 14px; color: var(--check); }
-  .hint { margin: 10px 2px 0; font-size: 12px; color: #777; }
+  .up-ai { display: block; width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--red); background: #fff; color: var(--red); font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
   .hist .line { font-weight: 400; font-size: 14px; }
   /* detail sheet */
   .detail { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 15; }
@@ -54,7 +54,7 @@
     <div class="sec"><h2>Pay</h2><span class="max">最大<b id="now"></b> / <span id="pot"></span>%還元</span></div>
     <div class="rows" id="rows"></div>
     <div class="box"><div class="line"><span>今月の利用総額</span><span class="v" id="total"></span></div></div>
-    <p class="hint">各特典をタップすると条件を確認できます。わかりにくいときは右下のAIへ。</p>
+    <button class="up-ai" id="upAi">🤖 あと <b id="gap"></b> 倍率を上げられます。AIに上げ方を聞く ›</button>
     <div class="sec" style="margin-top:32px"><h2>ポイント</h2></div>
     <div class="box">
       <div class="line"><span>保有ポイント</span><span class="v">8<small>P</small></span></div>
@@ -121,74 +121,80 @@ document.querySelectorAll('.row').forEach(r => r.onclick = () => {
   document.getElementById('panel').innerHTML = `<h3>${b.name}</h3>
     <div style="font-size:13px;margin-bottom:8px">${b.on ? '✅ 適用中' : '⚪ 未適用'}・${b.max ? '最大' : ''}${fmt(b.rate)}${b.rate2 ? '/' + b.rate2 : ''}%${b.cap ? `（上限 月${b.cap.toLocaleString()}pt）` : ''}</div>
     <p class="fine">${b.fine}</p>
-    <button class="ask">🤖 AIでかんたん解説</button>`;
+    <button class="ask">🤖 ${b.on ? 'AIでかんたん解説' : 'この特典で倍率を上げる方法をAIに聞く'}</button>`;
   detail.classList.add('open');
   document.querySelector('#panel .ask').onclick = () => {
     detail.classList.remove('open'); chat.open();
-    chat.me(`「${b.name}」を解説して`); chat.later(() => explain(b, chat));
+    if (b.on) { chat.me(`「${b.name}」を解説して`); chat.later(() => explain(b, chat)); }
+    else chat.ask(`${b.name}で倍率を上げるには？`);
   };
 });
 
-// ---------- AI ----------
-const DEFAULT_CHIPS = ['8.5%と15.5%の違いは？', '今月いくらもらえる？', '銀行特典をつけるといくら増える？', '上限に届いている特典は？'];
+// ---------- AI: how to raise the rate ----------
+const DEFAULT_CHIPS = ['倍率を上げるには？', 'いちばん簡単に上げる方法は？', '15.5%にするには？', '上限で頭打ちになっていない？'];
+document.getElementById('gap').textContent = `+${fmt(potMax - nowMax)}%`;
 
 function explain(b, chat) {
   chat.ai(`「${b.name}」をかんたんに言うと：\n\n${b.plain.map(s => '・' + s).join('\n')}${b.on ? '\n\n✅ あなたはすでに適用中です。' : '\n\n⚪ まだ適用されていません。'}${b.unverified ? '\n\n※ この特典の条件はプロトタイプ用の目安です。' : ''}`);
   chat.chips(DEFAULT_CHIPS);
 }
 
-// Points per benefit for a monthly spend (caps applied). Poikatsu uses the base 5%.
-function calc(spend, withBank) {
-  return BENEFITS.filter(b => b.on || (withBank && b.id === 'bank')).map(b => {
+// Points for a monthly spend with caps applied; `extra` adds benefits the user isn't on yet.
+function calc(spend, extra = []) {
+  return BENEFITS.filter(b => b.on || extra.includes(b.id)).reduce((a, b) => {
     const raw = spend * b.rate / 100;
-    return { b, raw, v: b.cap ? Math.min(raw, b.cap) : raw, capped: b.cap && raw > b.cap };
-  });
+    return a + (b.cap ? Math.min(raw, b.cap) : raw);
+  }, 0);
 }
-function table(rows, title) {
-  const sum = rows.reduce((a, r) => a + r.v, 0);
-  return `<div class="data"><div class="h"><span>${title}</span></div>${rows.map(r => `<div><span>${r.b.name}${r.capped ? ' <small style="color:var(--brand)">上限到達</small>' : ''}</span><b>${pt(r.v)}</b></div>`).join('')}
-    <div class="h"><span>合計</span><b>${pt(sum)}</b></div></div>`;
+const eff = (spend, extra) => fmt(calc(spend, extra) / spend * 100);
+
+// Steps to turn on the bank benefit, skipping what the user already has.
+function bankSteps(hasAccount) {
+  return [!hasAccount && '提携銀行の口座を開設（アプリから最短即日）', 'アカウント連携（提携銀行アプリで「連携する」）', 'Payカードの引き落とし口座を提携銀行に変更', '次回の引き落としが完了すると、その月から＋2%（12か月）'].filter(Boolean);
 }
 
-const SPEND = { 今月と同じくらい: MONTH_TOTAL, もっと多い: 100000, もっと少ない: 20000 };
-function hearSpend(chat, done) {
-  hear(chat, 'ふだんの1か月のご利用額は、今月（47,140円）と比べてどうですか？', Object.keys(SPEND), a => done(SPEND[a]));
+// The AI hears what it can't know from account data, then ranks the actions by gain.
+function rateUpPlan(chat, focus) {
+  hear(chat, '① 提携銀行の口座はお持ちですか？', ['持っている', '持っていない'], acc =>
+    hear(chat, '② ふだんの1か月のご利用額は？', ['2万円くらい', '5万円くらい', '10万円以上'], amt => {
+      const spend = { '2万円くらい': 20000, '5万円くらい': MONTH_TOTAL, '10万円以上': 100000 }[amt];
+      const now = eff(spend), withBank = eff(spend, ['bank']);
+      chat.card(`<div class="data">
+        <div class="h"><span>あなたの倍率（月${yen(spend)}の場合）</span></div>
+        <div><span>表示上の最大</span><b>${fmt(nowMax)}%</b></div>
+        <div><span>上限を考えた実質</span><b>${now}%</b></div>
+        <div class="h"><span>提携銀行の特典をつけると</span><b style="color:var(--brand)">${withBank}%</b></div>
+        <div><span>増えるポイント</span><b>＋${pt(calc(spend, ['bank']) - calc(spend))}／月</b></div></div>`);
+      const steps = bankSteps(acc === '持っている');
+      chat.ai(`いちばん効くのは「Payカード×提携銀行」です（＋2%）。\n${acc === '持っている' ? '口座はお持ちなので、あと' : 'やることは'}${steps.length}ステップです。\n\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`);
+      const tips = [];
+      if (spend > 20000) tips.push(`ランク特典は月200ptが上限なので、月2万円を超えた分には付きません（表示の${fmt(nowMax)}%より実質が低いのはこのためです）。`);
+      tips.push('ポイ活プランは、対象のお店や期間に使うと5%→10%になります。キャンペーン情報をチェックしましょう。');
+      if (focus !== 'bank') chat.later(() => { chat.ai('ほかにできること：\n\n' + tips.map(t => '・' + t).join('\n')); chat.chips(['手続きを始める', ...DEFAULT_CHIPS.slice(2)]); }, 700);
+      else chat.chips(['手続きを始める', ...DEFAULT_CHIPS.slice(2)]);
+    }));
 }
 
 const chat = createChat({
-  title: '特典AIサポート',
-  greet: () => ({ text: '特典の条件や「結局いくらもらえるの？」をわかりやすくお伝えします。\nご利用額をもとにした計算は、許可をいただいてから行います。', chips: DEFAULT_CHIPS }),
+  title: '倍率アップAI',
+  greet: () => ({ text: `いまのあなたは最大${fmt(nowMax)}%還元です。\nあと +${fmt(potMax - nowMax)}% 上げられます。何をすれば上がるか、あなたに合わせてご案内します。`, chips: DEFAULT_CHIPS }),
   handle(q, chat) {
     const b = BENEFITS.find(b => q.includes(b.name));
-    if (/8\.5|15\.5|違い/.test(q)) {
-      chat.ai(`「最大${fmt(nowMax)}%」は、あなたが今適用中の特典を全部足した還元率です。\n「${fmt(potMax)}%」は、まだ適用されていない特典（Payカード×提携銀行 ＋2%）と、ポイ活プランの最大10%を含めた場合の最大値です。\n\n⚠️ 特典ごとに月の上限があるので、使った金額×${fmt(nowMax)}%がそのままもらえるわけではありません。「今月いくらもらえる？」で実際の目安を計算できます。`);
-    } else if (/いくらもらえ|今月いくら/.test(q)) {
-      return withConsent(chat, ['history'], () => {
-        const rows = calc(MONTH_TOTAL, false);
-        chat.card(table(rows, `今月のもらえるポイント（目安）・ご利用 ${yen(MONTH_TOTAL)}`));
-        const capped = rows.filter(r => r.capped);
-        chat.ai(capped.length ? `「${capped.map(r => r.b.name).join('」「')}」は上限に届いているため、これ以上使っても増えません。` : 'まだどの特典も上限に届いていません。');
-        chat.chips(DEFAULT_CHIPS);
-      });
-    } else if (/銀行/.test(q) && /いくら|増え|つけ/.test(q)) {
-      return withConsent(chat, ['history'], () => hearSpend(chat, spend =>
-        hear(chat, 'お持ちのカードの種類は？（13か月目以降の還元率に関係します）', ['一般', 'GOLD / GOLD U', 'PLATINUM'], kind => {
-          const first = Math.min(spend * 0.02, 3000);
-          const later = kind === 'PLATINUM' ? (spend >= 500000 ? 0.02 : 0.01) : kind === '一般' ? 0.0025 : 0.01;
-          chat.card(`<div class="data"><div class="h"><span>銀行特典で増えるポイント（目安）</span></div>
-            <div><span>最初の12か月</span><b>＋${pt(first)}／月</b></div>
-            <div><span>13か月目以降（${kind}）</span><b>＋${pt(Math.min(spend * later, 3000))}／月</b></div>
-            <div><span>最初の1年の合計</span><b>＋${pt(first * 12)}</b></div></div>`);
-          chat.ai(`始めるには、次の4つが必要です。\n① 提携銀行の口座を開設\n② アカウント連携\n③ カードの引き落とし口座を提携銀行に変更\n④ 1回目の引き落とし\n\n12か月のカウントは「初回の引き落とし月」から始まります。`);
-          chat.chips(DEFAULT_CHIPS);
-        })));
-    } else if (/上限/.test(q)) {
-      chat.ai(`月の上限がある特典：\n${BENEFITS.filter(b => b.cap).map(b => `・${b.name}：月${b.cap.toLocaleString()}pt（＝月${Math.round(b.cap / b.rate * 100).toLocaleString()}円の利用で到達）`).join('\n')}\n\nあなたの今月の到達状況は「今月いくらもらえる？」で確認できます。`);
+    if (/上げ|簡単|アップ|増や/.test(q) && !/15\.5/.test(q)) {
+      return withConsent(chat, ['card'], () => rateUpPlan(chat, b && b.id));
+    }
+    if (/15\.5|最大/.test(q)) {
+      chat.ai(`15.5%にするには、次の2つが必要です。\n\n1. 「Payカード×提携銀行」を適用（＋2%）\n2. ポイ活プランを対象のお店・期間で使う（5%→10%、＋5%）\n\n⚠️ ただし特典ごとに月の上限があるので、15.5%はあくまで「表示上の最大」です。実際に何%になるかは「倍率を上げるには？」で計算できます。`);
+    } else if (/頭打ち|上限/.test(q)) {
+      chat.ai(`月の上限がある特典：\n${BENEFITS.filter(b => b.cap).map(b => `・${b.name}：月${b.cap.toLocaleString()}pt（月${Math.round(b.cap / b.rate * 100).toLocaleString()}円で到達）`).join('\n')}\n\n今月のご利用（${yen(MONTH_TOTAL)}）では「ランク特典」が上限に届いています。これ以上使っても、ランク特典のポイントは増えません。`);
+    } else if (/手続き|始める/.test(q)) {
+      chat.ai('手続きは提携銀行のアプリから進めます（プロトタイプのため画面遷移はしません）。\n途中で分からないことがあれば、いつでもここで聞いてください。');
     } else if (b) return explain(b, chat);
-    else chat.ai('すみません、うまく理解できませんでした。特典の名前や「上限」「いくらもらえる」などで聞いてみてください。');
+    else chat.ai('すみません、うまく理解できませんでした。「倍率を上げるには？」や特典の名前で聞いてみてください。');
     chat.chips(DEFAULT_CHIPS);
   },
 });
+document.getElementById('upAi').onclick = () => { chat.open(); chat.ask('倍率を上げるには？'); };
 </script>
 </body>
 </html>

@@ -63,6 +63,31 @@
 </style>
 </head>
 <body>
+<div id="gate" style="position:fixed;inset:0;background:#f5f5f7;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px">
+  <form id="gateForm" style="background:#fff;padding:24px;border-radius:12px;width:100%;max-width:320px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+    <h2 style="margin-top:0;font-size:18px">ログイン</h2>
+    <label>ID</label><input id="gid" autocomplete="username">
+    <label>パスワード</label><input id="gpw" type="password" autocomplete="current-password">
+    <div class="err" id="gerr"></div>
+    <button class="primary">ログイン</button>
+  </form>
+</div>
+<script>
+// Client-side gate (GitHub Pages can't do server-side Basic auth). Only the hash is stored.
+(() => {
+  const H = '386c24563b9256a0cb0f39148b85b0663cff50b23e4dd0b8a9a5e3a4a6675ee8';
+  const gate = document.getElementById('gate');
+  try { if (sessionStorage.getItem('payAuth') === H) { gate.remove(); return; } } catch (e) {}
+  document.getElementById('gateForm').onsubmit = async e => {
+    e.preventDefault();
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(gid.value + ':' + gpw.value));
+    const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    if (hex !== H) { gerr.textContent = 'IDまたはパスワードが違います'; return; }
+    try { sessionStorage.setItem('payAuth', H); } catch (e) {}
+    gate.remove();
+  };
+})();
+</script>
 <div class="app" id="app">
   <div class="proto">※ UIプロトタイプです。実在のサービスとは接続していません</div>
   <header><button id="back" aria-label="戻る">‹</button><h1>銀行口座の登録</h1><span style="width:20px"></span></header>
@@ -103,7 +128,7 @@ function render() {
   const s = STEPS[state.step].id;
   if (s === 'bank') {
     v.innerHTML = `<h2>登録する金融機関を選んでください</h2>
-      <p class="lead">d払いの残高へのチャージに使う口座を登録します。</p>
+      <p class="lead">アプリの残高へのチャージに使う口座を登録します。</p>
       <div class="bank-list">${BANKS.map(b => `<button data-bank="${b}" class="${state.bank === b ? 'sel' : ''}">${b}</button>`).join('')}</div>
       <button class="primary" id="next" ${state.bank ? '' : 'disabled'}>次へ</button>`;
     v.querySelectorAll('[data-bank]').forEach(b => b.onclick = () => { state.bank = b.dataset.bank; render(); });
@@ -120,9 +145,9 @@ function render() {
       <button class="primary" id="next">次へ</button>`;
   } else if (s === 'person') {
     v.innerHTML = `<h2>口座名義（カナ）</h2>
-      <p class="lead">d アカウントのご本人名義の口座のみ登録できます。</p>
+      <p class="lead">アカウントのご本人名義の口座のみ登録できます。</p>
       <label>口座名義（全角カナ）</label>
-      <input id="kana" value="${state.kana}" placeholder="ドコモ タロウ">
+      <input id="kana" value="${state.kana}" placeholder="ヤマダ タロウ">
       <div class="err" id="e-kana"></div>
       <button class="primary" id="next">金融機関のサイトへ進む</button>`;
   } else if (s === 'auth') {
@@ -183,7 +208,7 @@ const KB = [
       : '口座番号は7桁です。6桁以下の場合は先頭に「0」を付けて7桁にしてください（例：123456 → 0123456）。' },
   { k: ['カナ', '名義', 'カタカナ', '半角'], a: () => '口座名義は全角カタカナで入力します。姓と名の間はスペースを入れてください。\n小さい文字（ャュョッ）も通帳の表記に合わせると確実です。半角カナは使えません。' },
   { k: ['暗証', 'パスワード', '認証', 'ワンタイム', 'ロック'], a: () => `${state.bank || '金融機関'}の認証では、キャッシュカードの暗証番号（4桁）やワンタイムパスワードが必要です。\n何度も間違えるとロックされる場合があるので、分からないときは無理に試さず金融機関にお問い合わせください。` },
-  { k: ['家族', '本人', '他人', '名義が違'], a: () => '登録できるのは d アカウントのご本人名義の口座のみです。ご家族名義の口座は登録できません。' },
+  { k: ['家族', '本人', '他人', '名義が違'], a: () => '登録できるのは アカウントのご本人名義の口座のみです。ご家族名義の口座は登録できません。' },
   { k: ['銀行がない', '見つから', '対応', '使える銀行'], a: () => '一覧にない金融機関は、このプロトタイプでは選べません。実際のサービスでは「その他の金融機関」から検索できる想定です。' },
   { k: ['手数料', 'お金', '費用'], a: () => '口座の登録自体に手数料はかかりません。' },
   { k: ['人', 'オペレーター', '電話', '問い合わせ'], a: () => 'AIで解決しない場合はカスタマーセンターへおつなぎします（プロトタイプのため実際には発信しません）。' },

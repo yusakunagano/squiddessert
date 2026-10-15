@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="20 の質問に答えると、AI があなたの性格と向いている職業を診断します。">
+<meta name="description" content="10 問または 20 問の質問に答えると、AI があなたの性格と向いている職業を診断します。">
 <!-- PAGE-START -->
 <title>AI職業サポート</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -72,6 +72,13 @@
     background: var(--accent); color: var(--on-accent); cursor: pointer; justify-self: start;
   }
   .btn:disabled { opacity: .5; cursor: default; }
+  a.btn { display: inline-block; text-decoration: none; }
+  .btn.sub { background: var(--accent-soft); color: var(--ink); }
+  .cp-choices { display: grid; gap: 8px; }
+  .cp-choices .choice b { display: block; }
+  .cp-choices .choice span { display: block; font-size: .85rem; color: var(--muted); }
+  .more { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+  .more p { margin: 0; flex: 1 1 14rem; }
   .btn:focus-visible, .choice:focus-visible, .ghost:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .ghost { font: inherit; font-size: .88rem; background: none; border: none; color: var(--muted); cursor: pointer; padding: 6px 0; justify-self: start; }
   .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -218,14 +225,14 @@
   <header>
     <span class="eyebrow">AI × キャリア診断</span>
     <h1>AI<mark>職業サポート</mark></h1>
-    <p class="lead">20 の質問に答えると、AI があなたの性格を読み解き、向いている職業と暮らしのヒントを提案します。</p>
+    <p class="lead">10 問または 20 問の質問に答えると、AI があなたの性格を読み解き、向いている職業と暮らしのヒントを提案します。</p>
   </header>
 
   <section id="start" class="card">
     <label for="name">ニックネーム（任意・名刺に載ります）</label>
     <input id="name" type="text" maxlength="20" placeholder="例：山田 いか" autocomplete="off">
     <button class="btn" id="startBtn" type="button">診断をはじめる</button>
-    <p class="note">選択肢から選んでも、自由に書いてもかまいません。回答は 3〜4 分ほど、診断には 30 秒〜1 分ほどかかります。</p>
+    <p class="note">選択肢から選んでも、自由に書いてもかまいません。10 問で結果を見ることも、20 問に答えて詳しく診断することもできます。回答は 10 問なら 2 分、20 問なら 3〜4 分ほど、診断には 30 秒〜1 分ほどかかります。</p>
     <p class="note" id="aiNote" hidden></p>
   </section>
 
@@ -239,6 +246,17 @@
       <button class="btn" type="submit">回答</button>
     </form>
     <button class="ghost" id="backBtn" type="button">← ひとつ戻る</button>
+  </section>
+
+  <section id="checkpoint" class="card" hidden>
+    <div class="meta"><span>10 / 20 問に答えました</span></div>
+    <p class="question">ここで結果を見ますか？</p>
+    <p style="margin:0">10 問でも診断できます。残りの 10 問（生活や性格について）にも答えると、性格や暮らしのアドバイスがより詳しく、正確になります。</p>
+    <div class="cp-choices">
+      <button class="choice" id="cpResult" type="button"><b>10 問で結果を見る</b><span>すぐに診断します</span></button>
+      <button class="choice" id="cpContinue" type="button"><b>あと 10 問答えて、詳しく診断する</b><span>2 分ほどで終わります</span></button>
+    </div>
+    <button class="ghost" id="cpBack" type="button">← 10 問目に戻る</button>
   </section>
 
   <section id="loading" class="card loading" hidden>
@@ -274,6 +292,11 @@
           <p class="meishi-name" id="rName"></p>
         </div>
         <div class="meishi-foot" id="rType"></div>
+      </div>
+
+      <div class="card more" id="moreBox" hidden>
+        <p>10 問の簡易診断です。残りの 10 問にも答えると、より詳しく診断できます。</p>
+        <button class="btn" id="moreBtn" type="button">残り 10 問に答える</button>
       </div>
 
       <div class="card">
@@ -325,6 +348,11 @@
         <section class="block">
           <h2 id="rCompaniesTitle">代表的な会社</h2>
           <ol class="companies" id="rCompanies"></ol>
+        </section>
+        <section class="block">
+          <h2 id="rJobSearchTitle">求人を探す</h2>
+          <div class="row" id="rJobLinks"></div>
+          <p class="note">リクナビに載っている求人ページを、Google 検索で探します。新しいタブで開きます。</p>
         </section>
         <section class="block">
           <h2>目指すなら取りたい資格</h2>
@@ -429,7 +457,7 @@
   const TRAIT_LABELS = { creativity: "創造力", teamwork: "協調性", analysis: "分析力", action: "行動力" };
 
   const $ = (id) => document.getElementById(id);
-  const show = (id) => ["start", "quiz", "loading", "result"].forEach((s) => ($(s).hidden = s !== id));
+  const show = (id) => ["start", "quiz", "checkpoint", "loading", "result"].forEach((s) => ($(s).hidden = s !== id));
   let answers = [];
   let lastResult = null;
   let ctl = null;
@@ -487,11 +515,20 @@
     $("backBtn").hidden = i === 0;
   }
 
+  // 10 問答えたところで、結果を見るか続けるかを選べる
+  const CHECKPOINT = 10;
+
   function answer(a) {
     answers.push({ q: QUESTIONS[answers.length].q, a });
-    if (answers.length < QUESTIONS.length) renderQuestion();
+    if (answers.length === CHECKPOINT && answers.length < QUESTIONS.length) show("checkpoint");
+    else if (answers.length < QUESTIONS.length) renderQuestion();
     else diagnose();
   }
+
+  $("cpResult").onclick = () => diagnose();
+  $("cpContinue").onclick = () => { show("quiz"); renderQuestion(); };
+  $("cpBack").onclick = () => { answers.pop(); show("quiz"); renderQuestion(); };
+  $("moreBtn").onclick = () => { $("error").hidden = true; show("quiz"); renderQuestion(); };
 
   // 待ち時間ゲーム：コバエたたき（わざと理不尽なクソゲー）
   const game = (() => {
@@ -714,6 +751,21 @@
     $("rIndustryTitle").textContent = r.industry?.name ? `${r.industry.name}の業界で働くと` : "この業界で働くと";
     $("rFun").textContent = r.industry?.fun ?? "";
     $("rHard").textContent = r.industry?.hard ?? "";
+    $("moreBox").hidden = answers.length >= QUESTIONS.length;
+    const jobTitle = r.top_job?.title ?? "";
+    $("rJobSearchTitle").textContent = jobTitle ? `${jobTitle}の求人を探す` : "求人を探す";
+    const searchLink = (label, site, extra, cls) => {
+      const a = el("a", label, "btn" + (cls ? " " + cls : ""));
+      a.href = "https://www.google.com/search?q=" + encodeURIComponent(`site:${site} ${jobTitle} ${extra}`.trim());
+      a.target = "_blank";
+      a.rel = "noopener";
+      return a;
+    };
+    $("rJobLinks").replaceChildren(
+      searchLink("リクナビNEXT（転職）で探す", "next.rikunabi.com", "求人"),
+      searchLink("リクナビ（新卒）で探す", "job.rikunabi.com", "", "sub"),
+    );
+    $("rJobLinks").hidden = !jobTitle;
     $("rCompaniesTitle").textContent = r.top_job?.title ? `${r.top_job.title}が活躍する代表的な会社` : "代表的な会社";
     $("rCompanies").replaceChildren(...(r.companies ?? []).slice(0, 20).map((c) => el("li", c)));
     $("rQuals").replaceChildren(...(r.qualifications ?? []).slice(0, 10).map((q) => {

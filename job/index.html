@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="20 の質問に答えると、AI があなたの性格と向いている職業を診断します。">
 <!-- PAGE-START -->
-<title>AI 職業診断</title>
+<title>AI職業サポート</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@700;900&family=BIZ+UDPGothic:wght@400;700&display=swap">
@@ -198,24 +198,19 @@
   .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
   .error { background: var(--accent-soft); color: var(--ink); border-left: 4px solid var(--accent); border-radius: 6px; padding: 12px 14px; margin: 0; }
   footer { font-size: .75rem; color: var(--muted); text-align: center; }
-  .keylabel { display: block; margin-top: 12px; font-weight: 700; }
-  .keynote { font-size: 0.8rem; opacity: 0.75; margin: 6px 0 12px; }
 </style>
 </head>
 <body>
 <main>
   <header>
     <span class="eyebrow">AI × キャリア診断</span>
-    <h1>AI <mark>職業診断</mark></h1>
+    <h1>AI<mark>職業サポート</mark></h1>
     <p class="lead">20 の質問に答えると、AI があなたの性格を読み解き、向いている職業と暮らしのヒントを提案します。</p>
   </header>
 
   <section id="start" class="card">
     <label for="name">ニックネーム（任意・名刺に載ります）</label>
     <input id="name" type="text" maxlength="20" placeholder="例：山田 いか" autocomplete="off">
-    <label for="apiKey" class="keylabel">Gemini API キー</label>
-    <input id="apiKey" type="password" placeholder="AIza..." autocomplete="off">
-    <p class="keynote">キーは <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> で無料発行できます。このブラウザにだけ保存され、Google 以外には送信されません。</p>
     <button class="btn" id="startBtn" type="button">診断をはじめる</button>
     <p class="note">選択肢から選んでも、自由に書いてもかまいません。回答は 3〜4 分ほど、診断には 30 秒〜1 分ほどかかります。</p>
     <p class="note" id="aiNote" hidden></p>
@@ -259,7 +254,7 @@
   <section id="result" hidden>
     <div style="display:grid;gap:20px">
       <div class="meishi">
-        <div class="meishi-top"><span>AI 職業診断</span><span id="rDate"></span></div>
+        <div class="meishi-top"><span>AI職業サポート</span><span id="rDate"></span></div>
         <div class="meishi-body">
           <span class="meishi-label">あなたに向いている職業</span>
           <p class="meishi-job" id="rJob"></p>
@@ -384,7 +379,6 @@
   <footer>診断は AI による参考情報です。進路を決めるときは、いろいろな人の話も聞いてみてください。<br>回答は診断のために AI サービスへ送信されます。名前や連絡先などの個人情報は書かないでください。</footer>
 </main>
 
-<script src="diagnose.js"></script>
 <script>
   const QUESTIONS = [
     { q: "子どもの頃、夢中になっていた遊びは？", choices: ["絵を描く・工作をする", "外で体を動かす", "ゲームやパズルを解く", "ごっこ遊びや友だちとのおしゃべり"] },
@@ -418,18 +412,22 @@
   let ctl = null;
 
   /* AI-CALL-START */
-  // 利用者が自分の Gemini API キーを入力して使う（diagnose.js 参照）
-  const keyStore = {
-    get: () => { try { return localStorage.getItem("gemini_key") || ""; } catch { return ""; } },
-    set: (v) => { try { localStorage.setItem("gemini_key", v); } catch {} },
-  };
-  $("apiKey").value = keyStore.get();
-  $("apiKey").addEventListener("change", () => keyStore.set($("apiKey").value.trim()));
+  // 診断 API（Vercel のサーバーレス関数）。Gemini の API キーはサーバー側にだけあるので、利用者の入力は不要。
+  // GitHub Pages からも呼べるよう、Vercel で公開した URL をここに書く。空なら同じサイトの /api/diagnose を呼ぶ。
+  const API_ORIGIN = "https://squiddessert.vercel.app";
+  const API_URL = API_ORIGIN + "/api/diagnose";
 
   async function askAI(name, answers, signal) {
-    const key = $("apiKey").value.trim() || keyStore.get();
-    if (!key) throw new Error("最初の画面で Gemini API キーを入力してください。");
-    return window.diagnoseWithGemini(key, name, answers, signal);
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, answers }),
+      signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    // API がまだ公開されていないときなど、API からのメッセージがなければ一般的な案内を出す
+    if (!res.ok) throw new Error(data.error || "AI に接続できませんでした。しばらくしてからもう一度お試しください。");
+    return data;
   }
   /* AI-CALL-END */
 
@@ -726,11 +724,7 @@
     }));
   }
 
-  $("startBtn").onclick = () => {
-    const key = $("apiKey").value.trim();
-    if (!key) { $("apiKey").focus(); $("apiKey").placeholder = "先に API キーを入力してください"; return; }
-    keyStore.set(key);
-    answers = []; $("error").hidden = true; show("quiz"); renderQuestion(); };
+  $("startBtn").onclick = () => { answers = []; $("error").hidden = true; show("quiz"); renderQuestion(); };
   $("backBtn").onclick = () => { answers.pop(); renderQuestion(); };
   $("stopBtn").onclick = () => ctl?.abort();
   $("freeForm").onsubmit = (e) => {
@@ -741,7 +735,7 @@
   $("retryBtn").onclick = () => { answers = []; show("start"); };
   $("copyBtn").onclick = async () => {
     const r = lastResult;
-    const text = `私に向いている職業は「${r.top_job?.title}」！ タイプは「${r.type_name}」でした。 #AI職業診断`;
+    const text = `私に向いている職業は「${r.top_job?.title}」！ タイプは「${r.type_name}」でした。 #AI職業サポート`;
     try {
       await navigator.clipboard.writeText(text);
       $("copyNote").textContent = "コピーしました。";

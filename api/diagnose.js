@@ -1,7 +1,13 @@
-// AI 職業診断（ブラウザ版）。利用者が入力した自分の Gemini API キーで、Gemini を直接呼び出す。
-// キーはこのブラウザの localStorage にだけ保存され、Google 以外には送信されない。
-(function () {
-const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザーとして「AI 職業診断」を担当します。
+// AI職業サポート API（Vercel Serverless Function）
+// POST /api/diagnose  body: { name?: string, answers: [{ q: string, a: string }] }
+// 環境変数 GEMINI_API_KEY が必要です（ブラウザには公開されません）。
+// API キーは Google AI Studio（https://aistudio.google.com/apikey）で発行できます。
+import { ApiError, GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const MODEL = "gemini-flash-lite-latest";
+
+const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザーとして「AI職業サポート」を担当します。
 ユーザーが答えた質問への回答から、その人の興味・得意なこと・価値観・働き方の好み・性格・生活習慣を読み取り、
 性格と向いている職業を診断してください。日本語で、前向きで親しみやすいトーンで書きます。
 
@@ -143,6 +149,9 @@ const RESULT_SCHEMA = {
   additionalProperties: false,
 };
 
+// GitHub Pages に置いた診断ページからの呼び出しを許可する
+const ALLOWED_ORIGINS = ["https://yusakunagano.github.io"];
+
 const MAX_ANSWERS = 30;
 const MAX_TEXT = 200;
 
@@ -154,53 +163,85 @@ function clampScore(value) {
   return Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
 }
 
-const MODEL = "gemini-flash-lite-latest";
-
-async function diagnoseWithGemini(apiKey, rawName, rawAnswers, signal) {
-  const answers = rawAnswers.slice(0, MAX_ANSWERS);
-  const name = clip(rawName) || "名無しさん";
-  const answerText = answers.map((item, i) => `Q${i + 1}. ${clip(item.q)}\nA. ${clip(item.a)}`).join("\n\n");
-
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: "user", parts: [{ text: `名前: ${name}\n\n<answers>\n${answerText}\n</answers>` }] }],
-      generationConfig: { responseMimeType: "application/json", responseJsonSchema: RESULT_SCHEMA },
-    }),
-    signal,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    if (res.status === 429) throw new Error("無料枠の上限に達したか混み合っています。少し待ってからお試しください。");
-    if (res.status === 400 || res.status === 403) throw new Error("APIキーが正しくないようです。キーを確認してください。");
-    throw new Error(data.error?.message || `AI の呼び出しに失敗しました (${res.status})`);
+export default async function handler(req, res) {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Max-Age", "86400");
   }
-  const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
-  if (!text) throw new Error("この回答では診断できませんでした。内容を変えてもう一度お試しください。");
+  res.setHeader("Vary", "Origin");
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST, OPTIONS");
+    return res.status(405).json({ error: "POST のみ対応しています" });
+  }
 
-  let result;
+  let body = req.body ?? {};
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body || "{}");
+    } catch {
+      return res.status(400).json({ error: "リクエストの形式が正しくありません" });
+    }
+  }
+  const answers = Array.isArray(body.answers) ? body.answers.slice(0, MAX_ANSWERS) : [];
+  if (answers.length === 0) {
+    return res.status(400).json({ error: "回答がありません" });
+  }
+
+  const name = clip(body.name) || "名無しさん";
+  const answerText = answers
+    .map((item, i) => `Q${i + 1}. ${clip(item.q)}\nA. ${clip(item.a)}`)
+    .join("\n\n");
+
   try {
-    result = JSON.parse(text);
-  } catch {
-    throw new Error("診断結果をうまく読み取れませんでした。もう一度お試しください。");
-  }
-  for (const key of Object.keys(result.traits)) {
-    result.traits[key] = clampScore(result.traits[key]);
-  }
-  result.companies = result.companies.slice(0, 20);
-  result.qualifications = result.qualifications.slice(0, 10);
-  result.workforce.count = Math.max(0, Math.round(Number(result.workforce.count) || 0));
-  const salary = [result.salary.min, result.salary.max].map((v) => Math.max(0, Math.min(10000, Math.round(Number(v) || 0))));
-  result.salary.min = Math.min(...salary);
-  result.salary.max = Math.max(...salary);
-  result.other_jobs = result.other_jobs.slice(0, 2);
-  result.unsuited_jobs = result.unsuited_jobs.slice(0, 2);
-  result.strengths = result.strengths.slice(0, 3);
-  result.personality.keywords = result.personality.keywords.slice(0, 3);
-  return { name, ...result };
-}
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: `名前: ${name}\n\n<answers>\n${answerText}\n</answers>`,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+        responseJsonSchema: RESULT_SCHEMA,
+      },
+    });
 
-window.diagnoseWithGemini = diagnoseWithGemini;
-})();
+    const text = response.text;
+    if (!text) {
+      // 安全フィルタでブロックされた場合などは本文が空になる
+      return res.status(422).json({ error: "この回答では診断できませんでした。内容を変えてもう一度お試しください。" });
+    }
+
+    const result = JSON.parse(text);
+    for (const key of Object.keys(result.traits)) {
+      result.traits[key] = clampScore(result.traits[key]);
+    }
+    result.companies = result.companies.slice(0, 20);
+    result.qualifications = result.qualifications.slice(0, 10);
+    result.workforce.count = Math.max(0, Math.round(Number(result.workforce.count) || 0));
+    const salary = [result.salary.min, result.salary.max].map((v) => Math.max(0, Math.min(10000, Math.round(Number(v) || 0))));
+    result.salary.min = Math.min(...salary);
+    result.salary.max = Math.max(...salary);
+    result.other_jobs = result.other_jobs.slice(0, 2);
+    result.unsuited_jobs = result.unsuited_jobs.slice(0, 2);
+    result.strengths = result.strengths.slice(0, 3);
+    result.personality.keywords = result.personality.keywords.slice(0, 3);
+    return res.status(200).json({ name, ...result });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      if (err.status === 429) {
+        return res.status(429).json({ error: "混み合っています。少し待ってからお試しください。" });
+      }
+      console.error("Gemini API error", err.status, err.message);
+      return res.status(502).json({ error: "AI の呼び出しに失敗しました" });
+    }
+    if (err instanceof SyntaxError) {
+      return res.status(502).json({ error: "診断結果をうまく読み取れませんでした。もう一度お試しください。" });
+    }
+    console.error(err);
+    return res.status(500).json({ error: "サーバーエラーが発生しました" });
+  }
+}

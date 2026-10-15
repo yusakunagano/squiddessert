@@ -414,7 +414,7 @@
   /* AI-CALL-START */
   // 診断 API（Vercel のサーバーレス関数）。Gemini の API キーはサーバー側にだけあるので、利用者の入力は不要。
   // GitHub Pages からも呼べるよう、Vercel で公開した URL をここに書く。空なら同じサイトの /api/diagnose を呼ぶ。
-  const API_ORIGIN = "";
+  const API_ORIGIN = "https://squiddessert.vercel.app";
   const API_URL = API_ORIGIN + "/api/diagnose";
 
   async function askAI(name, answers, signal) {

@@ -2,10 +2,7 @@
 // POST /api/diagnose  body: { name?: string, answers: [{ q: string, a: string }] }
 // 環境変数 GEMINI_API_KEY が必要です（ブラウザには公開されません）。
 // API キーは Google AI Studio（https://aistudio.google.com/apikey）で発行できます。
-import { ApiError, GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODEL = "gemini-flash-lite-latest";
+import { acceptPost, ai, MODEL, readBody, sendAiError } from "./_shared.js";
 
 const SYSTEM_PROMPT = `あなたは経験豊富なキャリアアドバイザーとして「AI職業サポート」を担当します。
 ユーザーが答えた質問への回答から、その人の興味・得意なこと・価値観・働き方の好み・性格・生活習慣を読み取り、
@@ -149,9 +146,6 @@ const RESULT_SCHEMA = {
   additionalProperties: false,
 };
 
-// GitHub Pages に置いた診断ページからの呼び出しを許可する
-const ALLOWED_ORIGINS = ["https://yusakunagano.github.io"];
-
 const MAX_ANSWERS = 30;
 const MAX_TEXT = 200;
 
@@ -164,30 +158,9 @@ function clampScore(value) {
 }
 
 export default async function handler(req, res) {
-  const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    res.setHeader("Access-Control-Max-Age", "86400");
-  }
-  res.setHeader("Vary", "Origin");
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST, OPTIONS");
-    return res.status(405).json({ error: "POST のみ対応しています" });
-  }
-
-  let body = req.body ?? {};
-  if (typeof body === "string") {
-    try {
-      body = JSON.parse(body || "{}");
-    } catch {
-      return res.status(400).json({ error: "リクエストの形式が正しくありません" });
-    }
-  }
+  if (!acceptPost(req, res)) return;
+  const body = readBody(req, res);
+  if (!body) return;
   const answers = Array.isArray(body.answers) ? body.answers.slice(0, MAX_ANSWERS) : [];
   if (answers.length === 0) {
     return res.status(400).json({ error: "回答がありません" });
@@ -231,17 +204,6 @@ export default async function handler(req, res) {
     result.personality.keywords = result.personality.keywords.slice(0, 3);
     return res.status(200).json({ name, ...result });
   } catch (err) {
-    if (err instanceof ApiError) {
-      if (err.status === 429) {
-        return res.status(429).json({ error: "混み合っています。少し待ってからお試しください。" });
-      }
-      console.error("Gemini API error", err.status, err.message);
-      return res.status(502).json({ error: "AI の呼び出しに失敗しました" });
-    }
-    if (err instanceof SyntaxError) {
-      return res.status(502).json({ error: "診断結果をうまく読み取れませんでした。もう一度お試しください。" });
-    }
-    console.error(err);
-    return res.status(500).json({ error: "サーバーエラーが発生しました" });
+    return sendAiError(res, err);
   }
 }

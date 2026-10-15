@@ -5,9 +5,12 @@
 20 の質問に答えると、Google Gemini（`gemini-flash-lite-latest`）があなたの性格と向いている職業を診断します。
 診断には 30 秒〜1 分ほどかかり、待っている間はミニゲーム「コバエたたき」で遊べます。
 結果には、あなたの性格、いちばん向いている職業（名刺風のカード）とその職業の年収の目安、日本で就いている人の数、業界の楽しいこと・大変なこと、これから訪れる変化、代表的な会社 20 社、役立つ資格（最大 10 件）、仕事タイプ、傾向（創造力・協調性・分析力・行動力）、ほかに向いている職業 2 つ、向いていないかもしれない職業 2 つ、一緒に働くと相性の良い職業の人・ぶつかりやすい職業の人（うまく付き合うコツ付き）、結婚するなら相性の良い職業の人、強み、生活する上で気を付けること（ひとつながりの文章）、最初の一歩のアドバイスが表示されます。
+結果の最後には、診断された職業について AI に質問できるチャットがあります（1 回の診断につき 20 回まで）。
 
 - `job/index.html` … 診断ページ（静的 HTML）
-- `api/diagnose.js` … Gemini API を呼び出すサーバーレス関数（Vercel 形式）
+- `api/diagnose.js` … 診断を行うサーバーレス関数（Vercel 形式、Gemini API を使用）
+- `api/chat.js` … 職業についてのチャットに答えるサーバーレス関数
+- `api/_shared.js` … 上の 2 つで共通の処理（Gemini の設定、CORS、エラー処理）
 
 ### API キーの発行
 
@@ -25,7 +28,7 @@ Gemini API には無料枠があります（回数の上限あり）。無料枠
 API キーはサーバー側だけで使われ、ブラウザには公開されません。利用者が API キーを入力する必要はありません。
 
 GitHub Pages の `job/` ページから使う場合は、`job/index.html` の `API_ORIGIN` に Vercel の URL（`https://squiddessert.vercel.app`）を設定済みです。
-API は `https://yusakunagano.github.io` からの呼び出しを許可しています（`api/diagnose.js` の `ALLOWED_ORIGINS`）。
+API は `https://yusakunagano.github.io` からの呼び出しを許可しています（`api/_shared.js` の `ALLOWED_ORIGINS`）。
 
 ### ローカルで動かす
 

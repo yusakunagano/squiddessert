@@ -14,10 +14,12 @@ import {
   serverTimestamp,
   setDoc,
   terminate,
+  updateDoc,
+  increment,
   writeBatch,
 } from 'firebase/firestore';
 import { cellOf, cellBounds } from '../public/lib/grid.js';
-import { deleteComment, getCell, postComment, watchComments, watchLatest } from '../public/lib/comments.js';
+import { deleteComment, getCell, hasLiked, postComment, toggleLike, watchComments, watchLatest } from '../public/lib/comments.js';
 
 const PROJECT = 'demo-map-comments';
 const apps = [];
@@ -135,6 +137,64 @@ test('watchLatest で全コメントが新しい順に届く', async () => {
   const last = seen.at(-1);
   assert.deepEqual(last.map((c) => c.text), ['3つ目', '2つ目']);
   assert.ok(last[0].createdAt.toMillis() >= last[1].createdAt.toMillis());
+});
+
+test('いいねは1人1回。もう一度押すと外れる', async () => {
+  const alice = await user('alice');
+  const bob = await user('bob');
+  const carol = await user('carol');
+  const { id } = await postComment(alice.db, alice.uid, { lat: LAT, lng: LNG, text: 'いいねして' });
+  const likes = async () => (await getDoc(doc(alice.db, 'comments', id))).data().likes ?? 0;
+
+  assert.deepEqual(await toggleLike(bob.db, bob.uid, id), { liked: true, likes: 1 });
+  assert.deepEqual(await toggleLike(carol.db, carol.uid, id), { liked: true, likes: 2 });
+  assert.equal(await likes(), 2);
+  assert.equal(await hasLiked(bob.db, bob.uid, id), true);
+  assert.equal(await hasLiked(alice.db, alice.uid, id), false);
+
+  assert.deepEqual(await toggleLike(bob.db, bob.uid, id), { liked: false, likes: 1 });
+  assert.equal(await likes(), 1);
+  assert.equal(await hasLiked(bob.db, bob.uid, id), false);
+
+  // 自分のコメントにもいいねできる
+  assert.deepEqual(await toggleLike(alice.db, alice.uid, id), { liked: true, likes: 2 });
+});
+
+test('いいねの数はごまかせない', async () => {
+  const alice = await user('alice');
+  const bob = await user('bob');
+  const { id } = await postComment(alice.db, alice.uid, { lat: LAT, lng: LNG, text: 'x' });
+  const ref = doc(bob.db, 'comments', id);
+  const denied = (p) => assert.rejects(p, /permission/i);
+
+  // 誰がいいねしたかを残さずに数だけ増やす
+  await denied(updateDoc(ref, { likes: increment(1) }));
+  // 一気に増やす
+  const b1 = writeBatch(bob.db);
+  b1.set(doc(bob.db, 'comments', id, 'likes', bob.uid), { createdAt: serverTimestamp() });
+  b1.update(ref, { likes: 5 });
+  await denied(b1.commit());
+  // 他人になりすましていいね
+  const b2 = writeBatch(bob.db);
+  b2.set(doc(bob.db, 'comments', id, 'likes', alice.uid), { createdAt: serverTimestamp() });
+  b2.update(ref, { likes: 1 });
+  await denied(b2.commit());
+  // いいねに見せかけて本文を書き換える
+  const b3 = writeBatch(bob.db);
+  b3.set(doc(bob.db, 'comments', id, 'likes', bob.uid), { createdAt: serverTimestamp() });
+  b3.update(ref, { likes: 1, text: '書き換え' });
+  await denied(b3.commit());
+
+  // 2回目のいいね (数だけ増やす) はできない
+  await toggleLike(bob.db, bob.uid, id);
+  const b4 = writeBatch(bob.db);
+  b4.set(doc(bob.db, 'comments', id, 'likes', bob.uid), { createdAt: serverTimestamp() });
+  b4.update(ref, { likes: 2 });
+  await denied(b4.commit());
+
+  // いいねされていても、持ち主は消せるし、10個目でまとめて消える処理も通る
+  await deleteComment(alice.db, id);
+  assert.equal((await getDoc(ref)).exists(), false);
 });
 
 test('ルールで不正な書き込みを防ぐ', async () => {

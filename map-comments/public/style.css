@@ -64,6 +64,19 @@ body {
   padding: 0;
 }
 .bubble .del:hover { text-decoration: underline; }
+.bubble .like {
+  margin-left: 6px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: #d93a6a;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bubble .like.on { font-weight: bold; }
+.bubble .like:disabled { opacity: .5; }
 .bubble.vanish { animation: vanish .6s ease-in forwards; }
 @keyframes vanish {
   to { opacity: 0; transform: scale(1.6); }

@@ -3,7 +3,9 @@ import { connectAuthEmulator, getAuth, onAuthStateChanged, signInAnonymously } f
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import { firebaseConfig, googleMapsApiKey, googleMapsMapId } from './config.js';
 import { MAX_TEXT_LENGTH, VANISH_LIMIT, cellBounds, cellOf } from './lib/grid.js';
-import { deleteComment, getCell, postComment, watchComments, watchLatest } from './lib/comments.js';
+import {
+  deleteComment, getCell, hasLiked, postComment, toggleLike, watchComments, watchLatest,
+} from './lib/comments.js';
 
 // これより引いた地図では、1つずつではなくエリアごとの最新コメントだけを表示する
 const MIN_ZOOM = 14;
@@ -131,11 +133,51 @@ async function main() {
   /** id -> AdvancedMarkerElement */
   const markers = new globalThis.Map();
 
+  // 自分がいいねしたコメントの id
+  const liked = new Set();
+
+  function showLikes(el, likes) {
+    const btn = el.querySelector('.like');
+    if (!btn) return;
+    const on = liked.has(btn.dataset.id);
+    btn.classList.toggle('on', on);
+    btn.textContent = `${on ? '♥' : '♡'}${likes > 0 ? ` ${likes}` : ''}`;
+    btn.dataset.likes = likes;
+    btn.setAttribute('aria-pressed', String(on));
+  }
+
   function bubbleFor(comment) {
     const mine = comment.uid === uid;
     const el = document.createElement('div');
     el.className = mine ? 'bubble mine' : 'bubble';
-    el.textContent = comment.text;
+    const text = document.createElement('span');
+    text.textContent = comment.text;
+    el.append(text);
+
+    const like = document.createElement('button');
+    like.className = 'like';
+    like.type = 'button';
+    like.title = 'いいね';
+    like.dataset.id = comment.id;
+    like.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      like.disabled = true;
+      try {
+        const result = await toggleLike(db, uid, comment.id);
+        if (result) {
+          if (result.liked) liked.add(comment.id);
+          else liked.delete(comment.id);
+          showLikes(el, result.likes);
+        }
+      } catch (err) {
+        console.error(err);
+        toast('いいねできませんでした');
+      } finally {
+        like.disabled = false;
+      }
+    });
+    el.append(like);
+    showLikes(el, comment.likes ?? 0);
     if (mine) {
       const del = document.createElement('button');
       del.className = 'del';
@@ -158,7 +200,10 @@ async function main() {
   }
 
   function addMarker(comment) {
-    if (markers.has(comment.id)) return;
+    if (markers.has(comment.id)) {
+      showLikes(markers.get(comment.id).content, comment.likes ?? 0);
+      return;
+    }
     const marker = new AdvancedMarkerElement({
       map,
       position: { lat: comment.lat, lng: comment.lng },
@@ -167,6 +212,14 @@ async function main() {
       zIndex: Math.floor((comment.createdAt?.toMillis() ?? Date.now()) / 1000),
     });
     markers.set(comment.id, marker);
+    if (!liked.has(comment.id) && comment.likes > 0) {
+      hasLiked(db, uid, comment.id).then((yes) => {
+        if (yes) {
+          liked.add(comment.id);
+          showLikes(marker.content, Number(marker.content.querySelector('.like').dataset.likes));
+        }
+      }).catch(() => {});
+    }
   }
 
   function removeMarker(id, { animate = false } = {}) {
@@ -298,7 +351,7 @@ async function main() {
       const meta = document.createElement('div');
       meta.className = 'tl-meta';
       const date = c.createdAt.toDate();
-      meta.textContent = timeAgo(date);
+      meta.textContent = timeAgo(date) + (c.likes > 0 ? `　♥ ${c.likes}` : '');
       meta.title = date.toLocaleString('ja-JP');
       if (c.uid === uid) {
         const mine = document.createElement('span');

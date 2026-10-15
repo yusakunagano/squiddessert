@@ -17,7 +17,8 @@ const MAX_RETRIES = 3;
 
 /**
  * Firestore のデータ構造
- *   comments/{id}  { uid, text, lat, lng, cell, createdAt }
+ *   comments/{id}  { uid, text, lat, lng, cell, createdAt, likes? }
+ *   comments/{id}/likes/{uid}  { createdAt }  … いいねした人 (1人1回)。comments の likes がその数
  *   cells/{cell}   { count, last, vanished }
  *     count    … そのマスに今あるコメントの数
  *     last     … 直前に追加・削除したコメントの ID (ルールでの検証用)
@@ -118,4 +119,31 @@ export function watchLatest(db, onChange, onError, max = 300) {
     (snap) => onChange(snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }))),
     onError,
   );
+}
+
+/**
+ * いいねを付ける / 外す (もう一度押すと外れる)。
+ * @returns {Promise<{ liked: boolean, likes: number } | null>} コメントがもう無ければ null
+ */
+export async function toggleLike(db, uid, commentId) {
+  const ref = doc(db, 'comments', commentId);
+  const likeRef = doc(db, 'comments', commentId, 'likes', uid);
+  return runTransaction(db, async (tx) => {
+    const [snap, likeSnap] = await Promise.all([tx.get(ref), tx.get(likeRef)]);
+    if (!snap.exists()) return null;
+    const likes = snap.data().likes ?? 0;
+    if (likeSnap.exists()) {
+      tx.delete(likeRef);
+      tx.update(ref, { likes: likes - 1 });
+      return { liked: false, likes: likes - 1 };
+    }
+    tx.set(likeRef, { createdAt: serverTimestamp() });
+    tx.update(ref, { likes: likes + 1 });
+    return { liked: true, likes: likes + 1 };
+  });
+}
+
+/** 自分がいいねしているか */
+export async function hasLiked(db, uid, commentId) {
+  return (await getDoc(doc(db, 'comments', commentId, 'likes', uid))).exists();
 }

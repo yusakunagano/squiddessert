@@ -13,6 +13,7 @@ service cloud.firestore {
 
     function cellPath(cell) { return /databases/$(database)/documents/cells/$(cell); }
     function commentPath(id) { return /databases/$(database)/documents/comments/$(id); }
+    function likePath(id) { return /databases/$(database)/documents/comments/$(id)/likes/$(request.auth.uid); }
 
     function countBefore(cell) {
       return exists(cellPath(cell)) ? get(cellPath(cell)).data.count : 0;
@@ -56,6 +57,35 @@ service cloud.firestore {
         )
         || isVanishing(resource.data.cell)
       );
+
+      // いいね: likes を 1 増減するだけ。同時に likes/{自分の uid} を作る / 消すこと。
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+        && request.resource.data.likes is int
+        && (
+          (
+            request.resource.data.likes == resource.data.get('likes', 0) + 1
+            && !exists(likePath(id))
+            && existsAfter(likePath(id))
+          ) || (
+            request.resource.data.likes == resource.data.get('likes', 0) - 1
+            && exists(likePath(id))
+            && !existsAfter(likePath(id))
+          )
+        );
+
+      // 誰がいいねしたか (1人1回)。コメントの likes と一緒に増減すること。
+      match /likes/{uid} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.createdAt == request.time
+          && getAfter(commentPath(id)).data.likes == get(commentPath(id)).data.get('likes', 0) + 1;
+        allow delete: if request.auth != null
+          && request.auth.uid == uid
+          && getAfter(commentPath(id)).data.likes == get(commentPath(id)).data.get('likes', 0) - 1;
+      }
     }
 
     match /cells/{cell} {

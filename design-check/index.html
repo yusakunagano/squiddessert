@@ -41,6 +41,13 @@
   .meta { color: var(--muted); font-size: .85rem; }
   .issue p { margin: 4px 0; }
   a { color: var(--accent); }
+  .personas { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
+  .persona { border:1px solid var(--line); border-radius:10px; padding:10px 12px; background: var(--bg); }
+  .persona p { margin: 4px 0; }
+  .persona-head { display:flex; justify-content:space-between; gap:8px; }
+  .stars { color: #e3a400; letter-spacing: 1px; white-space: nowrap; }
+  .notice { font-size:.85rem; color: var(--muted); border:1px dashed var(--line); border-radius:8px; padding:8px 10px; }
+  #result .tabs button { font-size: .9rem; }
 </style>
 </head>
 <body>
@@ -174,17 +181,86 @@ async function screenshotUrl(url, device) {
   return img.blob();
 }
 
-const SYSTEM_PROMPT = `あなたは経験豊富なUI/UXデザインレビュアーです。
-与えられた画面のスクリーンショットを、指定されたガイドラインの観点に基づいてレビューしてください。
+const ISSUE_COUNT = 20;
+const AGES = ['20代', '30代', '40代', '50代', '60代以上'];
+const GENDERS = ['男性', '女性'];
+const INCOMES = ['高収入層', '一般層'];
+
+const SYSTEM_PROMPT = `あなたは経験豊富なUI/UXデザインレビュアー兼ユーザーリサーチャーです。
+与えられた画面のスクリーンショットについて、次の2つを行ってください。すべて日本語で書くこと。
+
+【1. UI/UXマニュアルからの修正点】
+指定されたガイドラインの観点に基づき、修正点をちょうど${ISSUE_COUNT}件挙げる。
 - 画像から実際に確認できることだけを根拠にし、推測の場合は「推測」と明記する
 - 寸法やコントラスト比は画像からの目安として述べる
-- 改善点は具体的に（どの要素を・どう変えるか）
+- 改善案は具体的に（どの要素を・どう変えるか）
+- 同じ指摘の言い換えで件数を水増ししない。重要度の高い順に並べる
 - 良い点も挙げる
-- すべて日本語で書く
-出力は次の形のJSON:
-{"summary": "全体所見（2〜3文）", "score": 0〜100の整数, "good_points": ["..."],
- "issues": [{"title": "短い見出し", "severity": "high|medium|low", "guideline": "根拠ガイドラインのid",
-   "rule": "該当する観点", "location": "画面上の場所", "problem": "何が問題か", "suggestion": "具体的な改善案"}]}`;
+
+【2. ユーザー調査（ペルソナによる模擬評価）】
+その属性の典型的な利用者になりきって、この画面を初めて見たときの率直な感想を書く。
+- 性別×年代: ${GENDERS.join('・')} × ${AGES.join('・')} の全${GENDERS.length * AGES.length}人
+- 収入層: ${INCOMES.join('・')} の2人（高収入層は年収1,000万円以上、一般層は年収300〜600万円程度を想定）
+- 口調はその人の話し言葉で。「使いたいと思うか」「どこで迷うか・不安になるか」を具体的に
+- 属性によるステレオタイプの決めつけや差別的な表現は避け、ITへの慣れ・視力・使う場面・時間やお金に対する価値観など、利用状況の違いとして書く
+- 補足情報に対象ユーザーがあれば、その前提で評価する`;
+
+const ISSUE_SCHEMA = {
+  type: 'object',
+  properties: {
+    title: { type: 'string' },
+    severity: { type: 'string', enum: ['high', 'medium', 'low'] },
+    guideline: { type: 'string' },
+    rule: { type: 'string' },
+    location: { type: 'string' },
+    problem: { type: 'string' },
+    suggestion: { type: 'string' },
+  },
+  required: ['title', 'severity', 'guideline', 'rule', 'location', 'problem', 'suggestion'],
+};
+const PERSONA_PROPS = {
+  score: { type: 'integer', minimum: 1, maximum: 5 },
+  comment: { type: 'string' },
+  pain_point: { type: 'string' },
+  wish: { type: 'string' },
+};
+const RESULT_SCHEMA = {
+  type: 'object',
+  properties: {
+    summary: { type: 'string' },
+    score: { type: 'integer', minimum: 0, maximum: 100 },
+    good_points: { type: 'array', items: { type: 'string' } },
+    issues: { type: 'array', items: ISSUE_SCHEMA, minItems: ISSUE_COUNT, maxItems: ISSUE_COUNT },
+    research: {
+      type: 'object',
+      properties: {
+        summary: { type: 'string' },
+        demographics: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { gender: { type: 'string', enum: GENDERS }, age: { type: 'string', enum: AGES }, ...PERSONA_PROPS },
+            required: ['gender', 'age', 'score', 'comment', 'pain_point', 'wish'],
+          },
+          minItems: GENDERS.length * AGES.length,
+          maxItems: GENDERS.length * AGES.length,
+        },
+        income: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { segment: { type: 'string', enum: INCOMES }, ...PERSONA_PROPS },
+            required: ['segment', 'score', 'comment', 'pain_point', 'wish'],
+          },
+          minItems: INCOMES.length,
+          maxItems: INCOMES.length,
+        },
+      },
+      required: ['summary', 'demographics', 'income'],
+    },
+  },
+  required: ['summary', 'score', 'good_points', 'issues', 'research'],
+};
 
 async function review(blob, keys, context, url, device) {
   const apiKey = $('apikey').value.trim();
@@ -193,7 +269,7 @@ async function review(blob, keys, context, url, device) {
     '## 参照するガイドライン', buildGuidelineText(keys),
     context ? `## 補足情報（対象ユーザー・目的など）\n${context}` : '',
     url ? `## 対象URL\n${url}（${device === 'desktop' ? 'デスクトップ' : 'モバイル'}表示）` : '',
-    'この画面をレビューしてください。',
+    `この画面について、修正点${ISSUE_COUNT}件とユーザー調査を出してください。`,
   ].filter(Boolean).join('\n\n');
 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
@@ -205,7 +281,7 @@ async function review(blob, keys, context, url, device) {
         { inlineData: { mimeType: blob.type || 'image/png', data: await blobToBase64(blob) } },
         { text: prompt },
       ] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.4 },
+      generationConfig: { responseMimeType: 'application/json', responseJsonSchema: RESULT_SCHEMA, temperature: 0.4, maxOutputTokens: 16384 },
     }),
   });
   const data = await res.json();
@@ -229,7 +305,7 @@ $('form').onsubmit = async (e) => {
   if (mode === 'image' && !file) return $('error').textContent = '画像を選択してください';
   if (mode === 'url' && !$('url').value) return $('error').textContent = 'URLを入力してください';
 
-  $('run').disabled = true; $('run').textContent = '分析中…（30秒ほどかかります）';
+  $('run').disabled = true; $('run').textContent = '分析中…（1分ほどかかります）';
   try {
     const url = mode === 'url' ? $('url').value : '';
     const device = $('device').value;
@@ -243,10 +319,26 @@ $('form').onsubmit = async (e) => {
   }
 };
 
+const stars = (n) => '★'.repeat(Math.max(0, Math.min(5, n | 0))) + '☆'.repeat(5 - Math.max(0, Math.min(5, n | 0)));
+
+function personaCard(title, p) {
+  return `
+    <div class="persona">
+      <div class="persona-head"><strong>${esc(title)}</strong><span class="stars" aria-label="5段階中${esc(p.score)}">${stars(p.score)}</span></div>
+      <p>「${esc(p.comment)}」</p>
+      <p class="meta"><b>つまずき:</b> ${esc(p.pain_point)}</p>
+      <p class="meta"><b>こうなってほしい:</b> ${esc(p.wish)}</p>
+    </div>`;
+}
+
 function render(r, screenshot) {
   const order = { high: 0, medium: 1, low: 2 };
   const label = { high: '重要', medium: '中', low: '軽微' };
   const issues = (r.issues || []).sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
+  const rs = r.research || {};
+  const demo = rs.demographics || [];
+  const find = (g, a) => demo.find(d => d.gender === g && d.age === a);
+
   $('result').hidden = false;
   $('result').innerHTML = `
     <div class="result">
@@ -255,18 +347,42 @@ function render(r, screenshot) {
         <div class="meta">総合スコア</div>
         <div class="score">${esc(r.score)}<span class="meta"> / 100</span></div>
         <p>${esc(r.summary)}</p>
-        <h3>良い点</h3>
-        <ul>${(r.good_points || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>
-        <h3>改善点（${issues.length}件）</h3>
-        ${issues.map(i => `
-          <div class="issue ${esc(i.severity)}">
-            <strong><span class="badge ${esc(i.severity)}">${label[i.severity] || esc(i.severity)}</span>${esc(i.title)}</strong>
-            <p class="meta">📍 ${esc(i.location)} ／ 根拠: ${esc(GUIDELINES[i.guideline]?.name || i.guideline)} — ${esc(i.rule)}</p>
-            <p><b>問題:</b> ${esc(i.problem)}</p>
-            <p><b>改善案:</b> ${esc(i.suggestion)}</p>
-          </div>`).join('')}
+
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" aria-selected="true" data-panel="panel-issues">マニュアルからの修正点（${issues.length}件）</button>
+          <button type="button" role="tab" aria-selected="false" data-panel="panel-research">ユーザー調査</button>
+        </div>
+
+        <div id="panel-issues" role="tabpanel">
+          <h3>良い点</h3>
+          <ul>${(r.good_points || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+          <h3>修正点</h3>
+          ${issues.map((i, n) => `
+            <div class="issue ${esc(i.severity)}">
+              <strong>${n + 1}. <span class="badge ${esc(i.severity)}">${label[i.severity] || esc(i.severity)}</span>${esc(i.title)}</strong>
+              <p class="meta">📍 ${esc(i.location)} ／ 根拠: ${esc(GUIDELINES[i.guideline]?.name || i.guideline)} — ${esc(i.rule)}</p>
+              <p><b>問題:</b> ${esc(i.problem)}</p>
+              <p><b>改善案:</b> ${esc(i.suggestion)}</p>
+            </div>`).join('')}
+        </div>
+
+        <div id="panel-research" role="tabpanel" hidden>
+          <p class="notice">※ 実際のユーザーへの調査ではなく、AIが各属性の利用者を想定して書いた模擬コメントです。仮説づくりの参考にし、重要な判断は実ユーザーで検証してください。</p>
+          <p>${esc(rs.summary)}</p>
+          <h3>性別 × 年代</h3>
+          ${GENDERS.map(g => `
+            <h4>${g}</h4>
+            <div class="personas">${AGES.map(a => { const p = find(g, a); return p ? personaCard(`${g}・${a}`, p) : ''; }).join('')}</div>`).join('')}
+          <h3>収入層</h3>
+          <div class="personas">${(rs.income || []).map(p => personaCard(p.segment, p)).join('')}</div>
+        </div>
       </div>
     </div>`;
+
+  $('result').querySelectorAll('[role=tab]').forEach(b => b.onclick = () => {
+    $('result').querySelectorAll('[role=tab]').forEach(x => x.setAttribute('aria-selected', x === b));
+    $('result').querySelectorAll('[role=tabpanel]').forEach(p => p.hidden = p.id !== b.dataset.panel);
+  });
   $('result').scrollIntoView({ behavior: 'smooth' });
 }
 </script>

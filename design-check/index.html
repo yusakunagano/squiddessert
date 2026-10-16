@@ -48,6 +48,17 @@
   .stars { color: #e3a400; letter-spacing: 1px; white-space: nowrap; }
   .notice { font-size:.85rem; color: var(--muted); border:1px dashed var(--line); border-radius:8px; padding:8px 10px; }
   #result .tabs button { font-size: .9rem; }
+  .flow-lead { background: var(--bg); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; font-size: .92rem; }
+  .slots { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px; }
+  .slot .step { font-weight:700; margin-bottom:4px; }
+  .slot .drop { padding: 20px 12px; min-height: 120px; font-size: .9rem; position: relative; }
+  .slot .drop img { max-height: 160px; }
+  .slot .clear { position:absolute; top:6px; right:6px; border:0; background:var(--card); color:var(--text); border-radius:999px; width:32px; height:32px; cursor:pointer; }
+  .shots { display:flex; flex-direction:column; gap:10px; }
+  .shot-label { font-weight:700; font-size:.85rem; margin-bottom:2px; }
+  .flow-step { border-left: 4px solid var(--accent); padding: 6px 12px; margin: 10px 0; background: var(--bg); border-radius: 0 8px 8px 0; }
+  .flow-step p { margin: 4px 0; }
+  .issue .screen { font-size:.75rem; border:1px solid var(--line); border-radius:999px; padding:1px 8px; margin-right:6px; }
 </style>
 </head>
 <body>
@@ -95,13 +106,23 @@
       <button type="button" role="tab" aria-selected="false" data-mode="url">URLを入力</button>
     </div>
 
+    <p class="flow-lead"><b>動線チェック用：</b>ユーザーがたどる順番に、最大3画面まで入れられます（1画面だけでもOK）。2画面以上入れると、画面のつながり・迷いやすさ・離脱しやすいポイントもチェックします。</p>
+
     <div id="mode-image">
-      <div class="drop" id="drop" tabindex="0">クリック or ドラッグ＆ドロップで画像を選択（PNG / JPEG / WebP）</div>
+      <div class="slots">
+        <div class="slot"><div class="step">画面1</div><div class="drop" data-slot="0" tabindex="0">クリック・ドラッグ・貼り付けで画像を選択</div></div>
+        <div class="slot"><div class="step">画面2（任意）</div><div class="drop" data-slot="1" tabindex="0">クリック・ドラッグ・貼り付けで画像を選択</div></div>
+        <div class="slot"><div class="step">画面3（任意）</div><div class="drop" data-slot="2" tabindex="0">クリック・ドラッグ・貼り付けで画像を選択</div></div>
+      </div>
       <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
     </div>
     <div id="mode-url" hidden>
-      <label for="url">URL</label>
-      <input type="url" id="url" placeholder="https://example.com">
+      <label for="url0">画面1のURL</label>
+      <input type="url" id="url0" class="url" placeholder="https://example.com">
+      <label for="url1">画面2のURL（任意）</label>
+      <input type="url" id="url1" class="url" placeholder="https://example.com/list">
+      <label for="url2">画面3のURL（任意）</label>
+      <input type="url" id="url2" class="url" placeholder="https://example.com/detail">
       <label for="device">表示サイズ</label>
       <select id="device"><option value="mobile">モバイル</option><option value="desktop">デスクトップ</option></select>
       <p class="meta">URLの画面撮影には無料の外部サービス（microlink.io・1日50回まで）を使います。ログインが必要なページは撮影できないので、画像アップロードを使ってください。</p>
@@ -109,6 +130,9 @@
 
     <label>参照するガイドライン</label>
     <div class="guides" id="guides"></div>
+
+    <label for="goal">動線のゴール（任意）：ユーザーがこの画面の流れで何をしたいか</label>
+    <input type="text" id="goal" placeholder="例：商品を探して購入手続きに進む">
 
     <label for="context">補足（任意）：対象ユーザー・画面の目的など</label>
     <textarea id="context" rows="2" placeholder="例：20〜60代向けの決済アプリのホーム画面"></textarea>
@@ -123,7 +147,10 @@
 import { GUIDELINES, DEFAULT_GUIDELINES, buildGuidelineText } from './guidelines.js';
 
 const $ = (id) => document.getElementById(id);
-let mode = 'image', file = null;
+let mode = 'image';
+const MAX_SCREENS = 3;
+const files = [null, null, null];
+let pickSlot = 0;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store = {
   get: (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } },
@@ -148,19 +175,33 @@ document.querySelectorAll('[role=tab]').forEach(b => b.onclick = () => {
   $('mode-url').hidden = mode !== 'url';
 });
 
-const drop = $('drop');
-const setFile = (f) => {
-  if (!f) return;
-  file = f;
-  drop.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="選択した画像">${esc(f.name)}`;
+const drops = [...document.querySelectorAll('.drop[data-slot]')];
+const EMPTY_DROP = drops[0].innerHTML;
+const setFile = (i, f) => {
+  if (!f || !f.type.startsWith('image/')) return;
+  files[i] = f;
+  drops[i].innerHTML = `<img src="${URL.createObjectURL(f)}" alt="画面${i + 1}の画像">${esc(f.name)}<button type="button" class="clear" aria-label="画面${i + 1}の画像を外す">×</button>`;
+  drops[i].querySelector('.clear').onclick = (e) => { e.stopPropagation(); files[i] = null; drops[i].innerHTML = EMPTY_DROP; };
 };
-drop.onclick = () => $('file').click();
-drop.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') $('file').click(); };
-$('file').onchange = (e) => setFile(e.target.files[0]);
-drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
-drop.ondragleave = () => drop.classList.remove('over');
-drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); setFile(e.dataTransfer.files[0]); };
-document.addEventListener('paste', (e) => { const f = [...e.clipboardData.files][0]; if (f) setFile(f); });
+drops.forEach((d, i) => {
+  d.onclick = () => { pickSlot = i; $('file').click(); };
+  d.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickSlot = i; $('file').click(); } };
+  d.ondragover = (e) => { e.preventDefault(); d.classList.add('over'); };
+  d.ondragleave = () => d.classList.remove('over');
+  d.ondrop = (e) => {
+    e.preventDefault(); d.classList.remove('over');
+    // 複数枚まとめてドロップしたら、この枠から順に埋める
+    [...e.dataTransfer.files].slice(0, MAX_SCREENS - i).forEach((f, k) => setFile(i + k, f));
+  };
+});
+$('file').onchange = (e) => { setFile(pickSlot, e.target.files[0]); e.target.value = ''; };
+// 貼り付けは空いている最初の枠へ
+document.addEventListener('paste', (e) => {
+  const f = [...e.clipboardData.files][0];
+  if (!f) return;
+  const i = files.findIndex(x => !x);
+  setFile(i === -1 ? MAX_SCREENS - 1 : i, f);
+});
 
 const blobToBase64 = (blob) => new Promise((ok, ng) => {
   const r = new FileReader();
@@ -197,6 +238,12 @@ const SYSTEM_PROMPT = `あなたは経験豊富なUI/UXデザインレビュア�
 - 同じ指摘の言い換えで件数を水増ししない。重要度の高い順に並べる
 - 良い点も挙げる
 
+【複数画面の場合】
+画面は「画面1 → 画面2 → 画面3」の順にユーザーがたどる動線として渡される。
+- 修正点の screen には、その指摘がどの画面のものか（1〜3の番号）を入れる
+- flow では動線全体を評価する：各画面の役割、次の画面へ進むきっかけ（ボタン・リンク）が分かるか、画面間で文言・デザイン・情報の一貫性があるか、迷う・戻る・離脱しやすいポイント、ゴールまでの手数
+- ユーザー調査のコメントも、画面単体ではなく動線全体を通した感想にする
+
 【2. ユーザー調査（ペルソナによる模擬評価）】
 その属性の典型的な利用者になりきって、この画面を初めて見たときの率直な感想を書く。
 - 性別×年代: ${GENDERS.join('・')} × ${AGES.join('・')} の全${GENDERS.length * AGES.length}人
@@ -212,11 +259,12 @@ const ISSUE_SCHEMA = {
     severity: { type: 'string', enum: ['high', 'medium', 'low'] },
     guideline: { type: 'string' },
     rule: { type: 'string' },
+    screen: { type: 'integer', minimum: 1, maximum: 3 },
     location: { type: 'string' },
     problem: { type: 'string' },
     suggestion: { type: 'string' },
   },
-  required: ['title', 'severity', 'guideline', 'rule', 'location', 'problem', 'suggestion'],
+  required: ['title', 'severity', 'guideline', 'rule', 'screen', 'location', 'problem', 'suggestion'],
 };
 const PERSONA_PROPS = {
   score: { type: 'integer', minimum: 1, maximum: 5 },
@@ -262,26 +310,65 @@ const RESULT_SCHEMA = {
   required: ['summary', 'score', 'good_points', 'issues', 'research'],
 };
 
-async function review(blob, keys, context, url, device) {
+const FLOW_SCHEMA = {
+  type: 'object',
+  properties: {
+    summary: { type: 'string' },
+    score: { type: 'integer', minimum: 0, maximum: 100 },
+    steps: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          screen: { type: 'integer', minimum: 1, maximum: 3 },
+          role: { type: 'string' },
+          next_action: { type: 'string' },
+          comment: { type: 'string' },
+        },
+        required: ['screen', 'role', 'next_action', 'comment'],
+      },
+    },
+    drop_off_points: { type: 'array', items: { type: 'string' } },
+    suggestions: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['summary', 'score', 'steps', 'drop_off_points', 'suggestions'],
+};
+
+// 2画面以上のときだけ動線評価(flow)を求める
+const schemaFor = (count) => count < 2 ? RESULT_SCHEMA : {
+  ...RESULT_SCHEMA,
+  properties: { ...RESULT_SCHEMA.properties, flow: { ...FLOW_SCHEMA, properties: { ...FLOW_SCHEMA.properties, steps: { ...FLOW_SCHEMA.properties.steps, minItems: count, maxItems: count } } } },
+  required: [...RESULT_SCHEMA.required, 'flow'],
+};
+
+async function review(screens, keys, context, goal, device) {
   const apiKey = $('apikey').value.trim();
   const model = $('model').value.trim() || 'gemini-flash-latest';
+  const multi = screens.length > 1;
   const prompt = [
     '## 参照するガイドライン', buildGuidelineText(keys),
+    multi ? `## 動線\n${screens.map((_, i) => `画面${i + 1}`).join(' → ')} の順にたどる${goal ? `\nゴール: ${goal}` : ''}` : (goal ? `## ユーザーのゴール\n${goal}` : ''),
     context ? `## 補足情報（対象ユーザー・目的など）\n${context}` : '',
-    url ? `## 対象URL\n${url}（${device === 'desktop' ? 'デスクトップ' : 'モバイル'}表示）` : '',
-    `この画面について、修正点${ISSUE_COUNT}件とユーザー調査を出してください。`,
+    screens.some(x => x.url) ? `## 対象URL（${device === 'desktop' ? 'デスクトップ' : 'モバイル'}表示）\n${screens.map((x, i) => x.url ? `画面${i + 1}: ${x.url}` : '').filter(Boolean).join('\n')}` : '',
+    multi
+      ? `この${screens.length}画面の動線について、修正点${ISSUE_COUNT}件・動線評価・ユーザー調査を出してください。`
+      : `この画面について、修正点${ISSUE_COUNT}件とユーザー調査を出してください。`,
   ].filter(Boolean).join('\n\n');
+
+  const parts = [];
+  for (const [i, x] of screens.entries()) {
+    parts.push({ text: `画面${i + 1}:` });
+    parts.push({ inlineData: { mimeType: x.blob.type || 'image/png', data: await blobToBase64(x.blob) } });
+  }
+  parts.push({ text: prompt });
 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: 'user', parts: [
-        { inlineData: { mimeType: blob.type || 'image/png', data: await blobToBase64(blob) } },
-        { text: prompt },
-      ] }],
-      generationConfig: { responseMimeType: 'application/json', responseJsonSchema: RESULT_SCHEMA, temperature: 0.4, maxOutputTokens: 16384 },
+      contents: [{ role: 'user', parts }],
+      generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schemaFor(screens.length), temperature: 0.4, maxOutputTokens: 16384 },
     }),
   });
   const data = await res.json();
@@ -302,16 +389,23 @@ $('form').onsubmit = async (e) => {
   store.set('gemini_key', $('apikey').value.trim());
   const keys = [...document.querySelectorAll('#guides input:checked')].map(i => i.value);
   if (!keys.length) return $('error').textContent = 'ガイドラインを1つ以上選んでください';
-  if (mode === 'image' && !file) return $('error').textContent = '画像を選択してください';
-  if (mode === 'url' && !$('url').value) return $('error').textContent = 'URLを入力してください';
+  const urls = [...document.querySelectorAll('#mode-url .url')].map(i => i.value.trim()).filter(Boolean);
+  if (mode === 'image' && !files.some(Boolean)) return $('error').textContent = '画像を1枚以上選択してください';
+  if (mode === 'url' && !urls.length) return $('error').textContent = 'URLを1つ以上入力してください';
 
   $('run').disabled = true; $('run').textContent = '分析中…（1分ほどかかります）';
   try {
-    const url = mode === 'url' ? $('url').value : '';
     const device = $('device').value;
-    const blob = mode === 'image' ? file : await screenshotUrl(url, device);
-    const result = await review(blob, keys, $('context').value.slice(0, 2000), url, device);
-    render(result, URL.createObjectURL(blob));
+    let screens;
+    if (mode === 'image') {
+      screens = files.filter(Boolean).map(blob => ({ blob }));
+    } else {
+      $('run').textContent = `画面を撮影中…（${urls.length}件）`;
+      screens = await Promise.all(urls.map(async url => ({ url, blob: await screenshotUrl(url, device) })));
+      $('run').textContent = '分析中…（1分ほどかかります）';
+    }
+    const result = await review(screens, keys, $('context').value.slice(0, 2000), $('goal').value.slice(0, 200), device);
+    render(result, screens.map(x => URL.createObjectURL(x.blob)));
   } catch (err) {
     $('error').textContent = err.message;
   } finally {
@@ -331,35 +425,55 @@ function personaCard(title, p) {
     </div>`;
 }
 
-function render(r, screenshot) {
+function render(r, shots) {
   const order = { high: 0, medium: 1, low: 2 };
   const label = { high: '重要', medium: '中', low: '軽微' };
   const issues = (r.issues || []).sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
   const rs = r.research || {};
   const demo = rs.demographics || [];
+  const flow = shots.length > 1 ? r.flow : null;
   const find = (g, a) => demo.find(d => d.gender === g && d.age === a);
 
   $('result').hidden = false;
   $('result').innerHTML = `
     <div class="result">
-      <div class="shot"><img src="${screenshot}" alt="レビュー対象の画面"></div>
+      <div class="shot shots">${shots.map((src, i) => `<div>${shots.length > 1 ? `<div class="shot-label">画面${i + 1}</div>` : ''}<img src="${src}" alt="画面${i + 1}"></div>`).join('')}</div>
       <div>
         <div class="meta">総合スコア</div>
         <div class="score">${esc(r.score)}<span class="meta"> / 100</span></div>
         <p>${esc(r.summary)}</p>
 
         <div class="tabs" role="tablist">
-          <button type="button" role="tab" aria-selected="true" data-panel="panel-issues">マニュアルからの修正点（${issues.length}件）</button>
+          ${flow ? `<button type="button" role="tab" aria-selected="true" data-panel="panel-flow">動線チェック</button>` : ''}
+          <button type="button" role="tab" aria-selected="${!flow}" data-panel="panel-issues">修正点（${issues.length}件）</button>
           <button type="button" role="tab" aria-selected="false" data-panel="panel-research">ユーザー調査</button>
         </div>
 
-        <div id="panel-issues" role="tabpanel">
+        ${flow ? `
+        <div id="panel-flow" role="tabpanel">
+          <div class="meta">動線スコア</div>
+          <div class="score">${esc(flow.score)}<span class="meta"> / 100</span></div>
+          <p>${esc(flow.summary)}</p>
+          <h3>画面ごとの役割とつながり</h3>
+          ${(flow.steps || []).map(st => `
+            <div class="flow-step">
+              <strong>画面${esc(st.screen)}：${esc(st.role)}</strong>
+              <p class="meta"><b>次へ進むきっかけ:</b> ${esc(st.next_action)}</p>
+              <p>${esc(st.comment)}</p>
+            </div>`).join('<div class="meta" aria-hidden="true" style="text-align:center">↓</div>')}
+          <h3>迷い・離脱しやすいポイント</h3>
+          <ul>${(flow.drop_off_points || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+          <h3>動線の改善案</h3>
+          <ul>${(flow.suggestions || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+        </div>` : ''}
+
+        <div id="panel-issues" role="tabpanel" ${flow ? 'hidden' : ''}>
           <h3>良い点</h3>
           <ul>${(r.good_points || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>
           <h3>修正点</h3>
           ${issues.map((i, n) => `
             <div class="issue ${esc(i.severity)}">
-              <strong>${n + 1}. <span class="badge ${esc(i.severity)}">${label[i.severity] || esc(i.severity)}</span>${esc(i.title)}</strong>
+              <strong>${n + 1}. ${shots.length > 1 && i.screen ? `<span class="screen">画面${esc(i.screen)}</span>` : ''}<span class="badge ${esc(i.severity)}">${label[i.severity] || esc(i.severity)}</span>${esc(i.title)}</strong>
               <p class="meta">📍 ${esc(i.location)} ／ 根拠: ${esc(GUIDELINES[i.guideline]?.name || i.guideline)} — ${esc(i.rule)}</p>
               <p><b>問題:</b> ${esc(i.problem)}</p>
               <p><b>改善案:</b> ${esc(i.suggestion)}</p>

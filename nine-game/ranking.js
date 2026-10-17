@@ -1,9 +1,8 @@
-// Online ranking on Firestore. Weekly and all-time boards are arcade style: every play is its own entry.
-// The 日本ランカー board ranks players (one per browser) by a total that fades day by day, so playing every
-// day pays off. Players type any name; no account needed. Firebase anonymous auth gives each
+// Online ranking on Firestore, arcade style: every play is its own entry. Two boards: the last 7 days
+// and all time. Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261020';
+import { firebaseConfig } from './firebase-config.js?v=20261021';
 
 // Name used for players who would rather not type one.
 const ANON_NAME = '名無しさん';
@@ -30,43 +29,22 @@ let cache = {};         // collection path -> { at, rows: [{ id, v }] }
 function readName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }
 function writeName(v) { try { localStorage.setItem(NAME_KEY, v); } catch {} }
 
-// Weeks run Monday 00:00 to Sunday 24:00 Japan time. The id is the Monday's date, e.g. "2026-10-05".
-function weekStart(now = new Date()) {
-  const jst = new Date(now.getTime() + 9 * 3600e3);
-  const dow = (jst.getUTCDay() + 6) % 7;            // Monday = 0
-  return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate() - dow));
-}
-function weekLabel(d) {
-  const end = new Date(d.getTime() + 6 * 86400e3);
-  const md = x => `${x.getUTCMonth() + 1}/${x.getUTCDate()}`;
-  return `${md(d)}（月）〜 ${md(end)}（日）`;
-}
 // Days run 00:00 to 24:00 Japan time. The id is that date, e.g. "2026-10-09".
 function dayStart(now = new Date()) {
   const jst = new Date(now.getTime() + 9 * 3600e3);
   return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate()));
 }
 const dateId = d => d.toISOString().slice(0, 10);
-// Whole days between a date id and today (0 = today, 1 = yesterday, ...).
-const ageOf = id => Math.round((dayStart().getTime() - Date.parse(id)) / 86400e3);
-
-// ---- 日本ランカー: each day's points count 100% today, 90% tomorrow, ... 10% from 9 days on ----
-// players/{uid} = { name, uid, life: every point ever scored, days: { date id: points that day } for the
-// last 9 days, lastDay, updatedAt }. Worked in tenths so the total stays exact:
-// total = (life + Σ points × (9 − age)) / 10, rounded down. A day 9+ days old adds only its 10% (in life).
-const FADE_DAYS = 9;
-function jpTotal(v) {
-  let tenths = v.life || 0;
-  for (const [id, s] of Object.entries(v.days || {})) {
-    const age = ageOf(id);
-    if (age >= 0 && age < FADE_DAYS) tenths += s * (FADE_DAYS - age);
-  }
-  return Math.floor(tenths / 10);
+// The weekly board covers the last 7 days in Japan time: today plus the 6 days before it.
+const WEEK_DAYS = 7;
+// The moment the window opens (00:00 Japan time, 6 days ago) and a label like "10/11〜10/17".
+function weekSince() {
+  return new Date(dayStart().getTime() - (WEEK_DAYS - 1) * 86400e3 - 9 * 3600e3);
 }
-// Ranks by total, ties sharing a place. Top RANK_SIZE only.
-function jpBoard(rows) {
-  return rows.map(r => ({ ...r, total: jpTotal(r.v) })).filter(r => r.total > 0)
-    .sort((a, b) => b.total - a.total).slice(0, RANK_SIZE);
+function weekLabel() {
+  const md = x => `${x.getUTCMonth() + 1}/${x.getUTCDate()}`;
+  const today = dayStart();
+  return `${md(new Date(today.getTime() - (WEEK_DAYS - 1) * 86400e3))}〜${md(today)}`;
 }
 
 // Crown icon for the top three: gold, silver, bronze.
@@ -79,9 +57,9 @@ function crown(pos, size = 22) {
 }
 
 // ---- celebration for a top-10 finish: confetti and a big badge ----
-// Shows one board only, by priority: all-time, then weekly, then 日本ランカー.
-function celebrate({ rankAll, rankWeek, rankJp }) {
-  const pick = [['総合ランキング', rankAll], ['週間ランキング', rankWeek], ['日本ランカー', rankJp]]
+// Shows one board only, by priority: all-time, then weekly.
+function celebrate({ rankAll, rankWeek }) {
+  const pick = [['総合ランキング', rankAll], ['週間ランキング', rankWeek]]
     .find(([, r]) => r && r <= 10);
   if (!pick) return;
   const [board, rank] = pick;
@@ -143,7 +121,7 @@ function note(text, kind = '') {
   if (kind !== 'ok') showRanks(null);
 }
 
-// The player's ranks after registering, one board per line: weekly, all-time, 日本ランカー.
+// The player's ranks after registering, one board per line: weekly, all-time.
 function showRanks(rows) {
   const box = $('rankResult');
   box.replaceChildren();
@@ -180,58 +158,16 @@ async function uid() {
 
 // plays/{id}                 … all-time ranking
 const allCol = () => fb.F.collection(fb.db, 'plays');
-// weeks/{monday}/plays/{id}  … weekly ranking (e.g. weeks/2026-10-05/plays/xxxx)
-const weekCol = week => fb.F.collection(fb.db, 'weeks', week, 'plays');
-// players/{uid}              … 日本ランカー, one document per browser
-const playerCol = () => fb.F.collection(fb.db, 'players');
-
-// Adds this game to the player's 日本ランカー total and returns the saved document.
-// The first time, the player's earlier plays (from before 日本ランカー existed) are counted in.
-async function addToPlayer(me, name, score) {
-  const { F, db } = fb;
-  const ref = F.doc(db, 'players', me);
-  const today = dateId(dayStart());
-  const snap = await F.getDoc(ref);
-  let life = 0, days = {};
-  if (snap.exists()) {
-    const v = snap.data();
-    life = v.life + score;
-    days = { ...v.days, [today]: ((v.days || {})[today] || 0) + score };
-  } else {
-    const past = await F.getDocs(F.query(allCol(), F.where('uid', '==', me)));   // includes this game
-    past.forEach(d => {
-      const p = d.data(), t = p.createdAt?.toDate?.();
-      const id = t ? dateId(dayStart(t)) : today;
-      life += p.score;
-      days[id] = (days[id] || 0) + p.score;
-    });
-    if (!life) { life = score; days = { [today]: score }; }
-  }
-  for (const id of Object.keys(days)) {
-    const age = ageOf(id);
-    if (age < 0 || age >= FADE_DAYS) delete days[id];
-  }
-  const v = { name, uid: me, life, days, lastDay: today };
-  await F.setDoc(ref, { ...v, updatedAt: F.serverTimestamp() });
-  return v;
-}
-
-// Candidates for the 日本ランカー board: everyone who played in the last 9 days (their totals are still
-// fading) plus the top of everyone else by life (their total is exactly life / 10). Anyone left out
-// is a settled player below all of those, so the top RANK_SIZE is exact.
-async function japanRows() {
-  const hit = cache.players;
+// Every play from the last 7 days, best first. Read with a range on createdAt only (no extra index
+// needed) and sorted here; capped so a very busy week cannot run up the read count.
+const WEEK_CAP = 2000;
+async function weekRows() {
+  const hit = cache.week;
   if (hit && Date.now() - hit.at <= CACHE_MS) return hit.rows;
   const { F } = fb;
-  const since = dateId(new Date(dayStart().getTime() - (FADE_DAYS - 1) * 86400e3));
-  const [recent, top] = await Promise.all([
-    F.getDocs(F.query(playerCol(), F.where('lastDay', '>=', since), F.limit(500))),
-    F.getDocs(F.query(playerCol(), F.orderBy('life', 'desc'), F.limit(RANK_SIZE)))
-  ]);
-  const m = new Map();
-  [...recent.docs, ...top.docs].forEach(d => m.set(d.id, d.data()));
-  const rows = [...m].map(([id, v]) => ({ id, v }));
-  cache.players = { at: Date.now(), rows };
+  const snap = await F.getDocs(F.query(allCol(), F.where('createdAt', '>=', weekSince()), F.limit(WEEK_CAP)));
+  const rows = snap.docs.map(d => ({ id: d.id, v: d.data() })).sort((a, b) => b.v.score - a.v.score);
+  cache.week = { at: Date.now(), rows };
   return rows;
 }
 
@@ -301,43 +237,25 @@ async function submit(nameArg) {
   showEndButtons(false);
   note(`「${name}」でランキングに登録中…`);
   try {
-    const { db, F } = await load();
+    const { F } = await load();
     const me = await uid();
-    const week = dateId(weekStart());
-    // The same id in both rankings, so the new entry can be highlighted in either tab.
     const allRef = F.doc(allCol());
     const row = { name, score: last.score, nines: last.nines, level: last.level, uid: me, createdAt: F.serverTimestamp() };
-    const batch = F.writeBatch(db);
-    batch.set(allRef, row);
-    batch.set(F.doc(weekCol(week), allRef.id), row);
-    await batch.commit();
+    await F.setDoc(allRef, row);
     writeName(name);
     lastId = allRef.id;
-    cache = cache.players ? { players: cache.players } : {};
-    // The 日本ランカー part is written on its own, so the other rankings still work even if it is
-    // not allowed yet (for example before the Firestore rules are updated).
-    let rankJp = null, jpLabel = '日本ランカー';
-    try {
-      const v = await addToPlayer(me, name, last.score);
-      const rows = (await japanRows()).filter(r => r.id !== me);
-      rows.push({ id: me, v });
-      cache.players.rows = rows;
-      const total = jpTotal(v);
-      jpLabel = `日本ランカー（${total}点）`;
-      if (jpBoard(rows).some(r => r.id === me)) rankJp = rows.filter(r => jpTotal(r.v) > total).length + 1;
-    } catch (e) { console.warn('japan ranking unavailable', e); }
-
-    const [hw, ha] = await Promise.all([
-      F.getCountFromServer(F.query(weekCol(week), F.where('score', '>', last.score))),
+    cache = {};
+    const [rows, ha] = await Promise.all([
+      weekRows(),
       F.getCountFromServer(F.query(allCol(), F.where('score', '>', last.score)))
     ]);
-    const rankWeek = hw.data().count + 1, rankAll = ha.data().count + 1;
+    const rankWeek = rows.filter(r => r.v.score > last.score).length + 1, rankAll = ha.data().count + 1;
     submitted = true;
     failed = false;
     refresh();
     note(`「${name}」で ${last.score} 点を登録しました！`, 'ok');
-    showRanks([['週間', rankWeek], ['総合', rankAll], [jpLabel, rankJp]]);
-    celebrate({ rankAll, rankWeek, rankJp });
+    showRanks([['週間', rankWeek], ['総合', rankAll]]);
+    celebrate({ rankAll, rankWeek });
   } catch (e) {
     failed = true;
     refresh();
@@ -355,9 +273,7 @@ async function renderRanking() {
   list.innerHTML = '';
   status.hidden = false;
   status.className = 'note';
-  const start = weekStart();
-  period.textContent = tab === 'weekly' ? `今週 ${weekLabel(start)}`
-    : tab === 'japan' ? '点数の合計。1日ごとに10%ずつ減り、最後は10%が残ります。毎日遊ぼう！'
+  period.textContent = tab === 'weekly' ? `直近7日間 ${weekLabel()}`
     : tab === 'mine' ? `この端末で遊んだ個人の記録（上位${MINE_SIZE}件）` : 'これまでの全期間';
   $('rankTop').hidden = tab === 'mine';
   if (tab === 'mine') { renderMine(); return; }
@@ -367,10 +283,10 @@ async function renderRanking() {
   try {
     const { F, auth } = await load();
     let rows;
-    if (want === 'japan') {
-      rows = jpBoard(await japanRows()).map(r => ({ id: r.id, v: { ...r.v, score: r.total } }));
+    if (want === 'weekly') {
+      rows = (await weekRows()).slice(0, RANK_SIZE);
     } else {
-      const col = want === 'weekly' ? weekCol(dateId(start)) : allCol();
+      const col = allCol();
       let hit = cache[col.path];
       if (!hit || Date.now() - hit.at > CACHE_MS) {
         const snap = await F.getDocs(F.query(col, F.orderBy('score', 'desc'), F.limit(RANK_SIZE)));
@@ -380,7 +296,7 @@ async function renderRanking() {
     }
     if (want !== tab) return;                 // tab switched while loading
     if (!rows.length) {
-      const when = want === 'weekly' ? '今週は' : '';
+      const when = want === 'weekly' ? 'この7日間は' : '';
       status.textContent = `${when}まだ誰も登録していません。最初の 1 人になろう！`;
       return;
     }
@@ -393,8 +309,7 @@ async function renderRanking() {
       if (v.score !== prevScore) { pos = shown; prevScore = v.score; }   // ties share a rank
       const li = document.createElement('li');
       li.classList.toggle('top', pos <= 3);
-      // 日本ランカー rows are players (id = uid); the others are plays.
-      const isNew = want === 'japan' ? !!me && d.id === me : d.id === lastId;
+      const isNew = d.id === lastId;
       li.classList.toggle('me', isNew);
       li.classList.toggle('mine', !isNew && !!me && v.uid === me);
       const a = document.createElement('span'); a.className = 'pos';

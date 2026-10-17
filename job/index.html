@@ -204,6 +204,9 @@
   .chips li { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
   /* 職業についてのチャット */
   .chat { border-top: 1px solid var(--line); padding-top: 16px; }
+  .handoff { background: var(--accent-soft); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; }
+  .handoff p { margin: 0; font-size: .92rem; }
+  .copy-area { width: 100%; min-height: 12rem; font: inherit; font-size: .85rem; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); resize: vertical; }
   .chat-log { display: grid; gap: 10px; max-height: 420px; overflow-y: auto; padding: 2px; }
   .msg { max-width: 88%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .95rem; line-height: 1.7; }
   .msg.ai { justify-self: start; background: var(--paper); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
@@ -415,13 +418,18 @@
             <input id="chatInput" aria-label="この職業についての質問" type="text" maxlength="300" placeholder="例：未経験からなるには？" autocomplete="off">
             <button class="btn" type="submit" id="chatSend">送信</button>
           </form>
-          <p class="note" id="chatNote">AI の回答は参考情報です。質問は 1 回の診断につき 20 回までです。</p>
+          <p class="note" id="chatNote">AI の回答は参考情報です。質問は 1 回の診断につき 3 回までです。</p>
         </section>
+        <div class="handoff">
+          <h2>もっと相談したいときは</h2>
+          <p>「結果をすべてコピー」を押して、ご自身の AI（ChatGPT・Gemini・Claude など）に貼り付けてください。この診断結果と回答をふまえて、続きの相談ができます。</p>
+        </div>
         <div class="row">
-          <button class="btn" id="copyBtn" type="button">結果をコピー</button>
+          <button class="btn" id="copyBtn" type="button">結果をすべてコピー</button>
           <button class="ghost" id="retryBtn" type="button">もう一度診断する</button>
         </div>
         <p class="note" id="copyNote" aria-live="polite"></p>
+        <textarea class="copy-area" id="copyArea" readonly hidden aria-label="コピー用の診断結果"></textarea>
       </div>
     </div>
   </section>
@@ -718,6 +726,12 @@
     return n;
   }
 
+  // 人数を「12.3 / 万人」や「8,000 / 人」に分けて返す
+  function formatPeople(count) {
+    const n = Math.max(0, Math.round(Number(count) || 0));
+    return n >= 10000 ? [(Math.round(n / 1000) / 10).toLocaleString(), "万人"] : [n.toLocaleString(), "人"];
+  }
+
   function renderResult(r) {
     lastResult = r;
     resetChat(r);
@@ -735,13 +749,8 @@
     $("rSalaryBar").style.left = Math.min(100, sal[0] / SCALE * 100) + "%";
     $("rSalaryBar").style.width = Math.max(1.5, Math.min(100, sal[1] / SCALE * 100) - Math.min(100, sal[0] / SCALE * 100)) + "%";
     $("rSalaryNote").textContent = r.salary?.note ?? "";
-    const people = Math.max(0, Math.round(Number(r.workforce?.count) || 0));
-    $("rWorkforce").replaceChildren(
-      document.createTextNode("約 "),
-      ...(people >= 10000
-        ? [document.createTextNode((Math.round(people / 1000) / 10).toLocaleString()), el("small", "万人")]
-        : [document.createTextNode(people.toLocaleString()), el("small", "人")]),
-    );
+    const [peopleNum, peopleUnit] = formatPeople(r.workforce?.count);
+    $("rWorkforce").replaceChildren(document.createTextNode("約 " + peopleNum), el("small", peopleUnit));
     $("rWorkforceNote").textContent = r.workforce?.note ?? "";
     const OUTLOOK = { "増加傾向": "up", "横ばい": "flat", "減少傾向": "down" };
     $("rOutlook").textContent = r.future?.outlook ? `人の需要：${r.future.outlook}` : "";
@@ -807,6 +816,7 @@
     $("rCaution").textContent = r.life_caution ?? "";
     $("rStrengths").replaceChildren(...(r.strengths ?? []).slice(0, 3).map((s) => el("li", s)));
     $("copyNote").textContent = "";
+    $("copyArea").hidden = true;
     show("result");
     requestAnimationFrame(() => requestAnimationFrame(() => {
       $("rTraits").querySelectorAll(".bar span").forEach((s) => (s.style.width = s.dataset.v + "%"));
@@ -823,7 +833,7 @@
   };
   $("retryBtn").onclick = () => { answers = []; show("start"); };
   // 職業についてのチャット
-  const CHAT_LIMIT = 20;
+  const CHAT_LIMIT = 3;
   const CHAT_SUGGESTIONS = ["1日の仕事の流れは？", "未経験からなるには何から始める？", "この仕事のやりがいは？", "AI でこの仕事はどう変わる？"];
   let chat = { profile: "", messages: [], busy: false, ctl: null };
 
@@ -857,7 +867,7 @@
     $("chatInput").disabled = chat.busy || done;
     $("chatSend").disabled = chat.busy || done;
     $("chatSuggest").hidden = chat.busy || done || chatUsed() > 0;
-    if (done) $("chatNote").textContent = "この診断での質問は上限に達しました。もう一度診断すると、また質問できます。";
+    if (done) $("chatNote").textContent = "この診断で AI に質問できるのは 3 回までです。続きは下の「結果をすべてコピー」でこの内容をコピーし、ご自身の AI（ChatGPT・Gemini・Claude など）に貼り付けて相談してください。";
   }
 
   function resetChat(r) {
@@ -873,7 +883,7 @@
       b.onclick = () => sendChat(q);
       return b;
     }));
-    $("chatNote").textContent = "AI の回答は参考情報です。質問は 1 回の診断につき 20 回までです。";
+    $("chatNote").textContent = "AI の回答は参考情報です。質問は 1 回の診断につき 3 回までです。";
     $("chatInput").value = "";
     updateChatControls();
   }
@@ -919,14 +929,51 @@
     sendChat(v);
   };
 
+  // 結果をすべてテキストにする。ほかの AI にそのまま貼り付けて相談できるよう、最初に頼み方を書いておく
+  function resultText(r) {
+    const list = (items) => (items ?? []).map((x) => `・${x}`).join("\n");
+    const t = r.traits ?? {};
+    const [peopleNum, peopleUnit] = formatPeople(r.workforce?.count);
+    const parts = [
+      `以下は「AI職業サポート」（${answers.length} 問の質問から AI が性格と向いている職業を診断するサービス）の診断結果です。この内容をふまえて、私の職業選びやキャリアの相談に乗ってください。`,
+      `■ いちばん向いている職業：${r.top_job?.title ?? ""}\n${r.top_job?.reason ?? ""}`,
+      `■ 仕事タイプ：${r.type_name ?? ""}「${r.catchphrase ?? ""}」`,
+      `■ 性格\n${r.personality?.summary ?? ""}\nキーワード：${(r.personality?.keywords ?? []).join("、")}`,
+      `■ 傾向（0〜100）\n${Object.entries(TRAIT_LABELS).map(([k, label]) => `${label} ${t[k] ?? "-"}`).join(" / ")}`,
+      `■ 年収の目安：${r.salary?.min ?? "?"}〜${r.salary?.max ?? "?"}万円\n${r.salary?.note ?? ""}`,
+      `■ 日本でこの職業に就いている人の数：約 ${peopleNum}${peopleUnit}\n${r.workforce?.note ?? ""}`,
+      `■ ${r.industry?.name ?? ""}の業界で働くと\n楽しいこと・やりがい：${r.industry?.fun ?? ""}\n大変なこと：${r.industry?.hard ?? ""}`,
+      `■ これからこの職業に訪れる変化（人の需要：${r.future?.outlook ?? ""}）\n${r.future?.text ?? ""}`,
+      `■ 代表的な会社\n${(r.companies ?? []).join("、")}`,
+      `■ 目指すなら取りたい資格\n${list((r.qualifications ?? []).map((q) => `${q.name}（${q.kind}）`))}`,
+      `■ ほかに向いている職業\n${list((r.other_jobs ?? []).map((j) => `${j.title}：${j.reason}`))}`,
+      `■ 向いていないかもしれない職業\n${list((r.unsuited_jobs ?? []).map((j) => `${j.title}：${j.reason}`))}`,
+      `■ 一緒に働く人との相性\n相性の良い職業の人：${r.good_match?.title ?? ""}：${r.good_match?.reason ?? ""}\nぶつかりやすい職業の人：${r.bad_match?.title ?? ""}：${r.bad_match?.reason ?? ""}（うまく付き合うコツ：${r.bad_match?.tip ?? ""}）`,
+      `■ 結婚するなら相性の良い職業の人：${r.marriage_match?.title ?? ""}\n${r.marriage_match?.reason ?? ""}`,
+      `■ 仕事で活きる強み\n${(r.strengths ?? []).join("、")}`,
+      `■ 生活する上で気を付けること\n${r.life_caution ?? ""}`,
+      `■ 最初の一歩\n${r.advice ?? ""}`,
+      `■ 診断に使った回答（${answers.length} 問）\n${answers.map((x, i) => `Q${i + 1}. ${x.q}\nA. ${x.a}`).join("\n")}`,
+    ];
+    const talk = chat.messages.map((m) => `${m.role === "user" ? "質問" : "AI"}：${m.text}`).join("\n\n");
+    if (talk) parts.push(`■ AI とのやりとり\n${talk}`);
+    parts.push("※ 年収・人数・会社名・資格・今後の見通しは AI が挙げた目安や例です。\n#AI職業サポート");
+    return parts.join("\n\n");
+  }
+
   $("copyBtn").onclick = async () => {
-    const r = lastResult;
-    const text = `私に向いている職業は「${r.top_job?.title}」！ タイプは「${r.type_name}」でした。 #AI職業サポート`;
+    const text = resultText(lastResult);
     try {
       await navigator.clipboard.writeText(text);
-      $("copyNote").textContent = "コピーしました。";
+      $("copyArea").hidden = true;
+      $("copyNote").textContent = "すべての結果をコピーしました。ご自身の AI に貼り付けて相談できます。";
     } catch {
-      $("copyNote").textContent = text;
+      // コピーできない環境では、全文を表示して選択しておく
+      $("copyArea").value = text;
+      $("copyArea").hidden = false;
+      $("copyArea").focus();
+      $("copyArea").select();
+      $("copyNote").textContent = "自動でコピーできませんでした。下の文章を長押し（または Ctrl+C）でコピーしてください。";
     }
   };
 </script>

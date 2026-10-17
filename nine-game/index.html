@@ -220,6 +220,8 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   background: transparent; color: var(--muted); cursor: pointer;
 }
 .rank-tab[aria-selected="true"] { background: var(--ink); color: var(--dark-ink); }
+.rank-foot { margin: 0; font-size: .75rem; line-height: 1.6; color: var(--muted); }
+.rank-foot b { color: var(--ink); }
 .rank-period { margin: -4px 0 0; font-size: .78rem; font-weight: 700; color: var(--muted); text-align: center; }
 .link-btn { align-self: flex-start; background: none; border: 0; padding: 0; font: inherit; font-size: .8rem; font-weight: 700; color: var(--muted); text-decoration: underline; cursor: pointer; }
 .note { margin: 0; font-size: .85rem; line-height: 1.5; color: var(--muted); }
@@ -353,6 +355,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     <p class="rank-period" id="rankPeriod"></p>
     <p class="note" id="rankStatus">読み込み中…</p>
     <ol class="rank-list" id="rankList"></ol>
+    <p class="rank-foot" id="rankFoot" hidden>※個人の記録は、このブラウザの中に保存されます。iPhone の Safari は、7日ほど開かないと記録が消えることがあります。おすすめは <b>Chrome</b> です。iPhone では「ホーム画面に追加」して遊ぶと消えにくくなります。</p>
     <button class="btn primary" id="rankCloseBtn" type="button">閉じる</button>
   </div>
 </div>
@@ -1301,7 +1304,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   render();
 })();
 </script>
-<script type="module" src="ranking.js?v=20261021"></script>
-<script type="module" src="analytics.js?v=20261021"></script>
+<script type="module" src="ranking.js?v=20261022"></script>
+<script type="module" src="analytics.js?v=20261022"></script>
 </body>
 </html>

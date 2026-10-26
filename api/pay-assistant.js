@@ -8,6 +8,7 @@
 //   messages: [{ role: "user" | "assistant", text: string }]  // 最後は利用者の発言
 // }
 // 返り値: { reply, action, scopes, params, chips }
+import { ApiError } from "@google/genai";
 import { acceptPost, ai, MODEL, readBody, sendAiError } from "./_shared.js";
 
 const SYSTEM_PROMPT = `あなたは決済アプリ「Pay」と「Payカード」のアシスタントです（UI プロトタイプ用）。
@@ -98,18 +99,26 @@ ${account || "（利用者はまだ情報の提供を許可していません）
 </account>`;
 
   try {
-    const response = await ai.models.generateContent({
+    const request = (extra) => ai.models.generateContent({
       model: MODEL,
       contents: messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
       config: {
         systemInstruction: `${SYSTEM_PROMPT}\n\n${context}`,
         responseMimeType: "application/json",
         responseJsonSchema: RESULT_SCHEMA,
-        // 案内の返答には長い推論が要らない。思考をオフにして待ち時間を短くする
-        thinkingConfig: { thinkingBudget: 0 },
-        maxOutputTokens: 600,
+        ...extra,
       },
     });
+    // 案内の返答には長い推論が要らないので、まず思考オフで呼んで待ち時間を短くする。
+    // モデルがこの指定を受け付けないとき（400）は、指定なしでもう一度呼ぶ。
+    let response;
+    try {
+      response = await request({ thinkingConfig: { thinkingBudget: 0 } });
+    } catch (err) {
+      if (!(err instanceof ApiError) || err.status !== 400) throw err;
+      console.warn("thinkingBudget 0 was rejected, retrying without it:", err.message);
+      response = await request({});
+    }
 
     const text = response.text?.trim();
     if (!text) {

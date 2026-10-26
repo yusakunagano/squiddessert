@@ -3,6 +3,7 @@ import { HandwritingCanvas, type HandwritingHandle } from "../components/Handwri
 import { eikenWordsByGrade } from "../data/eiken";
 import { speak } from "../lib/speech";
 import { hasAI, recognizeHandwriting } from "../lib/ai";
+import { recognizeStrokes } from "../lib/handwriting";
 import { highlight } from "../components/WordCard";
 import { answerOf, maskSentence } from "../lib/phrase";
 import { actions, findWord, useAppState } from "../store";
@@ -80,6 +81,7 @@ function SetupView({
 
   const [source, setSource] = useState<Source>(initialSource ?? "grade:5");
   const aiGrade = useAppState((s) => s.settings.aiGrade);
+  const gradeEngine = useAppState((s) => s.settings.gradeEngine);
   // 出題数（0 = 全部、-1 = ランダム♾️）
   const [count, setCount] = useState(10);
   const [direction, setDirection] = useState<Direction>(() => {
@@ -188,8 +190,8 @@ function SetupView({
         )}
 
         <p className="hint">
-          {direction === "ja2en" && aiGrade && hasAI()
-            ? "🤖 手書きの文字をAIが読み取って自動で採点します（推論なしの高速モード）。"
+          {direction === "ja2en" && aiGrade && (gradeEngine === "google" || hasAI())
+            ? "🤖 手書きの文字を読み取って自動で採点します。"
             : direction === "ja2en"
               ? "✍️ 手書きしたあと、答えを見て自分で○×をつけます。" : "💭 英単語を見て意味を思い浮かべ、答えを見て自分で○×をつけます。"}
         </p>
@@ -229,7 +231,8 @@ function QuizView({
   const [results, setResults] = useState<TestItemResult[]>([]);
   const [phase, setPhase] = useState<"write" | "checking" | "judged">("write");
   const aiGrade = useAppState((s) => s.settings.aiGrade);
-  const useAi = direction === "ja2en" && aiGrade && hasAI();
+  const gradeEngine = useAppState((s) => s.settings.gradeEngine);
+  const useAi = direction === "ja2en" && aiGrade && (gradeEngine === "google" || hasAI());
   const [written, setWritten] = useState("");
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -273,10 +276,20 @@ function QuizView({
     setPhase("checking");
     const t0 = performance.now();
     try {
-      const text = await recognizeHandwriting(canvas.current!.toPngBase64());
-      setElapsed((performance.now() - t0) / 1000);
-      setWritten(text);
-      setCorrect(normalize(text) === normalize(answer));
+      if (gradeEngine === "google") {
+        const ink = canvas.current!.getInk();
+        const candidates = await recognizeStrokes(ink.strokes, ink.width, ink.height);
+        setElapsed((performance.now() - t0) / 1000);
+        // 上位3候補のどれかが答えと一致すれば正解（似た形の文字の読み違いを減らす）
+        const hit = candidates.slice(0, 3).find((c) => normalize(c) === normalize(answer));
+        setWritten(hit ?? candidates[0] ?? "（読み取れず）");
+        setCorrect(!!hit);
+      } else {
+        const text = await recognizeHandwriting(canvas.current!.toPngBase64());
+        setElapsed((performance.now() - t0) / 1000);
+        setWritten(text);
+        setCorrect(normalize(text) === normalize(answer));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setCorrect(null); // 失敗したら自己採点に切り替える
@@ -563,23 +576,33 @@ function ResultView({
   );
 }
 
-/** 手書きテストのAI自動採点 ON/OFF（推論なしの高速モード） */
+/** 手書きテストの自動採点 ON/OFF と、読み取り方法の選択 */
 function AiGradeToggle({ compact = false }: { compact?: boolean }) {
   const aiGrade = useAppState((s) => s.settings.aiGrade);
-  const ready = hasAI();
+  const engine = useAppState((s) => s.settings.gradeEngine);
+  const ready = engine === "google" || hasAI();
+  const on = aiGrade && ready;
   return (
     <div className={compact ? "ai-toggle compact" : "ai-toggle"}>
-      <button
-        className={`chip ${aiGrade && ready ? "active" : ""}`}
-        disabled={!ready}
-        onClick={() => actions.updateSettings({ aiGrade: !aiGrade })}
-      >
-        🤖 AI採点 {aiGrade && ready ? "ON" : "OFF"}
+      <button className={`chip ${on ? "active" : ""}`} onClick={() => actions.updateSettings({ aiGrade: !aiGrade })}>
+        🤖 自動採点 {on ? "ON" : "OFF"}
       </button>
       {!compact && (
-        <span className="muted small">
-          {ready ? "ON：AIが手書きを読み取って自動採点（推論なし・高速）／OFF：自分で○×" : "「設定」でAPIキーを入れると使えます"}
-        </span>
+        <>
+          <select
+            className="input engine-select"
+            value={engine}
+            onChange={(e) => actions.updateSettings({ gradeEngine: e.target.value as "google" | "ai" })}
+          >
+            <option value="google">Google手書き認識（速い・キー不要）</option>
+            <option value="ai">AI（Gemini / Claude・推論なし）</option>
+          </select>
+          <span className="muted small">
+            {!ready
+              ? "AIで採点するには「設定」でAPIキーを入れてください"
+              : "ON：書いた文字を読み取って自動で○×／OFF：自分で○×"}
+          </span>
+        </>
       )}
     </div>
   );

@@ -7,6 +7,8 @@ export interface HandwritingHandle {
   clear: () => void;
   undo: () => void;
   isEmpty: () => boolean;
+  /** 書いた線（座標）と描画エリアの大きさ */
+  getInk: () => { strokes: Point[][]; width: number; height: number };
   /** 罫線なし・白背景の PNG (base64, ヘッダなし) を返す */
   toPngBase64: () => string;
 }
@@ -84,6 +86,11 @@ export const HandwritingCanvas = forwardRef<HandwritingHandle>(function Handwrit
       redraw();
     },
     isEmpty: () => strokes.current.length === 0,
+    getInk: () => ({
+      strokes: strokes.current,
+      width: canvasRef.current!.width / (window.devicePixelRatio || 1),
+      height: HEIGHT,
+    }),
     toPngBase64() {
       // 書いた部分だけを切り出し、高さ80pxまで縮小して送る（通信とAIの処理を軽くするため）
       const pts = strokes.current.flat();

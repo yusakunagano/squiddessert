@@ -33,18 +33,23 @@ function key() {
   return k;
 }
 
-function body(req: Request) {
+// 推論を切る指定はモデルの世代で書き方が違い、合わないと 400（invalid argument）になる。
+// 順に試して、通った書き方を覚えておく。
+const THINKING_OFF: (object | null)[] = [{ thinkingBudget: 0 }, { thinkingLevel: "minimal" }, null];
+let thinkingOffIndex = 0;
+
+function body(req: Request, thinkingOff: object | null = THINKING_OFF[thinkingOffIndex]) {
   return JSON.stringify({
     contents: req.contents,
     ...(req.system ? { systemInstruction: { parts: [{ text: req.system }] } } : {}),
     ...(req.json ? { generationConfig: { responseMimeType: "application/json", responseSchema: req.json } } : {}),
     ...(req.fast
-      ? { generationConfig: { temperature: 0, maxOutputTokens: 40, thinkingConfig: { thinkingBudget: 0 } } }
+      ? { generationConfig: { temperature: 0, ...(thinkingOff ? { thinkingConfig: thinkingOff } : {}) } }
       : {}),
   });
 }
 
-async function errorOf(res: Response): Promise<Error> {
+async function errorOf(res: Response, model: string): Promise<Error> {
   let msg = "";
   try {
     msg = ((await res.json()) as { error?: { message?: string } }).error?.message ?? "";
@@ -53,7 +58,7 @@ async function errorOf(res: Response): Promise<Error> {
   }
   if (res.status === 429) return new Error("Geminiの無料枠の回数制限に達しました。少し時間をおいてから試してください。");
   if (res.status === 400 && /API key/i.test(msg)) return new Error("GeminiのAPIキーが正しくありません。「設定」を確認してください。");
-  return new Error(`Geminiでエラーが起きました（${res.status}）${msg ? "：" + msg : ""}`);
+  return new Error(`Geminiでエラーが起きました（${res.status}・${model}）${msg ? "：" + msg : ""}`);
 }
 
 interface Candidate {
@@ -70,12 +75,19 @@ function textOf(data: { candidates?: Candidate[]; promptFeedback?: { blockReason
 
 export async function geminiGenerate(req: Request): Promise<string> {
   const model = req.model ?? getState().settings.geminiModel;
-  const res = await fetch(`${BASE}/${model}:generateContent?key=${encodeURIComponent(key())}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: body(req),
-  });
-  if (!res.ok) throw await errorOf(res);
+  const post = (b: string) =>
+    fetch(`${BASE}/${model}:generateContent?key=${encodeURIComponent(key())}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: b,
+    });
+  let res = await post(body(req));
+  // 高速モードで 400 のときは、推論オフの別の書き方で試し直す
+  while (req.fast && res.status === 400 && thinkingOffIndex < THINKING_OFF.length - 1) {
+    thinkingOffIndex++;
+    res = await post(body(req));
+  }
+  if (!res.ok) throw await errorOf(res, model);
   return textOf(await res.json()).trim();
 }
 
@@ -87,7 +99,7 @@ export async function geminiStream(req: Request, onText: (full: string) => void)
     headers: { "Content-Type": "application/json" },
     body: body(req),
   });
-  if (!res.ok || !res.body) throw await errorOf(res);
+  if (!res.ok || !res.body) throw await errorOf(res, model);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";

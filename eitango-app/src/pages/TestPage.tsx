@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { HandwritingCanvas, type HandwritingHandle } from "../components/HandwritingCanvas";
 import { eikenWordsByGrade } from "../data/eiken";
 import { speak } from "../lib/speech";
+import { hasAI, recognizeHandwriting } from "../lib/ai";
 import { highlight } from "../components/WordCard";
 import { answerOf, maskSentence } from "../lib/phrase";
 import { actions, findWord, useAppState } from "../store";
@@ -78,6 +79,7 @@ function SetupView({
   );
 
   const [source, setSource] = useState<Source>(initialSource ?? "grade:5");
+  const aiGrade = useAppState((s) => s.settings.aiGrade);
   // 出題数（0 = 全部、-1 = ランダム♾️）
   const [count, setCount] = useState(10);
   const [direction, setDirection] = useState<Direction>(() => {
@@ -154,6 +156,8 @@ function SetupView({
           </button>
         </div>
 
+        {direction === "ja2en" && <AiGradeToggle />}
+
         <div className="field">出題数</div>
         <div className="chips">
           {[10, 20, 30, 0, -1].map((n) => (
@@ -184,7 +188,10 @@ function SetupView({
         )}
 
         <p className="hint">
-          {direction === "ja2en" ? "✍️ 手書きしたあと、答えを見て自分で○×をつけます。" : "💭 英単語を見て意味を思い浮かべ、答えを見て自分で○×をつけます。"}
+          {direction === "ja2en" && aiGrade && hasAI()
+            ? "🤖 手書きの文字をAIが読み取って自動で採点します（推論なしの高速モード）。"
+            : direction === "ja2en"
+              ? "✍️ 手書きしたあと、答えを見て自分で○×をつけます。" : "💭 英単語を見て意味を思い浮かべ、答えを見て自分で○×をつけます。"}
         </p>
         <button className="btn primary big" disabled={pool.length === 0} onClick={begin}>
           テスト開始
@@ -220,8 +227,12 @@ function QuizView({
   };
   const [index, setIndex] = useState(() => (random ? pickRandom(null) : 0));
   const [results, setResults] = useState<TestItemResult[]>([]);
-  // 速さを優先して、テストではAIを使わず自己採点にする
-  const [phase, setPhase] = useState<"write" | "judged">("write");
+  const [phase, setPhase] = useState<"write" | "checking" | "judged">("write");
+  const aiGrade = useAppState((s) => s.settings.aiGrade);
+  const useAi = direction === "ja2en" && aiGrade && hasAI();
+  const [written, setWritten] = useState("");
+  const [elapsed, setElapsed] = useState<number | null>(null);
+  const [error, setError] = useState("");
   const [correct, setCorrect] = useState<boolean | null>(null);
   const [showExampleJa, setShowExampleJa] = useState(false);
   const canvas = useRef<HandwritingHandle>(null);
@@ -251,23 +262,45 @@ function QuizView({
   const recentOk = recent.filter((r) => r.correct).length;
   const isLast = !random && index + 1 >= words.length;
 
-  const check = () => {
-    setCorrect(null); // 自己採点
+  const check = async () => {
+    setError("");
+    if (!useAi) {
+      setCorrect(null); // 自己採点
+      setPhase("judged");
+      return;
+    }
+    if (canvas.current?.isEmpty()) return setError("文字を書いてから答え合わせしてください。");
+    setPhase("checking");
+    const t0 = performance.now();
+    try {
+      const text = await recognizeHandwriting(canvas.current!.toPngBase64());
+      setElapsed((performance.now() - t0) / 1000);
+      setWritten(text);
+      setCorrect(normalize(text) === normalize(answer));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setCorrect(null); // 失敗したら自己採点に切り替える
+    }
     setPhase("judged");
   };
 
   const giveUp = () => {
+    setWritten("");
+    setElapsed(null);
     setCorrect(false);
     setPhase("judged");
   };
 
   const next = (isCorrect: boolean) => {
-    const r = [...results, { wordId: w.id, word: w.word, meaning: w.meaning, written: "", correct: isCorrect }];
+    const r = [...results, { wordId: w.id, word: w.word, meaning: w.meaning, written, correct: isCorrect }];
     if (isLast) return onFinish(r);
     setResults(r);
     setIndex(random ? pickRandom(index) : index + 1);
     setPhase("write");
     setCorrect(null);
+    setWritten("");
+    setElapsed(null);
+    setError("");
     setShowExampleJa(false);
     canvas.current?.clear();
   };
@@ -302,6 +335,7 @@ function QuizView({
           </>
         )}
       </div>
+      {direction === "ja2en" && <AiGradeToggle compact />}
 
       {direction === "ja2en" ? (
         <div className="card question">
@@ -373,6 +407,9 @@ function QuizView({
         </button>
       )}
 
+      {phase === "checking" && <p className="center">🤖 読み取り中…</p>}
+      {error && <p className="error">{error}</p>}
+
       {phase === "judged" && (
         <div className={`card verdict ${correct === true ? "ok" : correct === false ? "ng" : ""}`}>
           <div className="verdict-answer">
@@ -389,7 +426,14 @@ function QuizView({
               </>
             )}
           </div>
-          {correct === false && <div className="verdict-mark">❌ わからなかった</div>}
+          {written !== "" && (
+            <div>
+              読み取り結果: <span className="mono">{written}</span>
+              {elapsed !== null && <span className="muted small">（{elapsed.toFixed(1)}秒）</span>}
+            </div>
+          )}
+          {correct === true && <div className="verdict-mark">⭕ 正解！</div>}
+          {correct === false && <div className="verdict-mark">{written ? "❌ 不正解" : "❌ わからなかった"}</div>}
           {correct === null && <div>自分の答えと見くらべて、○か×を選んでください。</div>}
 
           <div className="row">
@@ -403,9 +447,16 @@ function QuizView({
                 </button>
               </>
             ) : (
-              <button className="btn primary grow" onClick={() => next(false)}>
-                {isLast ? "結果を見る" : "次へ →"}
-              </button>
+              <>
+                {written !== "" && (
+                  <button className="btn small" onClick={() => setCorrect(!correct)}>
+                    {correct ? "やっぱり不正解にする" : "読み取りミス → 正解にする"}
+                  </button>
+                )}
+                <button className="btn primary grow" onClick={() => next(correct)}>
+                  {isLast ? "結果を見る" : "次へ →"}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -508,6 +559,28 @@ function ResultView({
       <button className="btn" onClick={onBack}>
         ← テストの範囲選択にもどる
       </button>
+    </div>
+  );
+}
+
+/** 手書きテストのAI自動採点 ON/OFF（推論なしの高速モード） */
+function AiGradeToggle({ compact = false }: { compact?: boolean }) {
+  const aiGrade = useAppState((s) => s.settings.aiGrade);
+  const ready = hasAI();
+  return (
+    <div className={compact ? "ai-toggle compact" : "ai-toggle"}>
+      <button
+        className={`chip ${aiGrade && ready ? "active" : ""}`}
+        disabled={!ready}
+        onClick={() => actions.updateSettings({ aiGrade: !aiGrade })}
+      >
+        🤖 AI採点 {aiGrade && ready ? "ON" : "OFF"}
+      </button>
+      {!compact && (
+        <span className="muted small">
+          {ready ? "ON：AIが手書きを読み取って自動採点（推論なし・高速）／OFF：自分で○×" : "「設定」でAPIキーを入れると使えます"}
+        </span>
+      )}
     </div>
   );
 }

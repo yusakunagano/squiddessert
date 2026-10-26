@@ -85,14 +85,21 @@ export const HandwritingCanvas = forwardRef<HandwritingHandle>(function Handwrit
     },
     isEmpty: () => strokes.current.length === 0,
     toPngBase64() {
-      const src = canvasRef.current!;
-      const dpr = window.devicePixelRatio || 1;
+      // 書いた部分だけを切り出し、高さ80pxまで縮小して送る（通信とAIの処理を軽くするため）
+      const pts = strokes.current.flat();
+      const pad = 12;
+      const minX = Math.max(0, Math.min(...pts.map((p) => p.x)) - pad);
+      const maxX = Math.max(...pts.map((p) => p.x)) + pad;
+      const minY = Math.max(0, Math.min(...pts.map((p) => p.y)) - pad);
+      const maxY = Math.min(HEIGHT, Math.max(...pts.map((p) => p.y)) + pad);
+      const scale = Math.min(1, 80 / (maxY - minY));
       const out = document.createElement("canvas");
-      out.width = src.width / dpr;
-      out.height = HEIGHT;
+      out.width = Math.max(1, Math.round((maxX - minX) * scale));
+      out.height = Math.max(1, Math.round((maxY - minY) * scale));
       const ctx = out.getContext("2d")!;
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, out.width, out.height);
+      ctx.setTransform(scale, 0, 0, scale, -minX * scale, -minY * scale);
       drawStrokes(ctx, strokes.current, "#000");
       return out.toDataURL("image/png").split(",")[1];
     },

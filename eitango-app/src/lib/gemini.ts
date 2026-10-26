@@ -21,6 +21,10 @@ interface Request {
   contents: GeminiContent[];
   system?: string;
   json?: object; // responseSchema
+  /** 指定するとこのモデルを使う（設定のモデルより優先） */
+  model?: string;
+  /** true: 推論（thinking）を切り、短い出力だけにする高速モード */
+  fast?: boolean;
 }
 
 function key() {
@@ -34,6 +38,9 @@ function body(req: Request) {
     contents: req.contents,
     ...(req.system ? { systemInstruction: { parts: [{ text: req.system }] } } : {}),
     ...(req.json ? { generationConfig: { responseMimeType: "application/json", responseSchema: req.json } } : {}),
+    ...(req.fast
+      ? { generationConfig: { temperature: 0, maxOutputTokens: 40, thinkingConfig: { thinkingBudget: 0 } } }
+      : {}),
   });
 }
 
@@ -62,7 +69,7 @@ function textOf(data: { candidates?: Candidate[]; promptFeedback?: { blockReason
 }
 
 export async function geminiGenerate(req: Request): Promise<string> {
-  const model = getState().settings.geminiModel;
+  const model = req.model ?? getState().settings.geminiModel;
   const res = await fetch(`${BASE}/${model}:generateContent?key=${encodeURIComponent(key())}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

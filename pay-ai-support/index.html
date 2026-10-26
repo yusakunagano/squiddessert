@@ -110,6 +110,7 @@ const PERSONAL = [
 
 const chat = createChat({
   title: 'AIアシスタント',
+  ai: { page: 'home', facts: () => FAQ.map(f => f.a).join('\n') },
   greet: () => ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),
   handle(q, chat) {
     const act = ACTIONS.find(a => a.re.test(q));

@@ -178,6 +178,11 @@ function rateUpPlan(chat, focus) {
 
 const chat = createChat({
   title: '倍率アップAI',
+  ai: { page: 'services', facts: () => [
+    `表示：最大${fmt(nowMax)}%（適用中の合計）／${fmt(potMax)}%（未適用の特典とポイ活プラン10%を含む最大）。今月の利用総額 ${MONTH_TOTAL}円。`,
+    'このページのAIの役目は、利用者の倍率を上げる方法を案内すること。',
+    ...BENEFITS.map(b => `【${b.name}】${b.on ? '適用中' : '未適用'}・${b.rate}%${b.rate2 ? '（最大' + b.rate2 + '%）' : ''}${b.cap ? '・上限 月' + b.cap + 'pt' : ''}${b.unverified ? '・条件は目安' : ''}：${b.fine}`),
+  ].join('\n') },
   greet: () => ({ text: `いまのあなたは最大${fmt(nowMax)}%還元です。\nあと +${fmt(potMax - nowMax)}% 上げられます。何をすれば上がるか、あなたに合わせてご案内します。`, chips: DEFAULT_CHIPS }),
   handle(q, chat) {
     const b = BENEFITS.find(b => q.includes(b.name));

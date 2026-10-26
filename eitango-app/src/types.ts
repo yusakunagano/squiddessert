@@ -69,6 +69,8 @@ export interface Settings {
   geminiModel: string;
   /** 手書きテストをAIで自動採点する（推論なしの高速モード） */
   aiGrade: boolean;
+  /** 手書き採点の方法。google: Google手書き認識（速い・キー不要）／ai: 設定中のAI（Gemini・Claude） */
+  gradeEngine: "google" | "ai";
   speechRate: number;
   voiceURI: string;
   /** auto: 端末の声→だめならオンライン / device: 端末の声のみ / online: オンライン音声のみ */

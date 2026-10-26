@@ -227,3 +227,4 @@ h3 { font-size: 1rem; margin: 16px 0 8px; }
 .mark-buttons { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 .ai-toggle { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
 .ai-toggle.compact { justify-content: flex-end; margin: 0; }
+.engine-select { width: auto; padding: 6px 10px; font-size: 0.85rem; }

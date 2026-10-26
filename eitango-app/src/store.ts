@@ -18,7 +18,7 @@ const DEFAULT_STATE: AppState = {
   misses: [],
   history: [],
   chat: [],
-  settings: { provider: "claude", apiKey: "", model: "claude-opus-5-5", geminiKey: "", geminiModel: "gemini-flash-latest", aiGrade: false, speechRate: 0.9, voiceURI: "", speechEngine: "auto" },
+  settings: { provider: "claude", apiKey: "", model: "claude-opus-5-5", geminiKey: "", geminiModel: "gemini-flash-latest", aiGrade: false, gradeEngine: "google", speechRate: 0.9, voiceURI: "", speechEngine: "auto" },
 };
 
 function load(): AppState {

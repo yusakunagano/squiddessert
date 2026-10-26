@@ -68,7 +68,7 @@ export async function recognizeHandwriting(pngBase64: string): Promise<string> {
   if (useGemini()) {
     return cleanLetters(
       await geminiGenerate({
-        model: "gemini-flash-lite-latest",
+        model: "gemini-2.5-flash-lite",
         fast: true,
         system: HANDWRITING_SYSTEM,
         contents: [

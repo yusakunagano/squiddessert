@@ -105,6 +105,9 @@ ${account || "（利用者はまだ情報の提供を許可していません）
         systemInstruction: `${SYSTEM_PROMPT}\n\n${context}`,
         responseMimeType: "application/json",
         responseJsonSchema: RESULT_SCHEMA,
+        // 案内の返答には長い推論が要らない。思考をオフにして待ち時間を短くする
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 600,
       },
     });
 

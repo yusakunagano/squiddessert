@@ -108,11 +108,13 @@ function createChat({ title, greet, handle, ai }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ page: ai.page, facts: ai.facts(), account: consentedAccount(), granted: Object.keys(SCOPES).filter(s => Link.granted(s)), messages: chat.history.slice(-12) }),
       });
-      r = await res.json();
-      if (!res.ok) throw new Error(r.error);
+      r = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(`${res.status} ${r.error || ''}`.trim());
     } catch (e) {
       typing.remove();
-      if (!offlineNoted) { offlineNoted = true; chat.card('<div class="authing">AIに接続できないため、簡易モードで答えます</div>'); }
+      console.error('pay-assistant', e);
+      // Show why, so a broken deploy or missing key is visible on the phone.
+      if (!offlineNoted) { offlineNoted = true; chat.card(`<div class="authing">AIに接続できないため、簡易モードで答えます<br><small>理由：${String(e.message || e).replace(/[<>&]/g, '')}</small></div>`); }
       chat.aiMode = false;
       return ai.offline(chat);
     }

@@ -236,6 +236,7 @@ function QuizView({
   const [written, setWritten] = useState("");
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [gradeError, setGradeError] = useState("");
   const [correct, setCorrect] = useState<boolean | null>(null);
   const [showExampleJa, setShowExampleJa] = useState(false);
   const canvas = useRef<HandwritingHandle>(null);
@@ -267,6 +268,7 @@ function QuizView({
 
   const check = async () => {
     setError("");
+    setGradeError("");
     if (!useAi) {
       setCorrect(null); // 自己採点
       setPhase("judged");
@@ -291,7 +293,7 @@ function QuizView({
         setCorrect(normalize(text) === normalize(answer));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setGradeError(e instanceof Error ? e.message : String(e));
       setCorrect(null); // 失敗したら自己採点に切り替える
     }
     setPhase("judged");
@@ -314,6 +316,7 @@ function QuizView({
     setWritten("");
     setElapsed(null);
     setError("");
+    setGradeError("");
     setShowExampleJa(false);
     canvas.current?.clear();
   };
@@ -422,6 +425,23 @@ function QuizView({
 
       {phase === "checking" && <p className="center">🤖 読み取り中…</p>}
       {error && <p className="error">{error}</p>}
+      {gradeError && (
+        <div className="card grade-error">
+          <b>⚠️ 自動採点でエラーが起きました。自動採点をOFFにして利用してください。</b>
+          <span className="muted small">{gradeError}</span>
+          <div className="row">
+            <button
+              className="btn small"
+              onClick={() => {
+                actions.updateSettings({ autoGrade: false });
+                setGradeError("");
+              }}
+            >
+              自動採点をOFFにする
+            </button>
+          </div>
+        </div>
+      )}
 
       {phase === "judged" && (
         <div className={`card verdict ${correct === true ? "ok" : correct === false ? "ng" : ""}`}>

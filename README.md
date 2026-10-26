@@ -42,7 +42,7 @@ GEMINI_API_KEY=... npx vercel dev
 
 ## AIサポート（決済アプリのプロトタイプ）
 
-`pay-ai-support/` のAIアシスタント（ホーム）と倍率アップAI（利用サービス）は、`api/pay-assistant.js` 経由で Gemini に問い合わせます。
+`pay-ai-support/` のホームのAIアシスタントで「お得な情報を知りたい」を押したときだけ、`api/pay-assistant.js` 経由で Gemini に問い合わせます（それ以外の質問はページ内のルールで回答）。
 APIキーは職業サポートと同じ `GEMINI_API_KEY`（Vercel の環境変数）を使います。
 
 - AI に渡すのは、ページに表示している公開情報と、利用者が許可した項目（残高・ポイント／利用明細／カード請求）だけです。

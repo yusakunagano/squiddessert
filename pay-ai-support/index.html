@@ -51,7 +51,7 @@ document.getElementById('bal').textContent = yen(USER.balance);
 document.getElementById('pt').textContent = `ポイント ${USER.points.total.toLocaleString()}pt`;
 document.getElementById('revoke').onclick = () => { Link.revoke(); alert('AIとのアカウント連携を解除しました'); };
 
-const DEFAULT_CHIPS = ['送金したい', '履歴を見たい', '今月いくら使った？', '次のカード請求はいつ？', 'ポイントの期限は？', 'カードをなくした'];
+const DEFAULT_CHIPS = ['🎁 お得な情報を知りたい', '送金したい', '履歴を見たい', '今月いくら使った？', '次のカード請求はいつ？', 'ポイントの期限は？', 'カードをなくした'];
 
 // General questions: answered from public product info, no account data needed.
 const FAQ = [
@@ -65,6 +65,16 @@ const FAQ = [
 
 // Personal questions: need account linking + consent, then the AI asks what exactly the user wants.
 // Requests to *do* something open that feature directly instead of answering in chat.
+// Context for the お得情報 AI. Based on the official Oct–Nov 2026 campaign announcements
+// (the campaign page itself couldn't be fetched, so details are summarized).
+const CAMPAIGNS = [
+  '【エリアキャンペーン（抽選）】2026年10月開始・全国8地域の対象店舗でアプリ払い。エントリー不要。1等100%・2等50%・3等10%・4等1%を抽選で還元。上限は1回30,000pt・期間中30,000pt。期間は地域ごと（例：長野市 10/23〜11/23）。予算に達すると期間内でも終了。',
+  '【ネットショッピング（抽選）】対象ネットショップでアプリ払いすると抽選で最大20%還元。1回の決済の上限2,000pt。エントリーが必要な場合あり。一部ショップ（ふるさと納税サイトの一部など）は2026年10月から対象外。',
+  '【自治体キャンペーン】自治体ごとの対象店舗で最大30%還元など。上限は自治体ごと（例：1回10,000pt・期間40,000pt）。10月と11月で上限が別枠の地域もある。11月開始の地域も追加。',
+  '【利用サービスの倍率】適用中の特典の合計で最大8.5%、未適用の「Payカード×提携銀行（＋2%）」とポイ活プラン10%を含めると最大15.5%。詳しくは利用サービス画面。',
+  '※ キャンペーンは地域・期間・予算で変わる。最新の対象店舗・条件は公式のキャンペーンページで確認するよう案内する。',
+];
+
 const ACTIONS = [
   { re: /送金|送り(たい|ます)|送って|送る|割り勘/, name: '送金', url: q => {
       const amt = (q.match(/([0-9０-９,]+)\s*円/) || [])[1];
@@ -110,9 +120,13 @@ const PERSONAL = [
 
 const chat = createChat({
   title: 'AIアシスタント',
-  ai: { page: 'home', facts: () => FAQ.map(f => f.a).join('\n') },
+  // Only the お得情報 button uses the AI; everything else is answered by the rules below.
+  ai: { page: 'deals', facts: () => CAMPAIGNS.join('\n'), exitChip: 'ほかのことを聞く',
+    // Without the AI, list the campaigns as they are.
+    offline: chat => { chat.ai('いま開催中のお得な情報です。\n\n' + CAMPAIGNS.slice(0, 4).map(c => '・' + c).join('\n\n')); chat.chips(DEFAULT_CHIPS); } },
   greet: () => ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),
   handle(q, chat) {
+    if (q.includes('お得な情報')) { chat.aiMode = true; return chat.askAI(q); }
     const act = ACTIONS.find(a => a.re.test(q));
     if (act) {
       const url = act.url(q);

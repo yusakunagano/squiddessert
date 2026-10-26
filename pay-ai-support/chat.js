@@ -81,7 +81,13 @@ function createChat({ title, greet, handle, ai }) {
     },
     // Show a reply after a short "typing" delay so the exchange reads naturally.
     later(fn, ms = 450) { setTimeout(fn, ms); },
-    ask(q) { chat.me(q); ai ? askAI(q) : chat.later(() => handle(q, chat)); },
+    aiMode: false,
+    ask(q) {
+      chat.me(q);
+      if (chat.aiMode && q === ai.exitChip) return chat.stopAI();
+      chat.aiMode ? askAI(q) : chat.later(() => handle(q, chat));
+    },
+    stopAI() { chat.aiMode = false; chat.ai('ほかのことも聞いてください。'); chat.chips(greet().chips); },
     launch(action, params) {
       chat.card(`<div class="launch">🚀 「${ACTION_NAME[action]}」を開きます…</div>`);
       setTimeout(() => location.href = ACTION_URL[action](params), 900);
@@ -107,16 +113,18 @@ function createChat({ title, greet, handle, ai }) {
     } catch (e) {
       typing.remove();
       if (!offlineNoted) { offlineNoted = true; chat.card('<div class="authing">AIに接続できないため、簡易モードで答えます</div>'); }
-      return handle(q, chat);
+      chat.aiMode = false;
+      return ai.offline(chat);
     }
     typing.remove();
     // The consent card explains itself, so the AI's own "need permission" line isn't shown.
     if (r.action === 'need_consent') return withConsent(chat, r.scopes, () => askAI(q));
     chat.ai(r.reply);
     if (ACTION_URL[r.action]) return chat.launch(r.action, r.params);
-    chat.chips(r.chips?.length ? r.chips : greet().chips);
+    chat.chips([...(r.chips || []).slice(0, 3), ai.exitChip]);
   }
 
+  chat.askAI = askAI;
   $('.ai-fab').onclick = chat.open;
   $('.close').onclick = chat.close;
   $('.sheet-bg').onclick = chat.close;

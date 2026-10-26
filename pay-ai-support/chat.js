@@ -35,7 +35,27 @@ const Link = {
 };
 
 // ---------- Chat widget ----------
-function createChat({ title, greet, handle }) {
+// Relay server holding the Gemini key (same Vercel project as AI職業サポート).
+const AI_URL = 'https://squiddessert.vercel.app/api/pay-assistant';
+
+// Only the scopes the user allowed are ever put in the request.
+function consentedAccount() {
+  const a = {};
+  if (Link.granted('balance')) Object.assign(a, { balance: USER.balance, points: USER.points });
+  if (Link.granted('history')) Object.assign(a, { usage: USER.usage, recent: USER.recent });
+  if (Link.granted('card')) Object.assign(a, { bill: USER.bill });
+  return Object.keys(a).length ? a : null;
+}
+
+const ACTION_URL = {
+  open_send: p => { const q = new URLSearchParams(); if (p?.to) q.set('to', p.to); if (p?.amount) q.set('amount', String(p.amount).replace(/[^0-9]/g, '')); return 'send.html' + (q.toString() ? '?' + q : ''); },
+  open_history: () => 'services.html#hist',
+  open_register: () => 'register.html',
+  open_services: () => 'services.html',
+};
+const ACTION_NAME = { open_send: '送金', open_history: '利用履歴', open_register: '銀行口座登録', open_services: '利用サービス' };
+
+function createChat({ title, greet, handle, ai }) {
   const root = document.createElement('div');
   root.innerHTML = `
     <button class="ai-fab" aria-label="${title}を開く">AI</button>
@@ -51,8 +71,9 @@ function createChat({ title, greet, handle }) {
   const msgs = $('.msgs');
 
   const chat = {
-    ai(text) { const d = document.createElement('div'); d.className = 'msg ai'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; },
-    me(text) { const d = document.createElement('div'); d.className = 'msg me'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; },
+    history: [],
+    ai(text) { const d = document.createElement('div'); d.className = 'msg ai'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; chat.history.push({ role: 'assistant', text }); },
+    me(text) { const d = document.createElement('div'); d.className = 'msg me'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; chat.history.push({ role: 'user', text }); },
     card(html) { const d = document.createElement('div'); d.className = 'msg card'; d.innerHTML = html; msgs.appendChild(d); msgs.scrollTop = 1e9; return d; },
     chips(list, onPick = q => chat.ask(q)) {
       const c = $('.chips'); c.innerHTML = '';
@@ -60,13 +81,50 @@ function createChat({ title, greet, handle }) {
     },
     // Show a reply after a short "typing" delay so the exchange reads naturally.
     later(fn, ms = 450) { setTimeout(fn, ms); },
-    ask(q) { chat.me(q); chat.later(() => handle(q, chat)); },
+    aiMode: false,
+    ask(q) {
+      chat.me(q);
+      if (chat.aiMode && q === ai.exitChip) return chat.stopAI();
+      chat.aiMode ? askAI(q) : chat.later(() => handle(q, chat));
+    },
+    stopAI() { chat.aiMode = false; chat.ai('ほかのことも聞いてください。'); chat.chips(greet().chips); },
+    launch(action, params) {
+      chat.card(`<div class="launch">🚀 「${ACTION_NAME[action]}」を開きます…</div>`);
+      setTimeout(() => location.href = ACTION_URL[action](params), 900);
+    },
     open() {
       root.classList.add('open');
       if (!msgs.children.length) { const g = greet(); chat.ai(g.text); chat.chips(g.chips); }
     },
     close() { root.classList.remove('open'); },
   };
+  // Ask the AI; if the relay can't be reached, answer with the built-in rules instead.
+  let offlineNoted = false;
+  async function askAI(q) {
+    const typing = chat.card('<div class="typing">考え中…</div>');
+    let r;
+    try {
+      const res = await fetch(AI_URL, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: ai.page, facts: ai.facts(), account: consentedAccount(), granted: Object.keys(SCOPES).filter(s => Link.granted(s)), messages: chat.history.slice(-12) }),
+      });
+      r = await res.json();
+      if (!res.ok) throw new Error(r.error);
+    } catch (e) {
+      typing.remove();
+      if (!offlineNoted) { offlineNoted = true; chat.card('<div class="authing">AIに接続できないため、簡易モードで答えます</div>'); }
+      chat.aiMode = false;
+      return ai.offline(chat);
+    }
+    typing.remove();
+    // The consent card explains itself, so the AI's own "need permission" line isn't shown.
+    if (r.action === 'need_consent') return withConsent(chat, r.scopes, () => askAI(q));
+    chat.ai(r.reply);
+    if (ACTION_URL[r.action]) return chat.launch(r.action, r.params);
+    chat.chips([...(r.chips || []).slice(0, 3), ai.exitChip]);
+  }
+
+  chat.askAI = askAI;
   $('.ai-fab').onclick = chat.open;
   $('.close').onclick = chat.close;
   $('.sheet-bg').onclick = chat.close;

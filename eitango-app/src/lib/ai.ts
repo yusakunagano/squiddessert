@@ -58,10 +58,18 @@ const HANDWRITING_SYSTEM =
 
 const cleanLetters = (text: string) => text.trim().split("\n")[0].replace(/[^A-Za-z' -]/g, "").trim();
 
+/**
+ * 手書き画像 (PNG の base64) から書かれた英字を読み取る。
+ * 速さを優先して、推論（thinking）なしの軽いモデルで「文字を読むだけ」を頼む。正誤の判定はアプリ側で行う。
+ * - Gemini: gemini-flash-lite-latest・thinkingBudget 0
+ * - Claude: claude-haiku-5-5・thinking 無効・effort low
+ */
 export async function recognizeHandwriting(pngBase64: string): Promise<string> {
   if (useGemini()) {
     return cleanLetters(
       await geminiGenerate({
+        model: "gemini-flash-lite-latest",
+        fast: true,
         system: HANDWRITING_SYSTEM,
         contents: [
           {
@@ -75,9 +83,10 @@ export async function recognizeHandwriting(pngBase64: string): Promise<string> {
       }),
     );
   }
-  const res = await client().beta.messages.create({
-    ...baseParams(),
-    max_tokens: 2000,
+  const res = await client().messages.create({
+    model: "claude-haiku-5-5",
+    max_tokens: 64,
+    thinking: { type: "disabled" },
     output_config: { effort: "low" },
     system: HANDWRITING_SYSTEM,
     messages: [

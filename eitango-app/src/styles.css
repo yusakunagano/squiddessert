@@ -225,3 +225,5 @@ h3 { font-size: 1rem; margin: 16px 0 8px; }
 .q-word { font-size: 2rem; font-weight: 800; letter-spacing: 0.02em; }
 .random-score { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .mark-buttons { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.ai-toggle { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+.ai-toggle.compact { justify-content: flex-end; margin: 0; }

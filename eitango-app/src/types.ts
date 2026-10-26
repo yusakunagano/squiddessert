@@ -67,6 +67,8 @@ export interface Settings {
   model: string;
   geminiKey: string;
   geminiModel: string;
+  /** 手書きテストをAIで自動採点する（推論なしの高速モード） */
+  aiGrade: boolean;
   speechRate: number;
   voiceURI: string;
   /** auto: 端末の声→だめならオンライン / device: 端末の声のみ / online: オンライン音声のみ */

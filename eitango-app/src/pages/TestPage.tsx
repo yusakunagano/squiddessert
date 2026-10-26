@@ -80,7 +80,7 @@ function SetupView({
   );
 
   const [source, setSource] = useState<Source>(initialSource ?? "grade:5");
-  const aiGrade = useAppState((s) => s.settings.aiGrade);
+  const autoGrade = useAppState((s) => s.settings.autoGrade);
   const gradeEngine = useAppState((s) => s.settings.gradeEngine);
   // 出題数（0 = 全部、-1 = ランダム♾️）
   const [count, setCount] = useState(10);
@@ -190,7 +190,7 @@ function SetupView({
         )}
 
         <p className="hint">
-          {direction === "ja2en" && aiGrade && (gradeEngine === "google" || hasAI())
+          {direction === "ja2en" && autoGrade && (gradeEngine === "google" || hasAI())
             ? "🤖 手書きの文字を読み取って自動で採点します。"
             : direction === "ja2en"
               ? "✍️ 手書きしたあと、答えを見て自分で○×をつけます。" : "💭 英単語を見て意味を思い浮かべ、答えを見て自分で○×をつけます。"}
@@ -230,9 +230,9 @@ function QuizView({
   const [index, setIndex] = useState(() => (random ? pickRandom(null) : 0));
   const [results, setResults] = useState<TestItemResult[]>([]);
   const [phase, setPhase] = useState<"write" | "checking" | "judged">("write");
-  const aiGrade = useAppState((s) => s.settings.aiGrade);
+  const autoGrade = useAppState((s) => s.settings.autoGrade);
   const gradeEngine = useAppState((s) => s.settings.gradeEngine);
-  const useAi = direction === "ja2en" && aiGrade && (gradeEngine === "google" || hasAI());
+  const useAi = direction === "ja2en" && autoGrade && (gradeEngine === "google" || hasAI());
   const [written, setWritten] = useState("");
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -578,13 +578,13 @@ function ResultView({
 
 /** 手書きテストの自動採点 ON/OFF と、読み取り方法の選択 */
 function AiGradeToggle({ compact = false }: { compact?: boolean }) {
-  const aiGrade = useAppState((s) => s.settings.aiGrade);
+  const autoGrade = useAppState((s) => s.settings.autoGrade);
   const engine = useAppState((s) => s.settings.gradeEngine);
   const ready = engine === "google" || hasAI();
-  const on = aiGrade && ready;
+  const on = autoGrade && ready;
   return (
     <div className={compact ? "ai-toggle compact" : "ai-toggle"}>
-      <button className={`chip ${on ? "active" : ""}`} onClick={() => actions.updateSettings({ aiGrade: !aiGrade })}>
+      <button className={`chip ${on ? "active" : ""}`} onClick={() => actions.updateSettings({ autoGrade: !autoGrade })}>
         🤖 自動採点 {on ? "ON" : "OFF"}
       </button>
       {!compact && (

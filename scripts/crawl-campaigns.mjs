@@ -2,18 +2,15 @@
 // 毎日 1 回 GitHub Actions から実行する（.github/workflows/crawl-campaigns.yml）。手元でも実行できる：
 //   GEMINI_API_KEY=... node scripts/crawl-campaigns.mjs
 // 保存先は pay-ai-support/data/campaigns.json（環境変数 CAMPAIGN_OUT で変更可）。
-import { createHash } from "node:crypto";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { pathToFileURL } from "node:url";
-import { CAMPAIGN_URL, fetchDetail, fetchIndex } from "../api/_campaigns.js";
+import { CAMPAIGN_URL, fetchDetail, fetchIndex, idOf } from "../api/_campaigns.js";
 
 const DEFAULT_OUT = "pay-ai-support/data/campaigns.json";
 const CONCURRENCY = 3; // 詳細ページを同時に読む数（読み込みの上限に当たらないよう控えめに）
 const DETAIL_MAX_AGE = 3 * 24 * 60 * 60 * 1000; // 詳細をこの期間は読み直さない
 const HEARTBEAT = 6 * 24 * 60 * 60 * 1000; // 内容が同じでも、これより古ければ更新日だけ新しくする
-
-const idOf = (c) => createHash("sha1").update(c.url || c.title).digest("hex").slice(0, 8);
 
 async function readJson(path) {
   try {

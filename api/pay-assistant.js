@@ -9,7 +9,7 @@
 // }
 // 返り値: { reply, action, scopes, params, chips }
 import { acceptPost, MODEL, readBody, sendAiError } from "./_shared.js";
-import { fetchIndex, generate } from "./_campaigns.js";
+import { fetchIndex, generate, idOf, safeUrl } from "./_campaigns.js";
 
 const SYSTEM_PROMPT = `あなたは決済アプリ「Pay」と「Payカード」のアシスタントです（UI プロトタイプ用）。
 日本語で、やさしく短く答えます（reply は 200 文字以内。必要なら短い箇条書き）。
@@ -25,6 +25,10 @@ const SYSTEM_PROMPT = `あなたは決済アプリ「Pay」と「Payカード」
   - history: 利用額・利用明細
   - card: カードの請求額・引き落とし日・引き落とし口座
   このとき reply では「アカウント連携と、情報をAIに渡す許可が必要です」と短く伝える。
+
+# リンク（links）
+- お得な情報で特集を紹介するときは、紹介した特集の id（<facts> の「id:」のあとの符号）を links に入れる（最大 3 件、紹介した特集だけ）。リンクは画面側が付けるので、本文に URL や id は書かない。
+- 特集を紹介しないとき、<facts> に id がないときは、links は空にする。
 
 # 守ること
 - 利用者本人の金額・ポイント・明細などは、<account> にある値だけを使う。ない値を推測したり作ったりしない。
@@ -59,8 +63,9 @@ const RESULT_SCHEMA = {
       additionalProperties: false,
     },
     chips: { type: "array", items: { type: "string" }, maxItems: 4 },
+    links: { type: "array", items: { type: "string" }, maxItems: 3 },
   },
-  required: ["reply", "action", "scopes", "chips"],
+  required: ["reply", "action", "scopes", "chips", "links"],
   additionalProperties: false,
 };
 
@@ -128,13 +133,13 @@ const oneLine = (v, max = 200) => String(v ?? "").replace(/\s+/g, " ").slice(0, 
 // 一覧（タイトルなど、小さい）は常に渡し、詳細は選んだ分だけ渡す
 export function formatStored(data, selected) {
   const date = oneLine(data.updatedAt, 10);
-  const lines = data.campaigns.map((c) => `- [${oneLine(c.kind, 10)}] ${oneLine(c.title, 80)}｜エントリー:${oneLine(c.entry, 4)}｜期間:${oneLine(c.period, 60)}`);
+  const lines = data.campaigns.map((c) => `- [id:${oneLine(c.id, 12)}] [${oneLine(c.kind, 10)}] ${oneLine(c.title, 80)}｜エントリー:${oneLine(c.entry, 4)}｜期間:${oneLine(c.period, 60)}`);
   let out = `【特集一覧（キャンペーンページを事前に読み取った内容。最終更新: ${date}）】\n${lines.join("\n")}`;
   if (selected.length) {
     out += `\n\n【利用者の話に合う特集の詳細】\n${selected
       .map((c) => {
         const d = c.detail;
-        return `■ ${oneLine(c.title, 80)}\n  還元・特典: ${oneLine(d.reward)} / 上限: ${oneLine(d.limit)} / 対象: ${oneLine(d.target)} / エントリー: ${oneLine(d.entry_how)} / 注意: ${oneLine(d.notes)}`;
+        return `■ [id:${oneLine(c.id, 12)}] ${oneLine(c.title, 80)}\n  還元・特典: ${oneLine(d.reward)} / 上限: ${oneLine(d.limit)} / 対象: ${oneLine(d.target)} / エントリー: ${oneLine(d.entry_how)} / 注意: ${oneLine(d.notes)}`;
       })
       .join("\n")}`;
   } else {
@@ -162,8 +167,19 @@ function loadCampaigns() {
 
 function formatCampaigns(list) {
   return `【特集一覧（キャンペーンページから読み取った内容。還元率や上限などの詳しい条件は載っていない）】\n${list
-    .map((c) => `- [${c.kind}] ${c.title}｜エントリー:${c.entry}｜期間:${c.period}`)
+    .map((c) => `- [id:${idOf(c)}] [${c.kind}] ${c.title}｜エントリー:${c.entry}｜期間:${c.period}`)
     .join("\n")}`;
+}
+
+// 紹介した特集のリンクを、本物の URL から作る。AI が書いた id が一覧になければ捨てる（URL を AI に書かせない）。
+function linkTable(list) {
+  const table = new Map();
+  for (const c of list ?? []) {
+    const url = safeUrl(c.url);
+    const id = String(c.id ?? idOf(c));
+    if (url) table.set(id, { title: oneLine(c.title, 80), url });
+  }
+  return table;
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(() => resolve(null), ms));
@@ -203,12 +219,14 @@ export default async function handler(req, res) {
     // それも読めなければ画面から届いた固定の概要で答える。
     let source = "固定";
     let campaignStatus = "";
+    let links = new Map();
     if (page === "deals") {
       const stored = await loadStored();
       if (stored) {
         const picked = selectDetails(stored.campaigns, messages);
         facts = formatStored(stored, picked);
         source = "保存データ";
+        links = linkTable(stored.campaigns);
         campaignStatus = `${oneLine(stored.updatedAt, 10)}/${stored.campaigns.length}件/詳細${picked.length}`;
       } else {
         const c = await Promise.race([loadCampaigns(), sleep(CAMPAIGN_WAIT)]);
@@ -216,6 +234,7 @@ export default async function handler(req, res) {
         if (c?.list) {
           facts = formatCampaigns(c.list);
           source = "ページ";
+          links = linkTable(c.list);
         }
       }
     }
@@ -249,6 +268,13 @@ ${account || "（利用者はまだ情報の提供を許可していません）
     // 許可済みの項目は求め直さない
     result.scopes = (result.scopes ?? []).filter((s) => SCOPES.includes(s) && !granted.includes(s));
     if (result.action === "need_consent" && result.scopes.length === 0) result.action = "none";
+    // AI が選んだ id を、本物のリンクに置き換える（重複・一覧にない id は捨てる）
+    const seen = new Set();
+    result.links = (Array.isArray(result.links) ? result.links : [])
+      .map((id) => String(id).replace(/^id:/, "").trim())
+      .filter((id) => links.has(id) && !seen.has(id) && seen.add(id))
+      .slice(0, 3)
+      .map((id) => links.get(id));
     return res.status(200).json({ ...result, debug });
   } catch (err) {
     return sendAiError(res, err);

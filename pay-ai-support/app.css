@@ -55,3 +55,5 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 @keyframes pulse { 50% { opacity: .6; } }
 .launch { padding: 12px; border-radius: 12px; background: #eef3ff; font-size: 13px; }
 .typing { padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: 13px; color: var(--sub); width: fit-content; }
+.links { display: flex; flex-direction: column; gap: 6px; }
+.links a { display: block; padding: 10px 12px; border: 1px solid var(--brand); border-radius: 10px; color: var(--brand); background: #fff; font-size: 13px; font-weight: 700; text-decoration: none; line-height: 1.5; }

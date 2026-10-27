@@ -57,6 +57,7 @@ APIキーは職業サポートと同じ `GEMINI_API_KEY`（Vercel の環境変�
 - `.github/workflows/crawl-campaigns.yml` … 上のスクリプトを毎日 1 回（日本時間 5:17）実行し、内容が変わったときだけ main にコミットします。手動で実行するときは GitHub の「Actions」→「キャンペーンの事前読み取り」→「Run workflow」。
 - `api/_campaigns.js` … ページの読み取り（スクリプトと API で共通）。同じサイト内のリンクだけを読み、ページの取得に成功したと確認できたときだけ内容を採用します。
 - `api/pay-assistant.js` … チャットのたびに保存データを取り込み、**一覧（タイトルなど）は常に、詳細は利用者の話に合う上位 5 件だけ**を AI に渡します。保存データがないときは、その場でページを読み、それも読めなければ画面の固定の概要で答えます。
+  特集を紹介するときは、AI が選んだ特集の id を、保存データにある本物の URL（同じサイト内のものだけ）に置き換えて、返事の下にリンクとして表示します（AI に URL は書かせません）。
 
 セットアップ：GitHub のリポジトリの Settings → Secrets and variables → Actions に `GEMINI_API_KEY`（Vercel に設定しているものと同じキー）を登録します。
 

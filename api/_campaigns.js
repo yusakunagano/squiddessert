@@ -1,6 +1,7 @@
 // キャンペーンページの読み取り。
 // 事前に読んで保存する scripts/crawl-campaigns.mjs と、API（pay-assistant.js）の両方で使う。
 // ファイル名が _ で始まるので Vercel は API として公開しない。
+import { createHash } from "node:crypto";
 import { ApiError } from "@google/genai";
 import { ai, MODEL } from "./_shared.js";
 
@@ -118,6 +119,9 @@ export function safeUrl(u) {
   const s = String(u ?? "").trim();
   return s.startsWith(ALLOWED_PREFIX) && s.length <= 300 && !/\s/.test(s) ? s : "";
 }
+
+// 特集を指す短い符号（リンクの対応づけに使う。利用者には見せない）
+export const idOf = (c) => createHash("sha1").update(c.url || c.title).digest("hex").slice(0, 8);
 
 // AI が返した一覧を整える。読めなければ null。
 export function parseIndex(text) {

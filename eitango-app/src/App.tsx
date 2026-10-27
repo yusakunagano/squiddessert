@@ -17,7 +17,7 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
 ];
 
 export function App() {
-  const [tab, setTab] = useState<Tab>("words");
+  const [tab, setTab] = useState<Tab>("test");
   // テスト画面を「再テスト」から開いたときに範囲を指定するため、key で作り直す
   const [testKey, setTestKey] = useState(0);
   const [testSource, setTestSource] = useState<string | undefined>();

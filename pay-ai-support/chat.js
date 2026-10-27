@@ -94,6 +94,11 @@ function createChat({ title, greet, handle, ai }) {
     },
     open() {
       root.classList.add('open');
+      // Let the server start reading the campaign list now, so the first answer isn't slow.
+      if (ai && !chat.warmed) {
+        chat.warmed = true;
+        fetch(AI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: ai.page, warm: true }) }).catch(() => {});
+      }
       if (!msgs.children.length) { const g = greet(); chat.ai(g.text); chat.chips(g.chips); }
     },
     close() { root.classList.remove('open'); },
@@ -124,7 +129,7 @@ function createChat({ title, greet, handle, ai }) {
     chat.ai(r.reply);
     if (r.debug) {
       console.info('pay-assistant', r.debug);
-      chat.card(`<div class="typing" style="font-size:11px">⏱ ${(r.debug.ms / 1000).toFixed(1)}秒（${r.debug.model} / 思考:${r.debug.used}${r.debug.rejected.length ? ' / 不可:' + r.debug.rejected.join(',') : ''}）</div>`);
+      chat.card(`<div class="typing" style="font-size:11px">⏱ ${(r.debug.ms / 1000).toFixed(1)}秒（${r.debug.model} / 思考:${r.debug.used}${r.debug.rejected.length ? ' / 不可:' + r.debug.rejected.join(',') : ''}）／特集:${r.debug.source}${r.debug.campaignStatus ? '(' + r.debug.campaignStatus + ')' : ''}</div>`);
     }
     if (ACTION_URL[r.action]) return chat.launch(r.action, r.params);
     chat.chips([...(r.chips || []).slice(0, 3), ai.exitChip]);

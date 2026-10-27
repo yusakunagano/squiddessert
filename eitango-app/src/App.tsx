@@ -10,8 +10,8 @@ type Tab = "words" | "test" | "review" | "chat" | "settings";
 
 const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: "words", icon: "📘", label: "単語帳" },
-  { id: "test", icon: "✍️", label: "テスト" },
   { id: "review", icon: "📋", label: "復習" },
+  { id: "test", icon: "✍️", label: "テスト" },
   { id: "chat", icon: "💬", label: "AI会話" },
   { id: "settings", icon: "⚙️", label: "設定" },
 ];

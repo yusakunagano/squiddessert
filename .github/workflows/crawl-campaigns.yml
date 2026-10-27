@@ -1,0 +1,49 @@
+# キャンペーンページの特集一覧と各リンク先の詳細を、毎日 1 回、事前に読んで保存する。
+# 保存先は pay-ai-support/data/campaigns.json。AI サポートのチャットは、読みに行かずこのファイルを使う。
+# 手動で実行したいときは、GitHub の「Actions」→「キャンペーンの事前読み取り」→「Run workflow」。
+#
+# 事前に、リポジトリの Settings → Secrets and variables → Actions に GEMINI_API_KEY を登録しておく
+# （Vercel に設定しているものと同じキー）。
+name: キャンペーンの事前読み取り
+
+on:
+  schedule:
+    - cron: "17 20 * * *" # 毎日 05:17（日本時間）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: crawl-campaigns
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: 特集を読み取る
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/crawl-campaigns.mjs
+      - name: 変更があれば保存する
+        run: |
+          if git diff --quiet -- pay-ai-support/data/campaigns.json && [ -z "$(git ls-files --others --exclude-standard pay-ai-support/data)" ]; then
+            echo "変更なし"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pay-ai-support/data/campaigns.json
+          git commit -m "キャンペーンの特集データを更新 [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -37,6 +37,7 @@ const Link = {
 // ---------- Chat widget ----------
 // Relay server holding the Gemini key (same Vercel project as AI職業サポート).
 const AI_URL = 'https://squiddessert.vercel.app/api/pay-assistant';
+const LINK_ORIGIN = 'https://service.smt.docomo.ne.jp/';
 
 // Only the scopes the user allowed are ever put in the request.
 function consentedAccount() {
@@ -88,6 +89,18 @@ function createChat({ title, greet, handle, ai }) {
       chat.aiMode ? askAI(q) : chat.later(() => handle(q, chat));
     },
     stopAI() { chat.aiMode = false; chat.ai('ほかのことも聞いてください。'); chat.chips(greet().chips); },
+    // Link buttons under a reply. Titles are set as text, and only https links to the campaign site are accepted.
+    links(list) {
+      const ok = (Array.isArray(list) ? list : []).filter(l => l && typeof l.url === 'string' && l.url.startsWith(LINK_ORIGIN)).slice(0, 3);
+      if (!ok.length) return;
+      const el = chat.card('<div class="links"></div>');
+      ok.forEach(l => {
+        const a = document.createElement('a');
+        a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = `🔗 ${l.title || 'くわしく見る'}`;
+        el.firstChild.appendChild(a);
+      });
+    },
     launch(action, params) {
       chat.card(`<div class="launch">🚀 「${ACTION_NAME[action]}」を開きます…</div>`);
       setTimeout(() => location.href = ACTION_URL[action](params), 900);
@@ -127,6 +140,7 @@ function createChat({ title, greet, handle, ai }) {
     // The consent card explains itself, so the AI's own "need permission" line isn't shown.
     if (r.action === 'need_consent') return withConsent(chat, r.scopes, () => askAI(q));
     chat.ai(r.reply);
+    chat.links(r.links);
     if (r.debug) {
       console.info('pay-assistant', r.debug);
       chat.card(`<div class="typing" style="font-size:11px">⏱ ${(r.debug.ms / 1000).toFixed(1)}秒（${r.debug.model} / 思考:${r.debug.used}${r.debug.rejected.length ? ' / 不可:' + r.debug.rejected.join(',') : ''}）／特集:${r.debug.source}${r.debug.campaignStatus ? '(' + r.debug.campaignStatus + ')' : ''}</div>`);

@@ -122,6 +122,10 @@ function createChat({ title, greet, handle, ai }) {
     // The consent card explains itself, so the AI's own "need permission" line isn't shown.
     if (r.action === 'need_consent') return withConsent(chat, r.scopes, () => askAI(q));
     chat.ai(r.reply);
+    if (r.debug) {
+      console.info('pay-assistant', r.debug);
+      chat.card(`<div class="typing" style="font-size:11px">⏱ ${(r.debug.ms / 1000).toFixed(1)}秒（${r.debug.model} / 思考:${r.debug.used}${r.debug.rejected.length ? ' / 不可:' + r.debug.rejected.join(',') : ''}）</div>`);
+    }
     if (ACTION_URL[r.action]) return chat.launch(r.action, r.params);
     chat.chips([...(r.chips || []).slice(0, 3), ai.exitChip]);
   }

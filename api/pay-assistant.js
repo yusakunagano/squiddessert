@@ -109,16 +109,29 @@ ${account || "（利用者はまだ情報の提供を許可していません）
         ...extra,
       },
     });
-    // 案内の返答には長い推論が要らないので、まず思考オフで呼んで待ち時間を短くする。
-    // モデルがこの指定を受け付けないとき（400）は、指定なしでもう一度呼ぶ。
+    // 案内の返答には長い推論が要らないので、思考を抑える指定を順に試して待ち時間を短くする。
+    // モデルが受け付けない指定（400）は次の方式へ。最後は指定なし。どれで通ったかを debug に残す。
+    const started = Date.now();
+    const attempts = [
+      ["thinkingBudget:0", { thinkingConfig: { thinkingBudget: 0 } }],
+      ["thinkingLevel:minimal", { thinkingConfig: { thinkingLevel: "MINIMAL" } }],
+      ["default", {}],
+    ];
     let response;
-    try {
-      response = await request({ thinkingConfig: { thinkingBudget: 0 } });
-    } catch (err) {
-      if (!(err instanceof ApiError) || err.status !== 400) throw err;
-      console.warn("thinkingBudget 0 was rejected, retrying without it:", err.message);
-      response = await request({});
+    let used = "";
+    const rejected = [];
+    for (const [name, extra] of attempts) {
+      try {
+        response = await request(extra);
+        used = name;
+        break;
+      } catch (err) {
+        if (!(err instanceof ApiError) || err.status !== 400 || name === "default") throw err;
+        rejected.push(name);
+        console.warn(`${name} was rejected:`, err.message);
+      }
     }
+    const debug = { ms: Date.now() - started, used, rejected, model: MODEL };
 
     const text = response.text?.trim();
     if (!text) {
@@ -128,7 +141,7 @@ ${account || "（利用者はまだ情報の提供を許可していません）
     // 許可済みの項目は求め直さない
     result.scopes = (result.scopes ?? []).filter((s) => SCOPES.includes(s) && !granted.includes(s));
     if (result.action === "need_consent" && result.scopes.length === 0) result.action = "none";
-    return res.status(200).json(result);
+    return res.status(200).json({ ...result, debug });
   } catch (err) {
     return sendAiError(res, err);
   }

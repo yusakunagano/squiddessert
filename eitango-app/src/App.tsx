@@ -5,6 +5,7 @@ import { ReviewPage } from "./pages/ReviewPage";
 import { ChatPage } from "./pages/ChatPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { useAppState } from "./store";
+import { InstallBanner } from "./components/InstallBanner";
 
 type Tab = "words" | "test" | "review" | "chat" | "settings";
 
@@ -37,6 +38,7 @@ export function App() {
         <h1>📘 えいたんご</h1>
         <span className="muted small">{TABS.find((t) => t.id === tab)?.label}</span>
       </header>
+      <InstallBanner />
 
       <main>
         {tab === "words" && <WordsPage />}

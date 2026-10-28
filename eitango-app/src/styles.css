@@ -229,3 +229,24 @@ h3 { font-size: 1rem; margin: 16px 0 8px; }
 .ai-toggle.compact { justify-content: flex-end; margin: 0; }
 .engine-select { width: auto; padding: 6px 10px; font-size: 0.85rem; }
 .grade-error { border-color: var(--ng); background: var(--ng-soft); }
+
+/* iPhone 向け：ホーム画面に追加の案内 */
+.install-banner {
+  display: flex; align-items: stretch; gap: 4px;
+  margin: 10px 16px 0; background: #fff7ed; border: 1px solid #fdba74; border-radius: 12px;
+}
+.install-main {
+  flex: 1; display: flex; align-items: center; gap: 10px; text-align: left;
+  background: none; border: none; padding: 10px 12px; cursor: pointer; color: #9a3412;
+}
+.install-icon { font-size: 1.6rem; }
+.install-close { background: none; border: none; color: #9a3412; padding: 0 14px; cursor: pointer; font-size: 1rem; }
+.install-guide ol { padding-left: 1.4em; display: flex; flex-direction: column; gap: 10px; }
+.share-glyph {
+  display: inline-block; padding: 0 6px; margin: 0 2px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.85rem; background: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  .install-banner { background: #431407; border-color: #9a3412; }
+  .install-main, .install-close { color: #fed7aa; }
+}

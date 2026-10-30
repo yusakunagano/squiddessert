@@ -16,9 +16,6 @@
   header button { background: none; border: 0; font-size: 20px; cursor: pointer; color: var(--sub); }
   header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
   .proto { font-size: 11px; color: var(--sub); text-align: center; padding: 6px; background: #fff8e1; }
-  .steps { display: flex; gap: 4px; padding: 14px 16px 0; }
-  .steps span { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
-  .steps span.on { background: var(--brand); }
   .stepLabel { padding: 6px 16px 0; font-size: 12px; color: var(--sub); }
   main { padding: 16px; }
   h2 { font-size: 18px; margin: 4px 0 12px; }
@@ -62,14 +59,81 @@
   .chips button { border: 1px solid var(--brand); color: var(--brand); background: #fff; border-radius: 16px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
   .composer { display: flex; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid var(--line); }
   .composer input { flex: 1; } .composer button { border: 0; background: var(--brand); color: #fff; border-radius: 8px; padding: 0 14px; cursor: pointer; }
+
+  /* phases (progress) */
+  .phases { display: flex; gap: 4px; padding: 14px 16px 0; }
+  .phase { flex: 1; text-align: center; }
+  .phase i { display: block; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .phase i b { display: block; height: 100%; background: var(--brand); transition: width .25s; }
+  .phase span { display: block; margin-top: 4px; font-size: 10px; color: var(--sub); }
+  .phase.on span { color: var(--brand); font-weight: 700; }
+
+  h3 { font-size: 14px; margin: 18px 0 8px; }
+  select { background: #fff; }
+  .ghost { display: block; width: 100%; margin-top: 8px; padding: 12px; font-size: 14px; border: 0; background: none; color: var(--sub); cursor: pointer; }
+  .link { display: inline-block; margin-top: 8px; padding: 0; border: 0; background: none; color: var(--brand); font-size: 13px; text-decoration: underline; cursor: pointer; }
+  .demo { margin-top: 4px; font-size: 11px; color: #b26a00; }
+  .okline { margin-top: 12px; padding: 10px; border-radius: 8px; background: #e8f6ee; color: var(--ok); font-size: 13px; font-weight: 700; text-align: center; }
+  .warnline { margin-top: 12px; padding: 10px; border-radius: 8px; background: #fdecea; color: var(--err); font-size: 13px; line-height: 1.6; }
+  .btnrow { display: flex; gap: 8px; margin-top: 12px; }
+  .btnrow button { flex: 1; margin: 0; }
+  .primary.sm { margin-top: 0; padding: 10px; font-size: 14px; }
+  .resume { margin-bottom: 16px; padding: 12px; border: 1px solid var(--brand); border-radius: 10px; background: var(--brand-weak); font-size: 13px; }
+  .resume .sub { margin-top: 2px; color: var(--sub); }
+  .flow-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; }
+  .flow-chips span { padding: 4px 10px; border-radius: 12px; background: var(--bg); }
+  .flow-chips em { color: var(--sub); font-style: normal; }
+  .check-list { margin: 0; padding: 0; list-style: none; font-size: 14px; line-height: 1.7; }
+  .check-list li { padding: 8px 0 8px 28px; position: relative; border-bottom: 1px solid var(--line); }
+  .check-list li::before { content: '✓'; position: absolute; left: 4px; color: var(--ok); font-weight: 700; }
+  .chk { display: flex; gap: 10px; align-items: center; margin: 8px 0; font-size: 14px; font-weight: 400; }
+  .chk input { width: 20px; height: 20px; flex: none; }
+  .chk.all { padding: 12px; border-radius: 10px; background: var(--bg); font-weight: 700; }
+  details.term { margin-top: 10px; font-size: 13px; }
+  details.term summary { cursor: pointer; font-weight: 700; }
+  details.term p { margin: 6px 0 0; color: var(--sub); line-height: 1.7; }
+  .fchips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .fchips button { padding: 5px 12px; border: 1px solid var(--line); border-radius: 14px; background: #fff; font-size: 12px; cursor: pointer; }
+  .fchips button.sel { border-color: var(--brand); color: var(--brand); font-weight: 700; }
+  .bank-row { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 12px; margin-bottom: 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 14px; text-align: left; cursor: pointer; }
+  .bank-row.sel { border-color: var(--brand); background: var(--brand-weak); font-weight: 700; }
+  .tag { padding: 1px 8px; border: 1px solid var(--line); border-radius: 10px; font-size: 11px; color: var(--sub); font-weight: 400; }
+  .tag.warn { border-color: var(--err); color: var(--err); }
+  #banklist { max-height: 340px; overflow-y: auto; }
+  .opt { display: block; width: 100%; margin-bottom: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; text-align: left; cursor: pointer; font-size: 14px; }
+  .opt.sel { border-color: var(--brand); background: var(--brand-weak); }
+  .opt b { display: block; margin-bottom: 2px; }
+  .opt small { display: block; color: var(--sub); font-size: 12px; line-height: 1.6; }
+  .shot { width: 100%; padding: 12px; border-radius: 8px; border: 1px dashed var(--line); background: #fff; cursor: pointer; font-size: 14px; }
+  .shot.ok { border-color: var(--ok); }
+  .oval { width: 150px; height: 190px; margin: 16px auto; border: 3px dashed var(--line); border-radius: 50%; display: grid; place-items: center; font-size: 56px; }
+  .oval.ok { border: 3px solid var(--ok); color: var(--ok); }
+  .oval-card { margin: 16px 0 0; padding: 22px; border: 2px dashed var(--line); border-radius: 12px; text-align: center; font-size: 34px; }
+  .oval-card.ok { border: 2px solid var(--ok); }
+  .spin { width: 44px; height: 44px; margin: 28px auto 12px; border: 5px solid var(--line); border-top-color: var(--brand); border-radius: 50%; animation: rot 1s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .center { text-align: center; }
+  .bankframe { margin: 4px 0 12px; border: 2px solid #1a4fa0; border-radius: 10px; overflow: hidden; }
+  .bankframe .bar { padding: 10px 12px; background: #1a4fa0; color: #fff; font-size: 13px; font-weight: 700; }
+  .bankframe .inner { padding: 4px 14px 16px; }
+  .leave { margin: 0 0 8px; padding: 10px; border-radius: 8px; background: #eef3ff; font-size: 12px; line-height: 1.6; }
+  .sum { margin-top: 4px; }
+  .sum div { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .sum span { color: var(--sub); flex: none; }
+  .sum b { text-align: right; font-weight: 600; }
+  .sum button { margin-left: 6px; padding: 0; border: 0; background: none; color: var(--brand); font-size: 12px; text-decoration: underline; cursor: pointer; }
+  .sub-opt { margin-left: 12px; }
+  .switch { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding: 12px; border-radius: 10px; background: var(--bg); font-size: 14px; font-weight: 600; }
+  .switch input { width: 22px; height: 22px; }
+
 </style>
 </head>
 <body>
 <script src="gate.js?v=20261029"></script>
 <div class="app" id="app">
-  <div class="proto">※ UIプロトタイプです。実在のサービスとは接続していません</div>
+  <div class="proto">※ UIプロトタイプです。実在のサービスとは接続していません。「デモ：」は動作確認用の値です</div>
   <header><button id="back" aria-label="戻る">‹</button><h1>銀行口座の登録</h1><span style="width:20px"></span></header>
-  <div class="steps" id="steps"></div>
+  <div class="phases" id="phases"></div>
   <div class="stepLabel" id="stepLabel"></div>
   <main id="view"></main>
 </div>
@@ -86,213 +150,6 @@
   </div>
 </div>
 
-<script>
-const BANKS = ['三菱UFJ銀行','三井住友銀行','みずほ銀行','ゆうちょ銀行','りそな銀行','楽天銀行','PayPay銀行','住信SBIネット銀行'];
-const STEPS = [
-  { id: 'bank',    title: '金融機関を選択' },
-  { id: 'account', title: '口座情報を入力' },
-  { id: 'person',  title: '口座名義を確認' },
-  { id: 'kyc',     title: '本人確認' },
-  { id: 'auth',    title: '金融機関で認証' },
-  { id: 'done',    title: '登録完了' },
-];
-const state = { step: 0, bank: '', branch: '', number: '', kana: '', kyc: { doc: '', shots: {}, tries: {} }, errors: {}, failCount: 0, idleTimer: null };
-
-// ---------- Registration flow ----------
-const $ = id => document.getElementById(id);
-function render() {
-  $('steps').innerHTML = STEPS.map((_, i) => `<span class="${i <= state.step ? 'on' : ''}"></span>`).join('');
-  $('stepLabel').textContent = `STEP ${state.step + 1} / ${STEPS.length}：${STEPS[state.step].title}`;
-  const v = $('view');
-  const s = STEPS[state.step].id;
-  if (s === 'bank') {
-    v.innerHTML = `<h2>登録する金融機関を選んでください</h2>
-      <p class="lead">アプリの残高へのチャージに使う口座を登録します。</p>
-      <div class="bank-list">${BANKS.map(b => `<button data-bank="${b}" class="${state.bank === b ? 'sel' : ''}">${b}</button>`).join('')}</div>
-      <button class="primary" id="next" ${state.bank ? '' : 'disabled'}>次へ</button>`;
-    v.querySelectorAll('[data-bank]').forEach(b => b.onclick = () => { state.bank = b.dataset.bank; render(); });
-  } else if (s === 'account') {
-    const yucho = state.bank === 'ゆうちょ銀行';
-    v.innerHTML = `<h2>${state.bank}の口座情報</h2>
-      <label>${yucho ? '記号（5桁）' : '支店番号（3桁）'}</label>
-      <input id="branch" inputmode="numeric" value="${state.branch}" maxlength="${yucho ? 5 : 3}">
-      <div class="err" id="e-branch"></div>
-      <label>${yucho ? '番号（最大8桁）' : '口座番号（7桁）'}</label>
-      <input id="number" inputmode="numeric" value="${state.number}" maxlength="8">
-      <div class="err" id="e-number"></div>
-      <div class="note">キャッシュカードや通帳の表紙・見開きに記載されています。</div>
-      <button class="primary" id="next">次へ</button>`;
-  } else if (s === 'person') {
-    v.innerHTML = `<h2>口座名義（カナ）</h2>
-      <p class="lead">アカウントのご本人名義の口座のみ登録できます。</p>
-      <label>口座名義（全角カナ）</label>
-      <input id="kana" value="${state.kana}" placeholder="ヤマダ タロウ">
-      <div class="err" id="e-kana"></div>
-      <button class="primary" id="next">金融機関のサイトへ進む</button>`;
-  } else if (s === 'kyc') {
-    const k = state.kyc;
-    const docs = ['マイナンバーカード', '運転免許証', '在留カード'];
-    const shots = [['front', '書類の表面'], ['back', '書類の裏面'], ['face', '顔写真（自撮り）']];
-    v.innerHTML = `<h2>本人確認</h2>
-      <p class="lead">犯罪収益移転防止法に基づき、本人確認書類と顔写真を撮影します（デモのため実際には撮影しません）。</p>
-      <label>本人確認書類</label>
-      <div class="bank-list">${docs.map(d => `<button data-doc="${d}" class="${k.doc === d ? 'sel' : ''}">${d}</button>`).join('')}</div>
-      ${k.doc ? shots.map(([id, name]) => `<label>${name}</label>
-        <button class="shot" data-shot="${id}" style="width:100%;padding:12px;border-radius:8px;border:1px dashed ${k.shots[id] ? 'var(--ok)' : 'var(--line)'};background:#fff;cursor:pointer">
-          ${k.shots[id] ? '✓ 撮影済み' : '📷 撮影する'}</button>`).join('') : ''}
-      <div class="err" id="e-kyc">${state.errors.kyc || ''}</div>
-      <button class="primary" id="next" ${k.doc && shots.every(([id]) => k.shots[id]) ? '' : 'disabled'}>本人確認を送信</button>`;
-    v.querySelectorAll('[data-doc]').forEach(b => b.onclick = () => { k.doc = b.dataset.doc; k.shots = {}; state.errors = {}; render(); });
-    v.querySelectorAll('[data-shot]').forEach(b => b.onclick = () => shoot(b.dataset.shot));
-  } else if (s === 'auth') {
-    v.innerHTML = `<h2>${state.bank}で本人認証</h2>
-      <p class="lead">（デモ）実際の流れでは金融機関のサイトに移動し、暗証番号やワンタイムパスワードで認証します。</p>
-      <label>キャッシュカード暗証番号（デモ：1234 で成功）</label>
-      <input id="pin" type="password" inputmode="numeric" maxlength="4">
-      <div class="err" id="e-pin"></div>
-      <button class="primary" id="next">認証する</button>`;
-  } else {
-    v.innerHTML = `<div class="done"><div class="big">✓</div><h2>口座の登録が完了しました</h2>
-      <p class="lead">${state.bank}（${'*'.repeat(3)}${state.number.slice(-4)}）からチャージできます。</p>
-      <a class="primary" href="index.html" style="text-decoration:none">ホームに戻る</a></div>`;
-  }
-  const next = $('next'); if (next) next.onclick = submit;
-  v.querySelectorAll('input').forEach(i => i.addEventListener('input', resetIdle));
-  resetIdle();
-}
-
-// Demo: the first attempt at the front side and the selfie fails, so the AI support has something to help with.
-const SHOT_ERRORS = { front: '光が反射して文字が読み取れませんでした', face: '顔が枠に収まっていないか、暗すぎます' };
-function shoot(id) {
-  const k = state.kyc;
-  k.tries[id] = (k.tries[id] || 0) + 1;
-  if (SHOT_ERRORS[id] && k.tries[id] === 1) {
-    state.errors = { kyc: SHOT_ERRORS[id] }; state.kycErr = id;
-    state.failCount++;
-    nudge(state.failCount >= 2 ? '撮影でお困りですか？AIがコツをお伝えします' : 'うまく撮れないときはAIに聞いてください');
-  } else { k.shots[id] = true; state.errors = {}; $('hint').style.display = 'none'; }
-  render();
-}
-
-function setErr(field, msg) {
-  state.errors[field] = msg;
-  const el = $('e-' + field); if (el) el.textContent = msg || '';
-  const inp = $(field); if (inp) inp.classList.toggle('bad', !!msg);
-}
-
-function submit() {
-  const s = STEPS[state.step].id;
-  state.errors = {};
-  let ok = true;
-  if (s === 'account') {
-    state.branch = $('branch').value.trim(); state.number = $('number').value.trim();
-    const yucho = state.bank === 'ゆうちょ銀行';
-    if (!/^\d+$/.test(state.branch) || state.branch.length !== (yucho ? 5 : 3)) { setErr('branch', yucho ? '記号は5桁の数字で入力してください' : '支店番号は3桁の数字で入力してください'); ok = false; } else setErr('branch');
-    if (!/^\d+$/.test(state.number) || (yucho ? state.number.length > 8 : state.number.length !== 7)) { setErr('number', yucho ? '番号は8桁以内の数字で入力してください' : '口座番号は7桁の数字で入力してください'); ok = false; } else setErr('number');
-  } else if (s === 'person') {
-    state.kana = $('kana').value.trim();
-    if (!/^[ァ-ヶー　 ]+$/.test(state.kana)) { setErr('kana', '全角カタカナで入力してください'); ok = false; } else setErr('kana');
-  } else if (s === 'auth') {
-    if ($('pin').value !== '1234') { setErr('pin', '認証に失敗しました'); ok = false; }
-  }
-  if (!ok) {
-    state.failCount++;
-    if (state.failCount >= 2) nudge('入力でお困りですか？AIがお手伝いします');
-    return;
-  }
-  state.failCount = 0; state.step++; render();
-}
-
-$('back').onclick = () => {
-  if (state.step > 0 && state.step < STEPS.length - 1) { state.step--; render(); }
-  else location.href = 'index.html';
-};
-
-// ---------- AI support ----------
-// Context-aware FAQ: answers depend on the current step, bank and the errors on screen.
-const KB = [
-  { k: ['反射', '撮影', '読み取れ', '表面', 'ピント', 'ぼや', 'ブレ'], a: () => '書類撮影のコツです。\n・照明の真下を避け、少し斜めから光が当たる場所で撮る\n・無地で暗めの机の上に置く\n・書類の四隅が枠に収まるようにし、ピントが合うまで1〜2秒待つ\n・ホログラムやICチップ部分の反射が出たら、スマホを少し傾ける' },
-  { k: ['顔', '自撮り', 'セルフィー', '暗すぎ', '枠'], a: () => '顔写真のコツです。\n・明るい場所で、正面から光が当たるようにする（逆光はNG）\n・帽子・マスク・サングラスは外す\n・画面の枠に顔全体が収まる距離で、指示に合わせてゆっくり首を動かす' },
-  { k: ['書類', 'どれ', '持って', 'マイナンバー', '免許', '在留', 'パスポート', '保険証'], a: () => '使える本人確認書類は、マイナンバーカード・運転免許証・在留カードです。\n通知カード、健康保険証、パスポートは使えません。お手元にない場合は、書類を用意してから再開してください（入力内容は保持されます）。' },
-  { k: ['住所', '引っ越', '変わっ'], a: () => '書類の住所が現在の住所と違う場合、裏面に新しい住所の記載があれば裏面も撮影してください。記載がない場合は、先に書類の住所変更を行ってください。' },
-  { k: ['なぜ', '必要', '安全', '個人情報'], a: () => '本人確認は法律（犯罪収益移転防止法）で、口座からのチャージ前に必要と定められています。撮影した画像は本人確認の目的にのみ使用されます。' },
-  { k: ['暗証', 'パスワード', '認証', 'ワンタイム', 'ロック'], a: () => `${state.bank || '金融機関'}の認証では、キャッシュカードの暗証番号（4桁）やワンタイムパスワードが必要です。\n何度も間違えるとロックされる場合があるので、分からないときは無理に試さず金融機関にお問い合わせください。` },
-  { k: ['支店', '店番', '記号'], a: () => state.bank === 'ゆうちょ銀行'
-      ? 'ゆうちょ銀行は「記号（5桁）」と「番号（最大8桁）」を入力します。通帳の表紙や見開きに「記号 1XXX0 番号 XXXXXXX1」の形で書かれています。'
-      : '支店番号（店番）は3桁の数字です。キャッシュカードの表面、または通帳の表紙裏に記載されています。支店名しか分からない場合は、銀行の公式サイトの「支店検索」で調べられます。' },
-  { k: ['口座番号', '番号', '桁'], a: () => state.bank === 'ゆうちょ銀行'
-      ? 'ゆうちょ銀行の番号は最大8桁です。末尾の「1」も含めて入力してください。'
-      : '口座番号は7桁です。6桁以下の場合は先頭に「0」を付けて7桁にしてください（例：123456 → 0123456）。' },
-  { k: ['カナ', '名義', 'カタカナ', '半角'], a: () => '口座名義は全角カタカナで入力します。姓と名の間はスペースを入れてください。\n小さい文字（ャュョッ）も通帳の表記に合わせると確実です。半角カナは使えません。' },
-  { k: ['家族', '本人', '他人', '名義が違'], a: () => '登録できるのは アカウントのご本人名義の口座のみです。ご家族名義の口座は登録できません。' },
-  { k: ['銀行がない', '見つから', '対応', '使える銀行'], a: () => '一覧にない金融機関は、このプロトタイプでは選べません。実際のサービスでは「その他の金融機関」から検索できる想定です。' },
-  { k: ['手数料', 'お金', '費用'], a: () => '口座の登録自体に手数料はかかりません。' },
-  { k: ['人', 'オペレーター', '電話', '問い合わせ'], a: () => 'AIで解決しない場合はカスタマーセンターへおつなぎします（プロトタイプのため実際には発信しません）。' },
-];
-
-const STEP_CHIPS = {
-  bank:    ['使える銀行は？', '手数料はかかる？', '家族の口座は使える？'],
-  account: ['支店番号がわからない', '口座番号が6桁しかない', 'ゆうちょの記号・番号は？'],
-  person:  ['カナの入力方法は？', '名義が違うと言われる'],
-  kyc:     ['使える書類は？', 'うまく撮影できない', '顔写真のコツは？', 'なぜ本人確認が必要？'],
-  auth:    ['暗証番号を忘れた', 'ワンタイムパスワードとは？', 'オペレーターと話したい'],
-  done:    ['手数料はかかる？'],
-};
-
-function answer(q) {
-  const hit = KB.find(e => e.k.some(k => q.includes(k)));
-  if (hit) return hit.a();
-  return 'すみません、うまく理解できませんでした。下の候補から選ぶか、「支店番号」「名義」「暗証番号」などの言葉で聞いてみてください。';
-}
-
-function greeting() {
-  const s = STEPS[state.step];
-  const errs = Object.entries(state.errors).filter(([, m]) => m);
-  if (errs.length) {
-    // Explain the error currently on screen first — that's most likely why the user tapped.
-    const [field] = errs[0];
-    const topic = { branch: '支店', number: '口座番号', kana: 'カナ', pin: '暗証', kyc: state.kycErr === 'face' ? '顔' : '反射' }[field];
-    return `「${s.title}」でエラーが出ているようですね。\n\n${answer(topic)}`;
-  }
-  return `「${s.title}」の画面ですね。何にお困りですか？\nよくある質問から選ぶか、自由に入力してください。`;
-}
-
-function addMsg(text, who) {
-  const d = document.createElement('div'); d.className = 'msg ' + who; d.textContent = text;
-  $('msgs').appendChild(d); $('msgs').scrollTop = 1e9;
-}
-function ask(q) {
-  addMsg(q, 'me');
-  setTimeout(() => addMsg(answer(q), 'ai'), 400);
-}
-function openSheet() {
-  $('fab').classList.remove('nudge'); $('hint').style.display = 'none';
-  $('msgs').innerHTML = '';
-  addMsg(greeting(), 'ai');
-  $('chips').innerHTML = '';
-  STEP_CHIPS[STEPS[state.step].id].forEach(c => {
-    const b = document.createElement('button'); b.textContent = c; b.onclick = () => ask(c); $('chips').appendChild(b);
-  });
-  $('sheetRoot').classList.add('open');
-}
-function closeSheet() { $('sheetRoot').classList.remove('open'); }
-
-function nudge(text) {
-  $('fab').classList.add('nudge');
-  $('hint').textContent = text; $('hint').style.display = 'block';
-}
-// Proactively offer help if the user stays on an input step without progress.
-function resetIdle() {
-  clearTimeout(state.idleTimer);
-  if (STEPS[state.step].id === 'done') return;
-  state.idleTimer = setTimeout(() => nudge('お困りですか？タップでAIがサポートします'), 20000);
-}
-
-$('fab').onclick = openSheet;
-$('close').onclick = closeSheet; $('sheetBg').onclick = closeSheet;
-$('composer').onsubmit = e => { e.preventDefault(); const q = $('q').value.trim(); if (q) { ask(q); $('q').value = ''; } };
-
-render();
-</script>
+<script src="register.js?v=20261030"></script>
 </body>
 </html>

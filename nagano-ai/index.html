@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>永野AI 比較</title>
+<style>
+  :root { --bg: #f6f6f8; --card: #fff; --text: #1d1d1f; --sub: #6e6e73; --line: #e5e5ea; --accent: #3b5bdb; --ok: #2b8a3e; --err: #c92a2a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111113; --card: #1c1c1f; --text: #f2f2f4; --sub: #9a9aa0; --line: #2c2c30; --accent: #8ea2ff; --ok: #69db7c; --err: #ff8787; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; line-height: 1.7; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .lead { color: var(--sub); margin: 0 0 20px; font-size: 14px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  label, summary { font-weight: 600; font-size: 14px; }
+  summary { cursor: pointer; }
+  textarea, input[type=text] { width: 100%; margin-top: 8px; padding: 10px 12px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+  textarea { min-height: 140px; resize: vertical; }
+  .hint { font-size: 12px; color: var(--sub); margin: 6px 0 0; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 9px 14px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .row input { flex: 1; min-width: 200px; margin-top: 0; }
+  .answers { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 600px) { .answers { grid-template-columns: 1fr; } }
+  .answer { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .answer h3 { margin: 0 0 6px; font-size: 15px; }
+  .answer p { margin: 0; white-space: pre-wrap; font-size: 14px; }
+  .answer .meta { margin-top: 8px; font-size: 12px; color: var(--sub); }
+  .answer .error { color: var(--err); }
+  .votes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .votes button { flex: 1; min-width: 120px; }
+  .tally { font-size: 14px; }
+  .tally table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .tally td, .tally th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); font-weight: normal; }
+  .tally th { color: var(--sub); font-size: 12px; }
+  .status { margin: 8px 0; color: var(--sub); font-size: 14px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>永野AI 比較</h1>
+  <p class="lead">同じ質問を Gemini Flash と Gemma 4 に投げて、どちらが「永野らしい」かを選びます。どちらの答えか分からない状態で選べます。</p>
+
+  <details class="panel" id="personaBox">
+    <summary>永野さんの情報（口調・価値観・過去の回答例）</summary>
+    <textarea id="persona" placeholder="例：&#10;- 口調：落ち着いた敬体。結論から話す&#10;- 価値観：...&#10;- 回答例：&#10;Q: 休日は何をしていますか？&#10;A: ..."></textarea>
+    <p class="hint">この情報はこのブラウザにだけ保存され、質問のたびに AI へ送られます。リポジトリには保存されません。無料枠だと送信内容が Google のサービス改善に使われる場合があるので、公開してよい内容で試してください。</p>
+  </details>
+
+  <div class="panel">
+    <label for="question">質問</label>
+    <div class="row">
+      <input type="text" id="question" maxlength="500" placeholder="例：新しいことを始めるとき、まず何をする？">
+      <button class="primary" id="ask">聞く</button>
+    </div>
+  </div>
+
+  <div id="status" class="status" hidden></div>
+
+  <div id="result" hidden>
+    <div class="answers" id="answers"></div>
+    <div class="votes" id="votes">
+      <button data-vote="A">Aが永野らしい</button>
+      <button data-vote="B">Bが永野らしい</button>
+      <button data-vote="tie">どちらも同じくらい</button>
+      <button data-vote="none">どちらも違う</button>
+    </div>
+  </div>
+
+  <div class="panel tally" id="tallyBox" style="margin-top:16px">
+    <strong>これまでの結果</strong>
+    <table id="tally"></table>
+    <div class="row"><button id="resetTally">結果をリセット</button></div>
+  </div>
+</main>
+
+<script>
+(() => {
+  // GitHub Pages に置くときは API の置き場所（Vercel）を指す。他のアプリと同じ設定。
+  const API_ORIGIN = "https://squiddessert.vercel.app";
+  const API_URL = API_ORIGIN + "/api/nagano-compare";
+  const LS_PERSONA = "nagano-ai.persona";
+  const LS_TALLY = "nagano-ai.tally";
+
+  const $ = (id) => document.getElementById(id);
+  const personaEl = $("persona"), questionEl = $("question"), askBtn = $("ask");
+  let current = null; // { order: [result, result], voted: boolean }
+
+  const store = {
+    get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+    set(key, value) { try { localStorage.setItem(key, value); } catch {} },
+  };
+
+  personaEl.value = store.get(LS_PERSONA) ?? "";
+  personaEl.addEventListener("input", () => store.set(LS_PERSONA, personaEl.value));
+  if (!personaEl.value) $("personaBox").open = true;
+
+  // 集計：{ gemini: 勝ち数, gemma: 勝ち数, tie: 引き分け, none: どちらも違う, total: 回数 }
+  const loadTally = () => {
+    try { return { gemini: 0, gemma: 0, tie: 0, none: 0, total: 0, ...JSON.parse(store.get(LS_TALLY) || "{}") }; }
+    catch { return { gemini: 0, gemma: 0, tie: 0, none: 0, total: 0 }; }
+  };
+  const renderTally = () => {
+    const t = loadTally();
+    const pct = (n) => (t.total ? Math.round((n / t.total) * 100) + "%" : "-");
+    $("tally").innerHTML = "";
+    const add = (cells, head) => {
+      const tr = document.createElement("tr");
+      for (const c of cells) {
+        const cell = document.createElement(head ? "th" : "td");
+        cell.textContent = c;
+        tr.append(cell);
+      }
+      $("tally").append(tr);
+    };
+    add(["", "勝ち", "割合"], true);
+    add(["Gemini Flash", t.gemini, pct(t.gemini)]);
+    add(["Gemma 4", t.gemma, pct(t.gemma)]);
+    add(["同じくらい", t.tie, pct(t.tie)]);
+    add(["どちらも違う", t.none, pct(t.none)]);
+    add(["合計", t.total, ""]);
+  };
+  $("resetTally").addEventListener("click", () => {
+    if (confirm("集計をリセットしますか？")) { store.set(LS_TALLY, "{}"); renderTally(); }
+  });
+
+  const setStatus = (text) => { $("status").hidden = !text; $("status").textContent = text || ""; };
+
+  const renderAnswers = (revealed) => {
+    const box = $("answers");
+    box.innerHTML = "";
+    current.order.forEach((r, i) => {
+      const card = document.createElement("div");
+      card.className = "answer";
+      const h = document.createElement("h3");
+      h.textContent = revealed ? `${"AB"[i]}：${r.label}` : "AB"[i];
+      const p = document.createElement("p");
+      if (r.error) { p.textContent = r.error; p.className = "error"; } else { p.textContent = r.reply; }
+      card.append(h, p);
+      if (revealed) {
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = `${r.model} ・ ${(r.ms / 1000).toFixed(1)} 秒`;
+        card.append(meta);
+      }
+      box.append(card);
+    });
+  };
+
+  // モデル名が違うとき、使える名前を出す（Vercel の環境変数 GEMMA_MODEL / FLASH_MODEL に設定する）
+  async function showModels() {
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "models" }),
+      });
+      const data = await res.json();
+      if (res.ok) setStatus("使えるモデル名：" + data.models.join(", ") + "（Vercel の環境変数 GEMMA_MODEL か FLASH_MODEL に設定してください）");
+    } catch {}
+  }
+
+  async function ask() {
+    const question = questionEl.value.trim();
+    if (!question) return;
+    askBtn.disabled = true;
+    $("result").hidden = true;
+    setStatus("2つのモデルに聞いています…");
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ persona: personaEl.value, question }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "エラーが発生しました");
+      // どちらが A か分からないように毎回シャッフルする
+      const order = data.results.slice();
+      if (Math.random() < 0.5) order.reverse();
+      const bothOk = order.every((r) => !r.error);
+      current = { order, voted: !bothOk }; // 片方が失敗したときは比べられないので投票しない
+      renderAnswers(!bothOk);
+      $("votes").hidden = !bothOk;
+      $("result").hidden = false;
+      setStatus(bothOk ? "" : "片方の呼び出しに失敗したので、この回は集計しません。");
+      if (order.some((r) => r.status === 404)) showModels();
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      askBtn.disabled = false;
+    }
+  }
+
+  askBtn.addEventListener("click", ask);
+  questionEl.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) ask(); });
+
+  $("votes").addEventListener("click", (e) => {
+    const vote = e.target.dataset?.vote;
+    if (!vote || !current || current.voted) return;
+    current.voted = true;
+    const t = loadTally();
+    t.total += 1;
+    if (vote === "A" || vote === "B") t[current.order["AB".indexOf(vote)].id] += 1;
+    else t[vote] += 1;
+    store.set(LS_TALLY, JSON.stringify(t));
+    renderAnswers(true);
+    $("votes").hidden = true;
+    renderTally();
+  });
+
+  renderTally();
+})();
+</script>
+</body>
+</html>

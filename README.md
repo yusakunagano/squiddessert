@@ -40,6 +40,15 @@ GEMINI_API_KEY=... npx vercel dev
 # → http://localhost:3000/job/
 ```
 
+## 永野AI 比較
+
+同じ質問を Gemini Flash と Gemma 4 に投げ、どちらが「永野らしい」答えかをブラインド（どちらのモデルか伏せた状態）で選ぶ実験ページです。選んだ結果はブラウザに集計されます。
+
+- `nagano-ai/index.html` … 比較ページ（静的 HTML）。永野さんの情報（口調・価値観・回答例）はページの入力欄に書き、ブラウザにだけ保存されます（リポジトリには置かない）。
+- `api/nagano-compare.js` … 2 つのモデルを並列で呼ぶ関数。どちらにも同じ 1 通のメッセージ（永野さんの情報＋質問）を渡します。
+- API キーは職業サポートと同じ `GEMINI_API_KEY`（Google AI Studio のキー）を使います。
+- モデル名は環境変数 `FLASH_MODEL`（既定 `gemini-flash-latest`）と `GEMMA_MODEL`（既定 `gemma-4-31b-it`）で変えられます。Gemma の名前が違って見つからないときは、ページに使えるモデル名の一覧が出ます。
+
 ## AIサポート（決済アプリのプロトタイプ）
 
 `pay-ai-support/` のホームのAIアシスタントで「お得な情報を知りたい」を押したときだけ、`api/pay-assistant.js` 経由で Gemini に問い合わせます（それ以外の質問はページ内のルールで回答）。

@@ -1,5 +1,6 @@
 // 永野AI：Gemini Flash と Gemma に同じ質問を投げて、答えを並べて比べる API（Vercel Serverless Function）
-// POST /api/nagano-compare  body: { persona: string, question: string }
+// POST /api/nagano-compare  body: { persona: string, question: string, history?: { [id]: [{ role: "user" | "assistant", text }] } }
+//   history はモデルごとの、これまでの会話（そのモデル自身の答えが入る）。
 //   → { results: [{ id, label, model, reply, ms, error }] }
 // POST /api/nagano-compare  body: { action: "models" }  → { models: string[] }（Gemma / Flash のモデル名の確認用）
 // 永野さんの情報（persona）はリポジトリに置かず、ページから毎回送ってもらう。
@@ -14,9 +15,11 @@ const SIDES = [
 
 const MAX_PERSONA = 8000;
 const MAX_QUESTION = 500;
+const MAX_REPLY = 1500;
+const MAX_TURNS = 10; // 履歴に含める質問の数
 
 // Gemma は systemInstruction に対応していないことがあるので、どちらのモデルにも同じ 1 通のメッセージで渡す（公平な比較にもなる）。
-function buildPrompt(persona, question) {
+function buildFirstMessage(persona, question) {
   return `あなたは「永野優作」本人になりきって、質問に答えます。
 <persona> は永野優作についての情報（口調・価値観・過去の回答例など）です。口調や考え方をできるだけ再現してください。
 
@@ -31,13 +34,32 @@ ${persona || "（情報なし。自然な日本語で答えてください）"}
 質問: ${question}`;
 }
 
-async function ask(side, prompt) {
+// そのモデルの履歴を整える（user から始まり user で終わる交互の会話にする）
+function cleanHistory(raw) {
+  const list = (Array.isArray(raw) ? raw : [])
+    .slice(-2 * MAX_TURNS)
+    .map((m) => ({
+      role: m?.role === "assistant" ? "model" : "user",
+      text: String(m?.text ?? "").slice(0, m?.role === "assistant" ? MAX_REPLY : MAX_QUESTION).trim(),
+    }))
+    .filter((m) => m.text);
+  while (list.length && list[0].role !== "user") list.shift();
+  const alternating = list.filter((m, i) => i === 0 || m.role !== list[i - 1].role);
+  // 今回の質問が続くので、履歴はモデルの答えで終わらせる
+  while (alternating.length && alternating.at(-1).role !== "model") alternating.pop();
+  return alternating;
+}
+
+async function ask(side, persona, history, question) {
   const started = Date.now();
   const base = { id: side.id, label: side.label, model: side.model };
   try {
+    // 永野さんの情報は会話の最初の発言にだけ付ける。以降は履歴＋今回の質問をそのまま渡す。
+    const turns = [...history, { role: "user", text: question }];
+    turns[0] = { ...turns[0], text: buildFirstMessage(persona, turns[0].text) };
     const response = await ai.models.generateContent({
       model: side.model,
-      contents: prompt,
+      contents: turns.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
       config: { temperature: 0.7, maxOutputTokens: 2048 },
     });
     const reply = response.text?.trim();
@@ -77,8 +99,10 @@ export default async function handler(req, res) {
     const question = String(body.question ?? "").slice(0, MAX_QUESTION).trim();
     if (!question) return res.status(400).json({ error: "質問を入力してください" });
 
-    const prompt = buildPrompt(persona, question);
-    const results = await Promise.all(SIDES.map((side) => ask(side, prompt)));
+    const histories = body.history && typeof body.history === "object" ? body.history : {};
+    const results = await Promise.all(
+      SIDES.map((side) => ask(side, persona, cleanHistory(histories[side.id]), question)),
+    );
     return res.status(200).json({ results });
   } catch (err) {
     return sendAiError(res, err);

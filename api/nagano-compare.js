@@ -50,6 +50,25 @@ function cleanHistory(raw) {
   return alternating;
 }
 
+// Google 側の一時的な不調（500 台）は 1 回だけやり直す
+async function generate(params) {
+  try {
+    return await ai.models.generateContent(params);
+  } catch (err) {
+    if (err instanceof ApiError && err.status >= 500) return ai.models.generateContent(params);
+    throw err;
+  }
+}
+
+// ApiError の message は JSON 文字列のことがあるので、中の message だけ取り出す（API キーは含まれない）
+function upstreamMessage(err) {
+  try {
+    return String(JSON.parse(err.message)?.error?.message ?? err.message).slice(0, 300);
+  } catch {
+    return String(err.message ?? "").slice(0, 300);
+  }
+}
+
 async function ask(side, persona, history, question) {
   const started = Date.now();
   const base = { id: side.id, label: side.label, model: side.model };
@@ -57,7 +76,7 @@ async function ask(side, persona, history, question) {
     // 永野さんの情報は会話の最初の発言にだけ付ける。以降は履歴＋今回の質問をそのまま渡す。
     const turns = [...history, { role: "user", text: question }];
     turns[0] = { ...turns[0], text: buildFirstMessage(persona, turns[0].text) };
-    const response = await ai.models.generateContent({
+    const response = await generate({
       model: side.model,
       contents: turns.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
       config: { temperature: 0.7, maxOutputTokens: 2048 },
@@ -72,7 +91,7 @@ async function ask(side, persona, history, question) {
       status === 404 ? `モデル「${side.model}」が見つかりません`
       : status === 429 ? "混み合っています（無料枠の上限の可能性）"
       : `呼び出しに失敗しました${status ? `（${status}）` : ""}`;
-    return { ...base, ms: Date.now() - started, error, status };
+    return { ...base, ms: Date.now() - started, error, status, detail: upstreamMessage(err) };
   }
 }
 

@@ -163,6 +163,12 @@
       const p = document.createElement("p");
       if (r.error) { p.textContent = r.error; p.className = "error"; } else { p.textContent = r.reply; }
       card.append(h, p);
+      if (r.error && r.detail) {
+        const d = document.createElement("div");
+        d.className = "meta";
+        d.textContent = `${r.label}（${r.model}）：${r.detail}`;
+        card.append(d);
+      }
       if (revealed) {
         const meta = document.createElement("div");
         meta.className = "meta";

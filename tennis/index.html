@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>テニス組み合わせ</title>
+<style>
+  :root { --main:#2e7d32; --bg:#f4f7f4; --card:#fff; --text:#222; --muted:#777; --done:#e0e0e0; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --main:#66bb6a; --bg:#121512; --card:#1e221e; --text:#e8e8e8; --muted:#9a9a9a; --done:#2a2e2a; } }
+  :root[data-theme="dark"] { --main:#66bb6a; --bg:#121512; --card:#1e221e; --text:#e8e8e8; --muted:#9a9a9a; --done:#2a2e2a; }
+  nav, nav button { background:var(--card) !important; color:var(--text); }
+  input, select { background:var(--card); color:var(--text); }
+  .btn.sub { background:var(--card) !important; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--main); color:#fff; padding:14px 16px; font-size:1.2rem; font-weight:bold; }
+  nav { display:flex; background:#fff; border-bottom:1px solid #ddd; position:sticky; top:0; }
+  nav button { flex:1; padding:12px; border:none; background:none; font-size:1rem; cursor:pointer; border-bottom:3px solid transparent; }
+  nav button.active { border-color:var(--main); color:var(--main); font-weight:bold; }
+  main { max-width:640px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  label { display:block; margin:10px 0 4px; font-weight:bold; font-size:.9rem; }
+  input, select { width:100%; padding:10px; font-size:1rem; border:1px solid #ccc; border-radius:6px; }
+  .row { display:flex; gap:10px; } .row > div { flex:1; }
+  .btn { display:block; width:100%; margin-top:14px; padding:12px; font-size:1rem; border:none; border-radius:8px; background:var(--main); color:#fff; cursor:pointer; }
+  .btn.sub { background:#fff; color:var(--main); border:1px solid var(--main); }
+  .names { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:6px; }
+  .game { display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid #eee; }
+  .game.done { background:var(--done); color:var(--muted); text-decoration:line-through; }
+  .game input[type=checkbox] { width:24px; height:24px; flex:none; }
+  .game .no { font-weight:bold; width:3em; flex:none; }
+  .game .teams { flex:1; line-height:1.5; }
+  .vs { color:var(--main); font-weight:bold; margin:0 4px; }
+  .rest { font-size:.8rem; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th, td { padding:6px; border-bottom:1px solid #eee; text-align:center; }
+  .result { font-size:1.1rem; line-height:1.8; }
+  .big { font-size:1.8rem; color:var(--main); font-weight:bold; }
+  .hidden { display:none; }
+  .note { font-size:.8rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>🎾 テニス組み合わせ</header>
+<nav>
+  <button id="tabMatch" class="active" onclick="showTab('match')">組み合わせ</button>
+  <button id="tabPay" onclick="showTab('pay')">支払い計算</button>
+</nav>
+<main>
+  <!-- 組み合わせ -->
+  <section id="match">
+    <div class="card">
+      <div class="row">
+        <div><label>人数 (4〜20)</label><input id="num" type="number" min="4" max="20" value="8" oninput="renderNames()"></div>
+        <div><label>コート数</label><input id="courts" type="number" min="1" max="5" value="1"></div>
+      </div>
+      <div class="row">
+        <div><label>形式</label>
+          <select id="mode"><option value="4">ダブルス</option><option value="2">シングルス</option></select></div>
+        <div><label>ラウンド数</label><input id="rounds" type="number" min="1" max="50" value="10"></div>
+      </div>
+      <label>名前（空欄なら番号）</label>
+      <div class="names" id="names"></div>
+      <button class="btn" onclick="generate()">順番を作成</button>
+      <p class="note">試合数が均等になり、同じペア・同じ対戦がなるべく重ならないように組みます。</p>
+    </div>
+    <div class="card hidden" id="listCard">
+      <div id="progress"></div>
+      <div id="list"></div>
+      <h3>試合数</h3>
+      <table id="stats"></table>
+      <button class="btn sub" onclick="resetAll()">リセット</button>
+    </div>
+  </section>
+
+  <!-- 支払い -->
+  <section id="pay" class="hidden">
+    <div class="card">
+      <label>合計金額（円）</label><input id="amount" type="number" min="0" placeholder="例: 5000">
+      <label>人数</label><input id="people" type="number" min="1" value="8">
+      <label>端数の丸め</label>
+      <select id="unit"><option value="1">1円単位</option><option value="10">10円単位</option><option value="100" selected>100円単位</option><option value="500">500円単位</option></select>
+      <button class="btn" onclick="calcPay()">計算する</button>
+    </div>
+    <div class="card hidden" id="payResult"></div>
+  </section>
+</main>
+
+<script>
+const KEY = 'tennis-app-v1';
+let state = null;
+
+function showTab(t) {
+  ['match','pay'].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== t));
+  tabMatch.classList.toggle('active', t === 'match');
+  tabPay.classList.toggle('active', t === 'pay');
+}
+
+function clampNum() {
+  let n = parseInt(num.value) || 4;
+  return Math.min(20, Math.max(4, n));
+}
+
+function renderNames() {
+  const n = clampNum();
+  const old = [...document.querySelectorAll('#names input')].map(i => i.value);
+  names.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const inp = document.createElement('input');
+    inp.placeholder = `${i + 1}`;
+    inp.value = old[i] || '';
+    names.appendChild(inp);
+  }
+}
+
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pk = (a, b) => a < b ? a + '-' + b : b + '-' + a;
+
+function generate() {
+  const n = clampNum(); num.value = n;
+  const size = parseInt(mode.value);
+  const courts = Math.max(1, Math.min(parseInt(courts_.value) || 1, Math.floor(n / size)));
+  const rounds = Math.max(1, Math.min(50, parseInt(document.getElementById('rounds').value) || 1));
+  const players = [...document.querySelectorAll('#names input')].map((i, k) => i.value.trim() || `${k + 1}`);
+
+  const played = Array(n).fill(0), lastPlayed = Array(n).fill(-1);
+  const partner = {}, opp = {};
+  const games = [];
+
+  for (let r = 0; r < rounds; r++) {
+    // 試合数が少ない人 → 長く休んでいる人 を優先して選出
+    const order = shuffle([...Array(n).keys()]).sort((a, b) => played[a] - played[b] || lastPlayed[a] - lastPlayed[b]);
+    const need = courts * size;
+    const chosen = order.slice(0, need);
+    const resting = order.slice(need);
+    // コートごとに分割（全組み合わせから重複の少ない分け方を探索）
+    let best = null, bestScore = Infinity;
+    for (let t = 0; t < 200; t++) {
+      const p = shuffle([...chosen]);
+      let score = 0; const ms = [];
+      for (let c = 0; c < courts; c++) {
+        const g = p.slice(c * size, c * size + size);
+        let a, b;
+        if (size === 4) { a = [g[0], g[1]]; b = [g[2], g[3]]; score += (partner[pk(...a)] || 0) * 10 + (partner[pk(...b)] || 0) * 10; }
+        else { a = [g[0]]; b = [g[1]]; }
+        a.forEach(x => b.forEach(y => score += (opp[pk(x, y)] || 0) * 3));
+        ms.push([a, b]);
+      }
+      if (score < bestScore) { bestScore = score; best = ms; if (score === 0) break; }
+    }
+    best.forEach((m, c) => {
+      const [a, b] = m;
+      if (size === 4) { partner[pk(...a)] = (partner[pk(...a)] || 0) + 1; partner[pk(...b)] = (partner[pk(...b)] || 0) + 1; }
+      a.forEach(x => b.forEach(y => opp[pk(x, y)] = (opp[pk(x, y)] || 0) + 1));
+      [...a, ...b].forEach(x => { played[x]++; lastPlayed[x] = r; });
+      games.push({ round: r + 1, court: c + 1, a, b, rest: c === 0 ? resting : null, done: false });
+    });
+  }
+  state = { players, games, courts };
+  save(); renderList();
+}
+const courts_ = document.getElementById('courts');
+
+function renderList() {
+  if (!state) { listCard.classList.add('hidden'); return; }
+  listCard.classList.remove('hidden');
+  const P = state.players, nm = arr => arr.map(i => P[i]).join('・');
+  list.innerHTML = '';
+  state.games.forEach((g, idx) => {
+    const d = document.createElement('div');
+    d.className = 'game' + (g.done ? ' done' : '');
+    const label = state.courts > 1 ? `${g.round}-${g.court}` : `第${g.round}`;
+    d.innerHTML = `<input type="checkbox" ${g.done ? 'checked' : ''}>
+      <span class="no">${label}</span>
+      <span class="teams">${nm(g.a)}<span class="vs">vs</span>${nm(g.b)}
+      ${g.rest && g.rest.length ? `<div class="rest">休み: ${nm(g.rest)}</div>` : ''}</span>`;
+    d.querySelector('input').onchange = e => { g.done = e.target.checked; save(); renderList(); };
+    list.appendChild(d);
+  });
+  const doneN = state.games.filter(g => g.done).length;
+  progress.innerHTML = `<b>消化: ${doneN} / ${state.games.length} 試合</b>`;
+  const cnt = P.map(() => [0, 0]);
+  state.games.forEach(g => [...g.a, ...g.b].forEach(i => { cnt[i][0]++; if (g.done) cnt[i][1]++; }));
+  stats.innerHTML = '<tr><th>名前</th><th>予定</th><th>終了</th></tr>' +
+    P.map((p, i) => `<tr><td>${p}</td><td>${cnt[i][0]}</td><td>${cnt[i][1]}</td></tr>`).join('');
+}
+
+function resetAll() {
+  if (!confirm('組み合わせを削除しますか？')) return;
+  state = null; save(); renderList();
+}
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function load() { try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) { state = null; } }
+
+function calcPay() {
+  const amt = parseInt(amount.value), n = parseInt(people.value), u = parseInt(unit.value);
+  if (!(amt > 0) || !(n > 0)) { alert('金額と人数を入力してください'); return; }
+  const exact = amt / n;
+  const per = Math.ceil(exact / u) * u;
+  const total = per * n, over = total - amt;
+  // 端数調整案: 一部の人が少なく払う
+  const low = Math.floor(exact / u) * u;
+  let alt = '';
+  if (low !== per && low > 0) {
+    const k = Math.ceil((amt - low * n) / (per - low)); // per を払う人数
+    alt = `<p>ぴったりに近づける場合:<br>${per.toLocaleString()}円 × ${k}人 ＋ ${low.toLocaleString()}円 × ${n - k}人 ＝ ${(per * k + low * (n - k)).toLocaleString()}円</p>`;
+  }
+  payResult.classList.remove('hidden');
+  payResult.innerHTML = `<div class="result">
+    1人あたり<br><span class="big">${per.toLocaleString()}円</span>
+    <p>（正確には ${exact.toLocaleString(undefined, { maximumFractionDigits: 2 })}円）</p>
+    <p>集金合計: ${total.toLocaleString()}円 ／ 余り: ${over.toLocaleString()}円</p>${alt}</div>`;
+}
+
+load(); renderNames();
+if (state) { num.value = state.players.length; renderNames(); document.querySelectorAll('#names input').forEach((inp, i) => inp.value = state.players[i]); }
+renderList();
+</script>
+</body>
+</html>

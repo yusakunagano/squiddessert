@@ -69,7 +69,7 @@
       </div>
       <details id="opts">
         <summary>オプション</summary>
-        <label class="check"><input type="checkbox" id="useScore" onchange="toggleScore()">得点を入力する</label>
+        <label class="check"><input type="checkbox" id="useScore" onchange="toggleScore()">取ったゲーム数を入力する</label>
         <label>名前（空欄なら番号）</label>
         <div class="names" id="names"></div>
       </details>
@@ -267,7 +267,7 @@ function renderStats() {
     }
   });
   const sc = state.useScore;
-  $('stats').innerHTML = `<tr><th>名前</th><th>予定</th><th>終了</th><th>休み</th>${sc ? '<th>勝ち</th><th>得点</th>' : ''}</tr>` +
+  $('stats').innerHTML = `<tr><th>名前</th><th>予定</th><th>終了</th><th>休み</th>${sc ? '<th>勝ち</th><th>取得ゲーム</th>' : ''}</tr>` +
     P.map((p, i) => `<tr><td>${p}</td><td>${c[i].plan}</td><td>${c[i].done}</td><td>${c[i].rest}</td>${sc ? `<td>${c[i].win}</td><td>${c[i].pt}</td>` : ''}</tr>`).join('');
 }
 

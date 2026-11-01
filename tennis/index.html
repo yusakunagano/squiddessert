@@ -5,35 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>テニス組み合わせ</title>
 <style>
-  :root { --main:#2e7d32; --bg:#f4f7f4; --card:#fff; --text:#222; --muted:#777; --done:#e0e0e0; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --main:#66bb6a; --bg:#121512; --card:#1e221e; --text:#e8e8e8; --muted:#9a9a9a; --done:#2a2e2a; } }
-  :root[data-theme="dark"] { --main:#66bb6a; --bg:#121512; --card:#1e221e; --text:#e8e8e8; --muted:#9a9a9a; --done:#2a2e2a; }
-  nav, nav button { background:var(--card) !important; color:var(--text); }
-  input, select { background:var(--card); color:var(--text); }
-  .btn.sub { background:var(--card) !important; }
+  :root { --main:#2e7d32; --bg:#f4f7f4; --card:#fff; --text:#222; --muted:#777; --done:#e6e6e6; --line:#c9d3c9; --head:#e8f3e8; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --main:#66bb6a; --bg:#121512; --card:#1e221e; --text:#e8e8e8; --muted:#9a9a9a; --done:#2a2e2a; --line:#3a443a; --head:#243024; } }
+  :root[data-theme="dark"] { --main:#66bb6a; --bg:#121512; --card:#1e221e; --text:#e8e8e8; --muted:#9a9a9a; --done:#2a2e2a; --line:#3a443a; --head:#243024; }
   * { box-sizing:border-box; }
   body { margin:0; font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; background:var(--bg); color:var(--text); }
   header { background:var(--main); color:#fff; padding:14px 16px; font-size:1.2rem; font-weight:bold; }
-  nav { display:flex; background:#fff; border-bottom:1px solid #ddd; position:sticky; top:0; }
-  nav button { flex:1; padding:12px; border:none; background:none; font-size:1rem; cursor:pointer; border-bottom:3px solid transparent; }
+  nav { display:flex; background:var(--card); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:2; }
+  nav button { flex:1; padding:12px; border:none; background:none; color:var(--text); font-size:1rem; cursor:pointer; border-bottom:3px solid transparent; }
   nav button.active { border-color:var(--main); color:var(--main); font-weight:bold; }
-  main { max-width:640px; margin:0 auto; padding:16px; }
+  main { max-width:720px; margin:0 auto; padding:16px; }
   .card { background:var(--card); border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
   label { display:block; margin:10px 0 4px; font-weight:bold; font-size:.9rem; }
-  input, select { width:100%; padding:10px; font-size:1rem; border:1px solid #ccc; border-radius:6px; }
-  .row { display:flex; gap:10px; } .row > div { flex:1; }
+  input, select { width:100%; padding:10px; font-size:1rem; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--text); }
+  .row { display:flex; gap:10px; } .row > div { flex:1; min-width:0; }
   .btn { display:block; width:100%; margin-top:14px; padding:12px; font-size:1rem; border:none; border-radius:8px; background:var(--main); color:#fff; cursor:pointer; }
-  .btn.sub { background:#fff; color:var(--main); border:1px solid var(--main); }
-  .names { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:6px; }
-  .game { display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid #eee; }
-  .game.done { background:var(--done); color:var(--muted); text-decoration:line-through; }
-  .game input[type=checkbox] { width:24px; height:24px; flex:none; }
-  .game .no { font-weight:bold; width:3em; flex:none; }
-  .game .teams { flex:1; line-height:1.5; }
-  .vs { color:var(--main); font-weight:bold; margin:0 4px; }
-  .rest { font-size:.8rem; color:var(--muted); }
-  table { width:100%; border-collapse:collapse; font-size:.9rem; }
-  th, td { padding:6px; border-bottom:1px solid #eee; text-align:center; }
+  .btn.sub { background:var(--card); color:var(--main); border:1px solid var(--main); }
+  details { margin-top:14px; border:1px solid var(--line); border-radius:8px; padding:0 12px; }
+  summary { padding:12px 0; cursor:pointer; font-weight:bold; }
+  .check { display:flex; align-items:center; gap:8px; margin:10px 0; font-weight:bold; }
+  .check input { width:22px; height:22px; }
+  .names { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:6px; padding-bottom:12px; }
+  /* 対戦表 */
+  .sched { width:100%; border-collapse:collapse; font-size:1.15rem; }
+  .sched th, .sched td { border:2px solid var(--line); padding:10px 6px; text-align:center; vertical-align:middle; }
+  .sched th { background:var(--head); font-size:.95rem; }
+  .sched td.no { font-weight:bold; white-space:nowrap; }
+  .sched td.team { font-weight:bold; font-size:1.3rem; }
+  .sched td.vs { color:var(--main); font-weight:bold; width:2.5em; }
+  .sched td.rest { font-size:.95rem; color:var(--muted); text-align:left; padding:6px 10px; }
+  .sched tr.done td { background:var(--done); color:var(--muted); }
+  .sched tr.done td.team { text-decoration:line-through; }
+  .sched input[type=checkbox] { width:28px; height:28px; }
+  .sched select.score { width:3.6em; padding:6px 2px; font-size:1.1rem; margin-top:6px; }
+  .wrap { overflow-x:auto; }
+  .stats { width:100%; border-collapse:collapse; font-size:1rem; }
+  .stats th, .stats td { border:1px solid var(--line); padding:8px; text-align:center; }
+  .stats th { background:var(--head); }
+  .progress { font-size:1.1rem; font-weight:bold; margin-bottom:10px; }
   .result { font-size:1.1rem; line-height:1.8; }
   .big { font-size:1.8rem; color:var(--main); font-weight:bold; }
   .hidden { display:none; }
@@ -47,37 +56,39 @@
   <button id="tabPay" onclick="showTab('pay')">支払い計算</button>
 </nav>
 <main>
-  <!-- 組み合わせ -->
   <section id="match">
     <div class="card">
       <div class="row">
-        <div><label>人数 (4〜20)</label><input id="num" type="number" min="4" max="20" value="8" oninput="renderNames()"></div>
-        <div><label>コート数</label><input id="courts" type="number" min="1" max="5" value="1"></div>
+        <div><label>人数</label><select id="num" onchange="renderNames()"></select></div>
+        <div><label>コート数</label><select id="courts"></select></div>
       </div>
       <div class="row">
         <div><label>形式</label>
           <select id="mode"><option value="4">ダブルス</option><option value="2">シングルス</option></select></div>
-        <div><label>ラウンド数</label><input id="rounds" type="number" min="1" max="50" value="10"></div>
+        <div><label>ラウンド数</label><select id="rounds"></select></div>
       </div>
-      <label>名前（空欄なら番号）</label>
-      <div class="names" id="names"></div>
+      <details id="opts">
+        <summary>オプション</summary>
+        <label class="check"><input type="checkbox" id="useScore" onchange="toggleScore()">得点を入力する</label>
+        <label>名前（空欄なら番号）</label>
+        <div class="names" id="names"></div>
+      </details>
       <button class="btn" onclick="generate()">順番を作成</button>
-      <p class="note">試合数が均等になり、同じペア・同じ対戦がなるべく重ならないように組みます。</p>
+      <p class="note">最初の試合は 1〜4 番から。試合数が均等になり、休みが続かず、同じペア・同じ対戦・同じ休み仲間がなるべく重ならないように組みます。</p>
     </div>
     <div class="card hidden" id="listCard">
-      <div id="progress"></div>
-      <div id="list"></div>
+      <div class="progress" id="progress"></div>
+      <div class="wrap"><table class="sched" id="list"></table></div>
       <h3>試合数</h3>
-      <table id="stats"></table>
+      <table class="stats" id="stats"></table>
       <button class="btn sub" onclick="resetAll()">リセット</button>
     </div>
   </section>
 
-  <!-- 支払い -->
   <section id="pay" class="hidden">
     <div class="card">
-      <label>合計金額（円）</label><input id="amount" type="number" min="0" placeholder="例: 5000">
-      <label>人数</label><input id="people" type="number" min="1" value="8">
+      <label>合計金額（円）</label><input id="amount" type="number" min="0" inputmode="numeric" placeholder="例: 5000">
+      <label>人数</label><select id="people"></select>
       <label>端数の丸め</label>
       <select id="unit"><option value="1">1円単位</option><option value="10">10円単位</option><option value="100" selected>100円単位</option><option value="500">500円単位</option></select>
       <button class="btn" onclick="calcPay()">計算する</button>
@@ -87,102 +98,177 @@
 </main>
 
 <script>
-const KEY = 'tennis-app-v1';
+const KEY = 'tennis-app-v2';
 let state = null;
+const $ = id => document.getElementById(id);
+
+function fill(sel, from, to, def, suffix) {
+  for (let i = from; i <= to; i++) sel.add(new Option(i + suffix, i));
+  sel.value = def;
+}
+fill($('num'), 4, 20, 8, '人');
+fill($('courts'), 1, 5, 1, '面');
+fill($('rounds'), 1, 40, 10, 'ラウンド');
+fill($('people'), 1, 30, 8, '人');
 
 function showTab(t) {
-  ['match','pay'].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== t));
-  tabMatch.classList.toggle('active', t === 'match');
-  tabPay.classList.toggle('active', t === 'pay');
-}
-
-function clampNum() {
-  let n = parseInt(num.value) || 4;
-  return Math.min(20, Math.max(4, n));
+  ['match', 'pay'].forEach(id => $(id).classList.toggle('hidden', id !== t));
+  $('tabMatch').classList.toggle('active', t === 'match');
+  $('tabPay').classList.toggle('active', t === 'pay');
 }
 
 function renderNames() {
-  const n = clampNum();
+  const n = +$('num').value;
   const old = [...document.querySelectorAll('#names input')].map(i => i.value);
-  names.innerHTML = '';
+  $('names').innerHTML = '';
   for (let i = 0; i < n; i++) {
     const inp = document.createElement('input');
     inp.placeholder = `${i + 1}`;
     inp.value = old[i] || '';
-    names.appendChild(inp);
+    $('names').appendChild(inp);
   }
 }
 
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pk = (a, b) => a < b ? a + '-' + b : b + '-' + a;
+const get = (m, k) => m[k] || 0;
 
 function generate() {
-  const n = clampNum(); num.value = n;
-  const size = parseInt(mode.value);
-  const courts = Math.max(1, Math.min(parseInt(courts_.value) || 1, Math.floor(n / size)));
-  const rounds = Math.max(1, Math.min(50, parseInt(document.getElementById('rounds').value) || 1));
+  const n = +$('num').value, size = +$('mode').value;
+  const courts = Math.max(1, Math.min(+$('courts').value, Math.floor(n / size)));
+  const rounds = +$('rounds').value;
   const players = [...document.querySelectorAll('#names input')].map((i, k) => i.value.trim() || `${k + 1}`);
+  const need = courts * size;
 
-  const played = Array(n).fill(0), lastPlayed = Array(n).fill(-1);
-  const partner = {}, opp = {};
+  const played = Array(n).fill(0), lastRest = Array(n).fill(-99), rests = Array(n).fill(0);
+  const partner = {}, opp = {}, restTog = {};
   const games = [];
 
   for (let r = 0; r < rounds; r++) {
-    // 試合数が少ない人 → 長く休んでいる人 を優先して選出
-    const order = shuffle([...Array(n).keys()]).sort((a, b) => played[a] - played[b] || lastPlayed[a] - lastPlayed[b]);
-    const need = courts * size;
-    const chosen = order.slice(0, need);
-    const resting = order.slice(need);
-    // コートごとに分割（全組み合わせから重複の少ない分け方を探索）
-    let best = null, bestScore = Infinity;
-    for (let t = 0; t < 200; t++) {
-      const p = shuffle([...chosen]);
-      let score = 0; const ms = [];
+    let chosen, best;
+    if (r === 0) {
+      // スタートは 1〜4（2面なら 1〜8）番から
+      chosen = [...Array(need).keys()];
+      best = [];
       for (let c = 0; c < courts; c++) {
-        const g = p.slice(c * size, c * size + size);
-        let a, b;
-        if (size === 4) { a = [g[0], g[1]]; b = [g[2], g[3]]; score += (partner[pk(...a)] || 0) * 10 + (partner[pk(...b)] || 0) * 10; }
-        else { a = [g[0]]; b = [g[1]]; }
-        a.forEach(x => b.forEach(y => score += (opp[pk(x, y)] || 0) * 3));
-        ms.push([a, b]);
+        const g = chosen.slice(c * size, c * size + size);
+        best.push(size === 4 ? [[g[0], g[1]], [g[2], g[3]]] : [[g[0]], [g[1]]]);
       }
-      if (score < bestScore) { bestScore = score; best = ms; if (score === 0) break; }
+    } else {
+      // 出場者選び：試合数の均等 > 連続休み回避 > 休み間隔 > 休み仲間の重複回避
+      let bestSel = null, bestSelScore = Infinity;
+      for (let t = 0; t < 300; t++) {
+        const order = shuffle([...Array(n).keys()]).sort((a, b) => played[a] - played[b] || lastRest[b] - lastRest[a]);
+        // 境界付近をランダムに入れ替えて候補を広げる
+        if (t > 0 && need < n) {
+          const i = need - 1 - Math.floor(Math.random() * Math.min(need, 3));
+          const j = need + Math.floor(Math.random() * Math.min(n - need, 3));
+          [order[i], order[j]] = [order[j], order[i]];
+        }
+        const sel = order.slice(0, need), rest = order.slice(need);
+        let s = 0;
+        const after = played.slice(); sel.forEach(x => after[x]++);
+        s += (Math.max(...after) - Math.min(...after)) * 1000;
+        rest.forEach(x => { if (lastRest[x] === r - 1) s += 500; s += Math.max(0, 3 - (r - lastRest[x])) * 20; });
+        for (let i = 0; i < rest.length; i++) for (let j = i + 1; j < rest.length; j++) s += get(restTog, pk(rest[i], rest[j])) * 10;
+        if (s < bestSelScore) { bestSelScore = s; bestSel = sel; }
+      }
+      chosen = bestSel;
+      let bestScore = Infinity;
+      for (let t = 0; t < 300; t++) {
+        const p = shuffle([...chosen]);
+        let score = 0; const ms = [];
+        for (let c = 0; c < courts; c++) {
+          const g = p.slice(c * size, c * size + size);
+          let a, b;
+          if (size === 4) { a = [g[0], g[1]]; b = [g[2], g[3]]; score += get(partner, pk(...a)) * 10 + get(partner, pk(...b)) * 10; }
+          else { a = [g[0]]; b = [g[1]]; }
+          a.forEach(x => b.forEach(y => score += get(opp, pk(x, y)) * 3));
+          ms.push([a, b]);
+        }
+        if (score < bestScore) { bestScore = score; best = ms; if (score === 0) break; }
+      }
     }
+    const resting = [...Array(n).keys()].filter(x => !chosen.includes(x));
+    resting.forEach(x => { lastRest[x] = r; rests[x]++; });
+    for (let i = 0; i < resting.length; i++) for (let j = i + 1; j < resting.length; j++) restTog[pk(resting[i], resting[j])] = get(restTog, pk(resting[i], resting[j])) + 1;
     best.forEach((m, c) => {
       const [a, b] = m;
-      if (size === 4) { partner[pk(...a)] = (partner[pk(...a)] || 0) + 1; partner[pk(...b)] = (partner[pk(...b)] || 0) + 1; }
-      a.forEach(x => b.forEach(y => opp[pk(x, y)] = (opp[pk(x, y)] || 0) + 1));
-      [...a, ...b].forEach(x => { played[x]++; lastPlayed[x] = r; });
-      games.push({ round: r + 1, court: c + 1, a, b, rest: c === 0 ? resting : null, done: false });
+      if (size === 4) { partner[pk(...a)] = get(partner, pk(...a)) + 1; partner[pk(...b)] = get(partner, pk(...b)) + 1; }
+      a.forEach(x => b.forEach(y => opp[pk(x, y)] = get(opp, pk(x, y)) + 1));
+      [...a, ...b].forEach(x => played[x]++);
+      games.push({ round: r + 1, court: c + 1, a, b, rest: c === 0 ? resting : null, done: false, sa: '', sb: '' });
     });
   }
-  state = { players, games, courts };
+  state = { players, games, courts, useScore: $('useScore').checked };
   save(); renderList();
 }
-const courts_ = document.getElementById('courts');
+
+function toggleScore() {
+  if (state) { state.useScore = $('useScore').checked; save(); renderList(); }
+}
+
+function scoreSel(val, onch) {
+  const s = document.createElement('select');
+  s.className = 'score';
+  s.add(new Option('-', ''));
+  for (let i = 0; i <= 15; i++) s.add(new Option(i, i));
+  s.value = val;
+  s.onchange = () => onch(s.value);
+  return s;
+}
 
 function renderList() {
-  if (!state) { listCard.classList.add('hidden'); return; }
-  listCard.classList.remove('hidden');
-  const P = state.players, nm = arr => arr.map(i => P[i]).join('・');
-  list.innerHTML = '';
-  state.games.forEach((g, idx) => {
-    const d = document.createElement('div');
-    d.className = 'game' + (g.done ? ' done' : '');
-    const label = state.courts > 1 ? `${g.round}-${g.court}` : `第${g.round}`;
-    d.innerHTML = `<input type="checkbox" ${g.done ? 'checked' : ''}>
-      <span class="no">${label}</span>
-      <span class="teams">${nm(g.a)}<span class="vs">vs</span>${nm(g.b)}
-      ${g.rest && g.rest.length ? `<div class="rest">休み: ${nm(g.rest)}</div>` : ''}</span>`;
-    d.querySelector('input').onchange = e => { g.done = e.target.checked; save(); renderList(); };
-    list.appendChild(d);
+  if (!state) { $('listCard').classList.add('hidden'); return; }
+  $('listCard').classList.remove('hidden');
+  const P = state.players, nm = arr => [...arr].sort((x, y) => x - y).map(i => P[i]).join('・');
+  const multi = state.courts > 1;
+  const tbl = $('list');
+  tbl.innerHTML = `<tr><th>済</th><th>${multi ? '試合' : '順番'}</th><th>チーム</th><th></th><th>チーム</th></tr>`;
+  state.games.forEach(g => {
+    const tr = document.createElement('tr');
+    if (g.done) tr.className = 'done';
+    const label = multi ? `${g.round}-${g.court}` : `${g.round}`;
+    tr.innerHTML = `<td><input type="checkbox" ${g.done ? 'checked' : ''}></td><td class="no">${label}</td>
+      <td class="team">${nm(g.a)}</td><td class="vs">vs</td><td class="team">${nm(g.b)}</td>`;
+    tr.querySelector('input').onchange = e => { g.done = e.target.checked; save(); renderList(); };
+    if (state.useScore) {
+      const tds = tr.querySelectorAll('td.team');
+      tds[0].appendChild(document.createElement('br'));
+      tds[0].appendChild(scoreSel(g.sa, v => { g.sa = v; save(); renderStats(); }));
+      tds[1].appendChild(document.createElement('br'));
+      tds[1].appendChild(scoreSel(g.sb, v => { g.sb = v; save(); renderStats(); }));
+    }
+    tbl.appendChild(tr);
+    const isLast = !state.games.some(x => x.round === g.round && x.court > g.court);
+    const rest = state.games.find(x => x.round === g.round).rest;
+    if (isLast && rest && rest.length) {
+      const rt = document.createElement('tr');
+      if (g.done) rt.className = 'done';
+      rt.innerHTML = `<td class="rest" colspan="5">休み：${nm(rest)}</td>`;
+      tbl.appendChild(rt);
+    }
   });
   const doneN = state.games.filter(g => g.done).length;
-  progress.innerHTML = `<b>消化: ${doneN} / ${state.games.length} 試合</b>`;
-  const cnt = P.map(() => [0, 0]);
-  state.games.forEach(g => [...g.a, ...g.b].forEach(i => { cnt[i][0]++; if (g.done) cnt[i][1]++; }));
-  stats.innerHTML = '<tr><th>名前</th><th>予定</th><th>終了</th></tr>' +
-    P.map((p, i) => `<tr><td>${p}</td><td>${cnt[i][0]}</td><td>${cnt[i][1]}</td></tr>`).join('');
+  $('progress').textContent = `消化：${doneN} / ${state.games.length} 試合`;
+  renderStats();
+}
+
+function renderStats() {
+  const P = state.players;
+  const c = P.map(() => ({ plan: 0, done: 0, rest: 0, win: 0, pt: 0 }));
+  state.games.forEach(g => {
+    [...g.a, ...g.b].forEach(i => { c[i].plan++; if (g.done) c[i].done++; });
+    if (g.rest) g.rest.forEach(i => c[i].rest++);
+    if (g.sa !== '' && g.sb !== '') {
+      g.a.forEach(i => c[i].pt += +g.sa); g.b.forEach(i => c[i].pt += +g.sb);
+      if (+g.sa > +g.sb) g.a.forEach(i => c[i].win++);
+      if (+g.sb > +g.sa) g.b.forEach(i => c[i].win++);
+    }
+  });
+  const sc = state.useScore;
+  $('stats').innerHTML = `<tr><th>名前</th><th>予定</th><th>終了</th><th>休み</th>${sc ? '<th>勝ち</th><th>得点</th>' : ''}</tr>` +
+    P.map((p, i) => `<tr><td>${p}</td><td>${c[i].plan}</td><td>${c[i].done}</td><td>${c[i].rest}</td>${sc ? `<td>${c[i].win}</td><td>${c[i].pt}</td>` : ''}</tr>`).join('');
 }
 
 function resetAll() {
@@ -194,27 +280,30 @@ function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catc
 function load() { try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) { state = null; } }
 
 function calcPay() {
-  const amt = parseInt(amount.value), n = parseInt(people.value), u = parseInt(unit.value);
-  if (!(amt > 0) || !(n > 0)) { alert('金額と人数を入力してください'); return; }
+  const amt = parseInt($('amount').value), n = +$('people').value, u = +$('unit').value;
+  if (!(amt > 0)) { alert('金額を入力してください'); return; }
   const exact = amt / n;
   const per = Math.ceil(exact / u) * u;
   const total = per * n, over = total - amt;
-  // 端数調整案: 一部の人が少なく払う
   const low = Math.floor(exact / u) * u;
   let alt = '';
   if (low !== per && low > 0) {
-    const k = Math.ceil((amt - low * n) / (per - low)); // per を払う人数
+    const k = Math.ceil((amt - low * n) / (per - low));
     alt = `<p>ぴったりに近づける場合:<br>${per.toLocaleString()}円 × ${k}人 ＋ ${low.toLocaleString()}円 × ${n - k}人 ＝ ${(per * k + low * (n - k)).toLocaleString()}円</p>`;
   }
-  payResult.classList.remove('hidden');
-  payResult.innerHTML = `<div class="result">
+  $('payResult').classList.remove('hidden');
+  $('payResult').innerHTML = `<div class="result">
     1人あたり<br><span class="big">${per.toLocaleString()}円</span>
     <p>（正確には ${exact.toLocaleString(undefined, { maximumFractionDigits: 2 })}円）</p>
     <p>集金合計: ${total.toLocaleString()}円 ／ 余り: ${over.toLocaleString()}円</p>${alt}</div>`;
 }
 
 load(); renderNames();
-if (state) { num.value = state.players.length; renderNames(); document.querySelectorAll('#names input').forEach((inp, i) => inp.value = state.players[i]); }
+if (state) {
+  $('num').value = state.players.length; renderNames();
+  document.querySelectorAll('#names input').forEach((inp, i) => { if (state.players[i] !== `${i + 1}`) inp.value = state.players[i]; });
+  $('useScore').checked = !!state.useScore;
+}
 renderList();
 </script>
 </body>

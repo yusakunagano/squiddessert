@@ -73,8 +73,9 @@ function createChat({ title, greet, handle, ai }) {
 
   const chat = {
     history: [],
-    ai(text) { const d = document.createElement('div'); d.className = 'msg ai'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; chat.history.push({ role: 'assistant', text }); },
-    me(text) { const d = document.createElement('div'); d.className = 'msg me'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; chat.history.push({ role: 'user', text }); },
+    // record=false: shown on screen but not sent to the AI as part of the conversation (e.g. the consent exchange)
+    ai(text, record = true) { const d = document.createElement('div'); d.className = 'msg ai'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; if (record) chat.history.push({ role: 'assistant', text }); },
+    me(text, record = true) { const d = document.createElement('div'); d.className = 'msg me'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; if (record) chat.history.push({ role: 'user', text }); },
     card(html) { const d = document.createElement('div'); d.className = 'msg card'; d.innerHTML = html; msgs.appendChild(d); msgs.scrollTop = 1e9; return d; },
     chips(list, onPick = q => chat.ask(q)) {
       const c = $('.chips'); c.innerHTML = '';
@@ -87,6 +88,15 @@ function createChat({ title, greet, handle, ai }) {
       chat.me(q);
       if (chat.aiMode && q === ai.exitChip) return chat.stopAI();
       chat.aiMode ? askAI(q) : chat.later(() => handle(q, chat));
+    },
+    // A question the user typed or spoke. The AI answers it (a screen-opening request is handled directly by quick()).
+    // Buttons (chips) still use ask() and get the fixed answers.
+    typed(q) {
+      chat.me(q);
+      if (!ai) return chat.later(() => handle(q, chat));
+      if (chat.aiMode) return q === ai.exitChip ? chat.stopAI() : askAI(q, ai); // still inside the お得な情報 AI mode
+      if (ai.free) return ai.free.quick?.(q, chat) ? undefined : askAI(q, ai.free);
+      chat.later(() => handle(q, chat));
     },
     stopAI() { chat.aiMode = false; chat.ai('ほかのことも聞いてください。'); chat.chips(greet().chips); },
     // Link buttons under a reply. Titles are set as text, and only https links to the campaign site are accepted.
@@ -108,7 +118,7 @@ function createChat({ title, greet, handle, ai }) {
     open() {
       root.classList.add('open');
       // Let the server start reading the campaign list now, so the first answer isn't slow.
-      if (ai && !chat.warmed) {
+      if (ai?.page === 'deals' && !chat.warmed) {
         chat.warmed = true;
         fetch(AI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: ai.page, warm: true }) }).catch(() => {});
       }
@@ -118,13 +128,14 @@ function createChat({ title, greet, handle, ai }) {
   };
   // Ask the AI; if the relay can't be reached, answer with the built-in rules instead.
   let offlineNoted = false;
-  async function askAI(q) {
+  // cfg: ai (the お得な情報 mode) or ai.free (a question typed on the page).
+  async function askAI(q, cfg = ai) {
     const typing = chat.card('<div class="typing">考え中…</div>');
     let r;
     try {
       const res = await fetch(AI_URL, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ page: ai.page, facts: ai.facts(), account: consentedAccount(), granted: Object.keys(SCOPES).filter(s => Link.granted(s)), messages: chat.history.slice(-12) }),
+        body: JSON.stringify({ page: cfg.page, facts: cfg.facts(), account: consentedAccount(), granted: Object.keys(SCOPES).filter(s => Link.granted(s)), messages: chat.history.slice(-12) }),
       });
       r = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(`${res.status} ${r.error || ''}`.trim());
@@ -133,12 +144,12 @@ function createChat({ title, greet, handle, ai }) {
       console.error('pay-assistant', e);
       // Show why, so a broken deploy or missing key is visible on the phone.
       if (!offlineNoted) { offlineNoted = true; chat.card(`<div class="authing">AIに接続できないため、簡易モードで答えます<br><small>理由：${String(e.message || e).replace(/[<>&]/g, '')}</small></div>`); }
-      chat.aiMode = false;
-      return ai.offline(chat);
+      if (cfg === ai) { chat.aiMode = false; return ai.offline(chat); }
+      return handle(q, chat); // typed question: answer with the built-in rules instead
     }
     typing.remove();
     // The consent card explains itself, so the AI's own "need permission" line isn't shown.
-    if (r.action === 'need_consent') return withConsent(chat, r.scopes, () => askAI(q));
+    if (r.action === 'need_consent') return withConsent(chat, r.scopes, () => askAI(q, cfg));
     chat.ai(r.reply);
     chat.links(r.links);
     if (r.debug) {
@@ -146,15 +157,16 @@ function createChat({ title, greet, handle, ai }) {
       chat.card(`<div class="typing" style="font-size:11px">⏱ ${(r.debug.ms / 1000).toFixed(1)}秒（${r.debug.model} / 思考:${r.debug.used}${r.debug.rejected.length ? ' / 不可:' + r.debug.rejected.join(',') : ''}）／特集:${r.debug.source}${r.debug.campaignStatus ? '(' + r.debug.campaignStatus + ')' : ''}</div>`);
     }
     if (ACTION_URL[r.action]) return chat.launch(r.action, r.params);
-    chat.chips([...(r.chips || []).slice(0, 3), ai.exitChip]);
+    const next = (r.chips || []).slice(0, 3);
+    chat.chips(cfg === ai ? [...next, ai.exitChip] : next.length ? next : greet().chips);
   }
 
-  chat.askAI = askAI;
+  chat.askAI = (q, cfg) => askAI(q, cfg);
   $('.ai-fab').onclick = chat.open;
   $('.close').onclick = chat.close;
   $('.sheet-bg').onclick = chat.close;
-  $('.composer').onsubmit = e => { e.preventDefault(); const i = $('.composer input'); const q = i.value.trim(); if (q) { chat.ask(q); i.value = ''; } };
-  setupVoice($('.mic'), $('.composer input'), q => chat.ask(q));
+  $('.composer').onsubmit = e => { e.preventDefault(); const i = $('.composer input'); const q = i.value.trim(); if (q) { chat.typed(q); i.value = ''; } };
+  setupVoice($('.mic'), $('.composer input'), q => chat.typed(q));
   return chat;
 }
 
@@ -185,7 +197,7 @@ function setupVoice(btn, input, onDone) {
 // what the AI may see; only call onGranted once every needed scope is allowed.
 function withConsent(chat, needed, onGranted) {
   if (needed.every(s => Link.granted(s))) return onGranted();
-  chat.ai('このご質問にはお客さまのアカウント情報が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。');
+  chat.ai('このご質問にはお客さまのアカウント情報が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。', false);
   const el = chat.card(`
     <div class="consent">
       <b>アカウント連携とAIへの情報提供</b>
@@ -197,12 +209,12 @@ function withConsent(chat, needed, onGranted) {
     </div>`);
   const done = () => el.querySelectorAll('button, input').forEach(b => b.disabled = true);
   el.querySelector('.no').onclick = () => {
-    done(); chat.me('許可しない');
+    done(); chat.me('許可しない', false);
     chat.later(() => chat.ai('承知しました。アカウント情報は使わずにお答えします。\n残高や明細はホームの「利用履歴」からもご確認いただけます。'));
   };
   el.querySelector('.yes').onclick = () => {
     const scopes = [...el.querySelectorAll('input:checked')].map(i => i.value);
-    done(); chat.me(`連携して許可（${scopes.map(s => SCOPES[s].label).join('・') || 'なし'}）`);
+    done(); chat.me(`連携して許可（${scopes.map(s => SCOPES[s].label).join('・') || 'なし'}）`, false);
     // Mock of the account-linking step (biometric / password confirmation in the real app).
     const auth = chat.card('<div class="authing">🔐 本人確認中…（デモ）</div>');
     setTimeout(() => {

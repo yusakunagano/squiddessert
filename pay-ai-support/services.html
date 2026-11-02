@@ -65,7 +65,7 @@
 </div>
 <div class="detail" id="detail"><div class="panel" id="panel"></div></div>
 
-<script src="chat.js?v=20261029"></script>
+<script src="chat.js?v=20261102"></script>
 <script>
 const MONTH_TOTAL = 47140;
 
@@ -176,8 +176,13 @@ function rateUpPlan(chat, focus) {
     }));
 }
 
+// 質問候補のボタンはルールで即答し、入力した質問・音声は、いまの特典の状態をもとにAIが答える
 const chat = createChat({
   title: '倍率アップAI',
+  ai: { free: { page: 'services', facts: () => [
+    `表示：最大${fmt(nowMax)}%（適用中の特典の合計）／${fmt(potMax)}%（未適用の特典とポイ活プランの最大10%を含む最大）。今月の利用総額 ${MONTH_TOTAL}円。`,
+    ...BENEFITS.map(b => `【${b.name}】${b.on ? '適用中' : '未適用'}・${b.rate}%${b.rate2 ? '（最大' + b.rate2 + '%）' : ''}${b.cap ? '・上限 月' + b.cap + 'pt' : ''}${b.unverified ? '・条件は目安' : ''}：${b.fine}`),
+  ].join('\n') } },
   greet: () => ({ text: `いまのあなたは最大${fmt(nowMax)}%還元です。\nあと +${fmt(potMax - nowMax)}% 上げられます。何をすれば上がるか、あなたに合わせてご案内します。`, chips: DEFAULT_CHIPS }),
   handle(q, chat) {
     const b = BENEFITS.find(b => q.includes(b.name));

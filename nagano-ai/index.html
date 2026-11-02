@@ -188,7 +188,7 @@
         body: JSON.stringify({ action: "models" }),
       });
       const data = await res.json();
-      if (res.ok) setStatus("使えるモデル名：" + data.models.join(", ") + "（Vercel の環境変数 GEMMA_MODEL か FLASH_MODEL に設定してください）");
+      if (res.ok) setStatus(`${$("status").textContent}　使えるモデル名：${data.models.join(", ")}（Vercel の環境変数 GEMMA_MODEL か FLASH_MODEL に設定できます）`);
     } catch {}
   }
 
@@ -224,7 +224,7 @@
       $("votes").hidden = !bothOk;
       $("result").hidden = false;
       if (!bothOk) setStatus("片方の呼び出しに失敗したので、この回は集計せず、会話にも加えません。");
-      if (order.some((r) => r.status === 404)) showModels();
+      if (!bothOk) showModels();
     } catch (e) {
       setStatus(e.message);
     } finally {

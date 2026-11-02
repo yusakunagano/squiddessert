@@ -2,7 +2,7 @@
 // and all time. Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261023';
+import { firebaseConfig } from './firebase-config.js?v=20261024';
 
 // Name used for players who would rather not type one.
 const ANON_NAME = '名無しさん';
@@ -161,6 +161,12 @@ const allCol = () => fb.F.collection(fb.db, 'plays');
 // Every play from the last 7 days, best first. Read with a range on createdAt only (no extra index
 // needed) and sorted here; capped so a very busy week cannot run up the read count.
 const WEEK_CAP = 2000;
+// The weekly board (tab and end-screen line) only appears once the 7 days hold at least this many plays.
+const WEEK_MIN = 5;
+function setWeekly(on) {
+  $('weekTab').hidden = !on;
+  if (!on && tab === 'weekly') tab = 'all';
+}
 async function weekRows() {
   const hit = cache.week;
   if (hit && Date.now() - hit.at <= CACHE_MS) return hit.rows;
@@ -249,13 +255,15 @@ async function submit(nameArg) {
       weekRows(),
       F.getCountFromServer(F.query(allCol(), F.where('score', '>', last.score)))
     ]);
-    const rankWeek = rows.filter(r => r.v.score > last.score).length + 1, rankAll = ha.data().count + 1;
+    const weekOn = rows.length >= WEEK_MIN;
+    setWeekly(weekOn);
+    const rankWeek = weekOn ? rows.filter(r => r.v.score > last.score).length + 1 : null;
+    const rankAll = ha.data().count + 1;
     submitted = true;
     failed = false;
     refresh();
     note(`「${name}」で ${last.score} 点を登録しました！`, 'ok');
-    // The weekly line only appears for a top-10 finish; the all-time line always shows.
-    showRanks([...(rankWeek <= 10 ? [['週間', rankWeek]] : []), ['総合', rankAll]]);
+    showRanks([...(weekOn ? [['週間', rankWeek]] : []), ['総合', rankAll]]);
     celebrate({ rankAll, rankWeek });
   } catch (e) {
     failed = true;
@@ -381,8 +389,15 @@ function renderMine() {
   });
 }
 
-function showRanking() {
+async function showRanking() {
   $('rankOverlay').hidden = false;
+  if (firebaseConfig) {
+    $('rankList').innerHTML = '';
+    $('rankStatus').hidden = false;
+    $('rankStatus').className = 'note';
+    $('rankStatus').textContent = '読み込み中…';
+    try { await load(); setWeekly((await weekRows()).length >= WEEK_MIN); } catch (e) { console.warn(e); }
+  }
   renderRanking();
 }
 

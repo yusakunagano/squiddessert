@@ -210,16 +210,41 @@ const blobToBase64 = (blob) => new Promise((ok, ng) => {
   r.readAsDataURL(blob);
 });
 
+// Gemini が受け付けない形式（iPhone の HEIC など）や大きすぎる画像を避けるため、
+// 送信前に JPEG へ変換し、横幅 1280px・高さ 4000px 以内に縮める
+async function normalizeImage(blob) {
+  let img;
+  try {
+    img = await createImageBitmap(blob);
+  } catch {
+    throw new Error('この画像は読み込めませんでした。PNG か JPEG で保存し直して（スクリーンショットなど）お試しください。');
+  }
+  const scale = Math.min(1, 1280 / img.width, 4000 / img.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return new Promise((ok) => canvas.toBlob(ok, 'image/jpeg', 0.85));
+}
+
 // microlink.io の無料APIでURLのスクリーンショットを取得
 async function screenshotUrl(url, device) {
   const vp = device === 'desktop'
     ? '&viewport.width=1440&viewport.height=900'
     : '&viewport.width=390&viewport.height=844&viewport.isMobile=true&viewport.deviceScaleFactor=2';
   const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false${vp}`);
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (data.status !== 'success') throw new Error(`画面を撮影できませんでした: ${data.message || res.status}`);
   const img = await fetch(data.data.screenshot.url);
-  return img.blob();
+  const blob = await img.blob();
+  // 撮影サービスがエラーページなど画像以外を返すと、Gemini で invalid argument になるので先に止める
+  if (!img.ok || !blob.type.startsWith('image/')) {
+    throw new Error(`画面を撮影できませんでした（${url}）。ページが開けないか、撮影サービスの上限に達した可能性があります。スクリーンショットを撮って画像アップロードでお試しください。`);
+  }
+  return blob;
 }
 
 const ISSUE_COUNT = 20;
@@ -358,23 +383,37 @@ async function review(screens, keys, context, goal, device) {
   const parts = [];
   for (const [i, x] of screens.entries()) {
     parts.push({ text: `画面${i + 1}:` });
-    parts.push({ inlineData: { mimeType: x.blob.type || 'image/png', data: await blobToBase64(x.blob) } });
+    const jpeg = await normalizeImage(x.blob);
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: await blobToBase64(jpeg) } });
   }
   parts.push({ text: prompt });
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+  const schema = schemaFor(screens.length);
+  const call = (strict) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: 'user', parts }],
-      generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schemaFor(screens.length), temperature: 0.4, maxOutputTokens: 16384 },
+      contents: [{ role: 'user', parts: strict ? parts : [...parts, { text: `## 出力形式\n次の JSON スキーマに従った JSON だけを出力してください。\n${JSON.stringify(schema)}` }] }],
+      generationConfig: strict
+        ? { responseMimeType: 'application/json', responseJsonSchema: schema, temperature: 0.4, maxOutputTokens: 16384 }
+        : { responseMimeType: 'application/json', temperature: 0.4 },
     }),
   });
-  const data = await res.json();
+
+  let res = await call(true);
+  let data = await res.json().catch(() => ({}));
+  // モデルによっては JSON スキーマ指定を受け付けず 400 (INVALID_ARGUMENT) になるので、指定なしで1回だけやり直す
+  if (res.status === 400) {
+    console.warn('Gemini 400 (スキーマ指定あり):', data.error?.message);
+    res = await call(false);
+    data = await res.json().catch(() => ({}));
+  }
   if (!res.ok) {
     if (res.status === 429) throw new Error('無料枠の利用上限に達しました。少し時間をおくか、別のモデルを試してください。');
-    throw new Error(data.error?.message || `Gemini API エラー (${res.status})`);
+    if (res.status === 400 && /API key/i.test(data.error?.message || '')) throw new Error('APIキーが正しくないようです。キーを確認してください。');
+    if (res.status === 404) throw new Error(`モデル「${model}」が見つかりません。モデル欄を gemini-flash-latest に戻してお試しください。`);
+    throw new Error(`Gemini API エラー (${res.status}): ${data.error?.message || '不明なエラー'}`);
   }
   const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
   const m = text.match(/\{[\s\S]*\}/);

@@ -59,6 +59,32 @@
   .flow-step { border-left: 4px solid var(--accent); padding: 6px 12px; margin: 10px 0; background: var(--bg); border-radius: 0 8px 8px 0; }
   .flow-step p { margin: 4px 0; }
   .issue .screen { font-size:.75rem; border:1px solid var(--line); border-radius:999px; padding:1px 8px; margin-right:6px; }
+  /* SEO・OGP・AIO チェック（追加） */
+  .run.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); margin-top: 12px; }
+  .seo-item { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 16px; }
+  .seo-item:first-of-type { border-top: 0; padding-top: 0; margin-top: 8px; }
+  .seo-item h3 { margin: 0 0 8px; word-break: break-all; font-size: 1rem; }
+  .seo-scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 8px 0 12px; }
+  .seo-score { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; text-align: center; background: var(--bg); }
+  .seo-score b { display: block; font-size: 1.8rem; line-height: 1.2; }
+  .seo-score.good b { color: var(--low); } .seo-score.mid b { color: var(--medium); } .seo-score.bad b { color: var(--high); }
+  .seo-prio { background: var(--bg); border-left: 4px solid var(--high); border-radius: 0 8px 8px 0; padding: 8px 12px; margin: 8px 0 12px; }
+  .seo-prio ol { margin: 4px 0 0; padding-left: 1.3em; }
+  .seo-prio li { margin: 4px 0; }
+  .seo-preview { display: flex; gap: 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); margin: 8px 0 12px; max-width: 560px; }
+  .seo-preview .img { flex: none; width: 120px; min-height: 90px; background: var(--line); display: grid; place-items: center; color: var(--muted); font-size: .75rem; text-align: center; }
+  .seo-preview img { width: 120px; height: 100%; object-fit: cover; display: block; }
+  .seo-preview .txt { padding: 8px 10px 8px 0; min-width: 0; }
+  .seo-preview .host { color: var(--muted); font-size: .75rem; }
+  .seo-preview .t { font-weight: 700; overflow-wrap: anywhere; }
+  .seo-preview .d { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+  .seo-group { border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; }
+  .seo-group > summary { cursor: pointer; padding: 10px 12px; font-weight: 700; }
+  .seo-check { display: grid; grid-template-columns: 1.6em 1fr; gap: 2px 6px; padding: 8px 12px; border-top: 1px solid var(--line); }
+  .seo-check .ic { font-weight: 800; text-align: center; }
+  .seo-check.ok .ic { color: var(--low); } .seo-check.warn .ic { color: var(--medium); } .seo-check.fail .ic { color: var(--high); } .seo-check.info .ic { color: var(--muted); }
+  .seo-check p { margin: 2px 0; overflow-wrap: anywhere; }
+  .seo-loading { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -126,6 +152,8 @@
       <label for="device">表示サイズ</label>
       <select id="device"><option value="mobile">モバイル</option><option value="desktop">デスクトップ</option></select>
       <p class="meta">URLの画面撮影には無料の外部サービス（microlink.io・1日50回まで）を使います。ログインが必要なページは撮影できないので、画像アップロードを使ってください。</p>
+      <p class="meta">URLを入れると、デザインのチェックに加えて、<b>SEO・SNS 共有（OGP）・AIO（AI 検索向け）</b>も調べます。結果は、デザインの結果の下に追加で表示されます。</p>
+      <button type="button" class="run secondary" id="seoOnly">SEO・OGP・AIO だけチェックする（APIキー不要）</button>
     </div>
 
     <label>参照するガイドライン</label>
@@ -142,6 +170,8 @@
   </form>
 
   <section class="card" id="result" hidden></section>
+
+  <section class="card" id="seo" hidden></section>
 </main>
 <script type="module">
 import { GUIDELINES, DEFAULT_GUIDELINES, buildGuidelineText } from './guidelines.js';
@@ -431,6 +461,7 @@ $('form').onsubmit = async (e) => {
   const urls = [...document.querySelectorAll('#mode-url .url')].map(i => i.value.trim()).filter(Boolean);
   if (mode === 'image' && !files.some(Boolean)) return $('error').textContent = '画像を1枚以上選択してください';
   if (mode === 'url' && !urls.length) return $('error').textContent = 'URLを1つ以上入力してください';
+  if (mode === 'url') runSeo(urls); // デザインのチェックに加えて、SEO・OGP・AIO も調べる（結果は追加で表示）
 
   $('run').disabled = true; $('run').textContent = '分析中…（1分ほどかかります）';
   try {
@@ -450,6 +481,81 @@ $('form').onsubmit = async (e) => {
   } finally {
     $('run').disabled = false; $('run').textContent = 'チェックする';
   }
+};
+
+
+// ---- SEO・OGP・AIO チェック（URL を入れたときに、デザインのチェックに追加で行う） ----
+const SEO_API = 'https://squiddessert.vercel.app/api/seo-check';
+const SEO_ICON = { ok: '✓', warn: '△', fail: '✕', info: 'ℹ' };
+const SEO_LABEL = { ok: '良好', warn: '要確認', fail: '要改善', info: '参考' };
+const seoClass = (n) => (n >= 80 ? 'good' : n >= 50 ? 'mid' : 'bad');
+
+async function seoCheck(url) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 30000);
+  try {
+    const res = await fetch(SEO_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }), signal: ctl.signal });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  } catch (e) {
+    throw new Error(e.name === 'AbortError' ? '時間内に調べられませんでした' : e.message === 'Failed to fetch' ? 'SEO・AIO チェックのサーバーに接続できませんでした' : e.message);
+  } finally { clearTimeout(timer); }
+}
+
+function seoPreview(p, imageOk) {
+  const img = imageOk && /^https:\/\//.test(p.image) ? `<img src="${esc(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '画像なし';
+  return `
+    <div class="meta"><b>URL を共有したときの見え方（目安）</b></div>
+    <div class="seo-preview">
+      <div class="img">${img}</div>
+      <div class="txt"><div class="host">${esc(p.host)}</div><div class="t">${esc(p.title || '（タイトルなし）')}</div><div class="d">${esc((p.description || '').slice(0, 90))}</div>
+      ${p.fallback.title || p.fallback.description ? `<div class="meta">※ ${p.fallback.title ? 'og:title' : ''}${p.fallback.title && p.fallback.description ? '・' : ''}${p.fallback.description ? 'og:description' : ''} がないため、ページの title・description で代用しています</div>` : ''}</div>
+    </div>`;
+}
+
+function seoItem(n, total, url, r, err) {
+  const head = `<h3>${total > 1 ? `画面${n}：` : ''}${r ? `<a href="${esc(r.finalUrl)}" target="_blank" rel="noopener noreferrer">${esc(r.finalUrl)}</a>` : esc(url)}</h3>`;
+  if (err) return `<div class="seo-item">${head}<p class="error">調べられませんでした：${esc(err)}</p></div>`;
+  const share = r.groups.find(g => g.id === 'share');
+  const imageOk = share?.checks.find(c => c.id === 'og-image')?.status === 'ok';
+  const name = { seo: 'SEO', share: 'SNS共有', aio: 'AIO' };
+  return `
+    <div class="seo-item">${head}
+      <div class="seo-scores">${r.groups.map(g => `<div class="seo-score ${seoClass(g.score)}"><span class="meta">${name[g.id]}</span><b>${esc(g.score)}</b><span class="meta">/ 100</span></div>`).join('')}</div>
+      ${r.priorities.length ? `<div class="seo-prio"><b>まず直したいところ</b><ol>${r.priorities.map(p => `<li><b>${esc(p.label)}</b>（${SEO_LABEL[p.status]}）<br><span class="meta">${esc(p.fix)}</span></li>`).join('')}</ol></div>` : '<p>直したほうがよい点は見つかりませんでした。</p>'}
+      ${seoPreview(r.preview, imageOk)}
+      ${r.groups.map(g => `
+        <details class="seo-group" open>
+          <summary>${esc(g.title)} <span class="meta">— ${esc(g.lead)}</span></summary>
+          ${g.checks.map(c => `
+            <div class="seo-check ${esc(c.status)}"><span class="ic" aria-label="${SEO_LABEL[c.status]}">${SEO_ICON[c.status]}</span>
+              <div><b>${esc(c.label)}</b><p class="meta">${esc(c.detail)}</p>${c.fix ? `<p><b>改善案:</b> ${esc(c.fix)}</p>` : ''}</div></div>`).join('')}
+        </details>`).join('')}
+    </div>`;
+}
+
+async function runSeo(urls) {
+  const box = $('seo');
+  const list = urls.slice(0, MAX_SCREENS);
+  const head = `<h2 style="margin-top:0">SEO・SNS 共有（OGP）・AIO チェック</h2>
+    <p class="notice">URL のページと robots.txt などを、決まったルールで機械的に調べた簡易診断です。検索順位や、AI に引用されることを保証するものではありません。「AIO」は、AI 検索・生成 AI に見つけられ、引用されやすいかの目安です。</p>`;
+  box.hidden = false;
+  box.innerHTML = head + list.map((u, i) => `<div class="seo-item" id="seo-${i}"><h3>${list.length > 1 ? `画面${i + 1}：` : ''}${esc(u)}</h3><p class="seo-loading">調べています…（10〜20秒）</p></div>`).join('');
+  await Promise.all(list.map(async (u, i) => {
+    let html;
+    try { html = seoItem(i + 1, list.length, u, await seoCheck(u)); }
+    catch (e) { html = seoItem(i + 1, list.length, u, null, e.message); }
+    const slot = $(`seo-${i}`);
+    if (slot) slot.outerHTML = html;
+  }));
+}
+
+$('seoOnly').onclick = () => {
+  $('error').textContent = '';
+  const urls = [...document.querySelectorAll('#mode-url .url')].map(i => i.value.trim()).filter(Boolean);
+  if (!urls.length) return $('error').textContent = 'URLを1つ以上入力してください';
+  runSeo(urls).then(() => $('seo').scrollIntoView({ behavior: 'smooth' }));
 };
 
 const stars = (n) => '★'.repeat(Math.max(0, Math.min(5, n | 0))) + '☆'.repeat(5 - Math.max(0, Math.min(5, n | 0)));

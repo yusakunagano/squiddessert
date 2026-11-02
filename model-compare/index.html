@@ -61,7 +61,7 @@
     <label for="question">質問プロンプト</label>
     <textarea id="question" maxlength="3000" placeholder="例：このコンテキストを 3 行で要約して"></textarea>
     <div class="row">
-      <label class="opt"><input type="checkbox" id="blind" checked> モデル名を伏せて比べる</label>
+      <label class="opt"><input type="checkbox" id="blind"> モデル名を伏せて比べる（A・B のどちらか分からない状態で選べます）</label>
       <span class="hint grow" id="turns" style="margin:0"></span>
       <button id="newChat" hidden>新しい会話にする</button>
       <button class="primary" id="ask">聞く</button>
@@ -96,6 +96,7 @@
   const LS_CONTEXT = "model-compare.context";
   const LS_TALLY = "model-compare.tally";
   const LS_SPEED = "model-compare.speed";
+  const LS_BLIND = "model-compare.blind";
 
   const $ = (id) => document.getElementById(id);
   const contextEl = $("context"), questionEl = $("question"), askBtn = $("ask"), blindEl = $("blind");
@@ -114,6 +115,8 @@
     try { return { ...fallback, ...JSON.parse(store.get(key) || "{}") }; } catch { return fallback; }
   };
 
+  blindEl.checked = store.get(LS_BLIND) === "1";
+  blindEl.addEventListener("change", () => store.set(LS_BLIND, blindEl.checked ? "1" : "0"));
   contextEl.value = store.get(LS_CONTEXT) ?? "";
   contextEl.addEventListener("input", () => store.set(LS_CONTEXT, contextEl.value));
 
@@ -223,11 +226,11 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "エラーが発生しました");
-      // どちらが A か分からないように毎回シャッフルする
-      const order = data.results.slice();
-      if (Math.random() < 0.5) order.reverse();
-      const bothOk = order.every((r) => !r.error);
+      // 伏せるときは、どちらが A か分からないように毎回シャッフルする。伏せないときは A＝Gemini Flash、B＝Gemma 4 に固定。
       const blind = blindEl.checked;
+      const order = data.results.slice().sort((x, y) => (x.id === "gemini" ? -1 : 1) - (y.id === "gemini" ? -1 : 1));
+      if (blind && Math.random() < 0.5) order.reverse();
+      const bothOk = order.every((r) => !r.error);
       current = { order, voted: !bothOk }; // 片方が失敗したときは比べられないので投票しない
       if (bothOk) {
         // 両方成功した回だけ会話に加え、返答速度を集計する（片方だけ進むと、同じ条件で比べられなくなる）
@@ -242,6 +245,10 @@
         if (!blind) renderTally(); // 伏せているときは、速度で見分けがつかないよう投票のあとに更新する
       }
       renderAnswers(!bothOk || !blind);
+      // 名前を表示しているときは、ボタンもモデル名で出す
+      const names = !blind;
+      $("votes").querySelector('[data-vote="A"]').textContent = names ? `A：${order[0].label} が良い` : "Aが良い";
+      $("votes").querySelector('[data-vote="B"]').textContent = names ? `B：${order[1].label} が良い` : "Bが良い";
       $("votes").hidden = !bothOk;
       $("result").hidden = false;
       if (!bothOk) {

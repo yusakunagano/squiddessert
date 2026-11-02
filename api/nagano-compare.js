@@ -50,17 +50,25 @@ function cleanHistory(raw) {
   return alternating;
 }
 
-// Google 側の 500 台は、生成設定（温度・最大トークン）を外して 1 回だけやり直す。
-// 一時的な不調なのか、設定がモデルに合っていないのかを切り分けるため。
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Google 側の 5xx は最大 2 回やり直す（合計 3 回まで）。
+// 503（混雑）は少し待ってから同じ内容で。500 は、一時的な不調なのか生成設定（温度・最大トークン）が
+// モデルに合っていないのかを切り分けるため、生成設定を外して。
 async function generate(params) {
-  try {
-    return await ai.models.generateContent(params);
-  } catch (err) {
-    if (err instanceof ApiError && err.status >= 500) {
-      const { config, ...rest } = params;
-      return ai.models.generateContent(rest);
+  let current = params;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await ai.models.generateContent(current);
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0;
+      if (attempt >= 2 || status < 500) throw err;
+      if (status === 503) await sleep(2000);
+      else {
+        const { config, ...rest } = current;
+        current = rest;
+      }
     }
-    throw err;
   }
 }
 
@@ -94,6 +102,7 @@ async function ask(side, persona, history, question) {
     const error =
       status === 404 ? `モデル「${side.model}」が見つかりません`
       : status === 429 ? "混み合っています（無料枠の上限の可能性）"
+      : status === 503 ? "Google 側が混み合っています（しばらくして再度お試しください）"
       : `呼び出しに失敗しました${status ? `（${status}）` : ""}`;
     return { ...base, ms: Date.now() - started, error, status, detail: upstreamMessage(err) };
   }

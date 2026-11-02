@@ -2,7 +2,7 @@
 // and all time. Players type any name; no account needed. Firebase anonymous auth gives each
 // browser a private id that is stored on its entries.
 // Bump VERSION (here and in index.html) when ranking code changes, so browsers fetch the new files.
-import { firebaseConfig } from './firebase-config.js?v=20261022';
+import { firebaseConfig } from './firebase-config.js?v=20261023';
 
 // Name used for players who would rather not type one.
 const ANON_NAME = '名無しさん';
@@ -254,7 +254,8 @@ async function submit(nameArg) {
     failed = false;
     refresh();
     note(`「${name}」で ${last.score} 点を登録しました！`, 'ok');
-    showRanks([['週間', rankWeek], ['総合', rankAll]]);
+    // The weekly line only appears for a top-10 finish; the all-time line always shows.
+    showRanks([...(rankWeek <= 10 ? [['週間', rankWeek]] : []), ['総合', rankAll]]);
     celebrate({ rankAll, rankWeek });
   } catch (e) {
     failed = true;

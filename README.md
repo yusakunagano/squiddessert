@@ -92,3 +92,15 @@ GEMINI_API_KEY=... node scripts/crawl-campaigns.mjs
 
 画面内の「デモ：」は動作確認用の値です（SMS コード `123456`、ネットバンキングのパスワード `bank1234`、ワンタイムパスワード `654321`、暗証番号 `1234`、アカウントの氏名「ヤマダ タロウ」）。
 
+### デザインチェッカーの SEO・OGP・AIO チェック（`design-check/`）
+
+「URLを入力」で URL を入れると、デザインのチェック（従来どおり）に**加えて**、結果の下に「SEO・SNS 共有（OGP）・AIO チェック」が追加で表示されます。URL の入力欄の下の「SEO・OGP・AIO だけチェックする」ボタンなら、Gemini の API キーなしで、このチェックだけを実行できます。
+
+- **基本の SEO**：HTTPS・HTTP ステータス・転送・タイトルと説明文の長さ・h1 と見出しの階層・canonical・noindex・viewport・lang・画像の alt・リンク文言・robots.txt・sitemap.xml・応答と HTML の大きさ
+- **SNS 共有（OGP）**：og:title・og:description・og:image（https か・実際に表示できるか）・og:url・og:type・twitter:card・og:site_name と、共有したときの見え方のプレビュー
+- **AIO（AI 検索・生成 AI 向け）**：構造化データ（JSON-LD）・運営者とページの種類・FAQPage・AI クローラー（検索側／学習側に分けて robots.txt の許可を確認）・llms.txt（任意）・本文が JavaScript なしで HTML に含まれているか・冒頭で要点を述べているか・箇条書きと表・著者／日付／運営者情報（信頼性）・main/article・パンくず
+- 項目ごとに「良好／要確認／要改善」と改善案を表示し、各グループを 100 点満点で採点して、「まず直したいところ」を最大 5 件まとめます。機械的に調べた簡易診断で、検索順位や AI での引用を保証するものではありません。
+- `api/seo-check.js`（Vercel）が、URL のページ・robots.txt・sitemap.xml・llms.txt・og:image を取得して判定します（AI は使いません）。判定のルールは `api/_seo.js`、安全な取得は `api/_safefetch.js` です。
+- **取得の安全対策**：http / https のポート 80・443 だけ／ID・パスワード入りは拒否／接続の直前に接続先 IP を確認し、非公開のアドレス（127.x・10.x・192.168.x・169.254.x・IPv6 の内部向けなど）は拒否（名前解決のすり替え対策）／転送は 1 回ずつ同じ検査をして最大 5 回／大きさと時間に上限／同じ接続元から 10 分に 20 回まで。
+- テスト：`npm test`（判定のルール・取得の安全対策・API を、手元の簡易サーバーで確認します）
+

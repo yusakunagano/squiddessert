@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>永野AI 比較</title>
+<title>Gemma 4 × Gemini Flash 比較</title>
 <style>
   :root { --bg: #f6f6f8; --card: #fff; --text: #1d1d1f; --sub: #6e6e73; --line: #e5e5ea; --accent: #3b5bdb; --ok: #2b8a3e; --err: #c92a2a; }
   @media (prefers-color-scheme: dark) {
@@ -17,20 +17,24 @@
   .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
   label, summary { font-weight: 600; font-size: 14px; }
   summary { cursor: pointer; }
-  textarea, input[type=text] { width: 100%; margin-top: 8px; padding: 10px 12px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
-  textarea { min-height: 140px; resize: vertical; }
+  textarea { width: 100%; margin-top: 8px; padding: 10px 12px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; resize: vertical; }
+  #context { min-height: 120px; }
+  #question { min-height: 90px; }
   .hint { font-size: 12px; color: var(--sub); margin: 6px 0 0; }
   button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 9px 14px; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
   button:disabled { opacity: .5; cursor: default; }
-  .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-  .row input { flex: 1; min-width: 200px; margin-top: 0; }
+  .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .row .grow { flex: 1; }
+  .opt { font-weight: normal; font-size: 13px; color: var(--sub); }
   .answers { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
   @media (max-width: 600px) { .answers { grid-template-columns: 1fr; } }
   .answer { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
   .answer h3 { margin: 0 0 6px; font-size: 15px; }
   .answer p { margin: 0; white-space: pre-wrap; font-size: 14px; }
   .answer .meta { margin-top: 8px; font-size: 12px; color: var(--sub); }
+  .answer .speed { margin-top: 10px; font-size: 13px; font-weight: 600; }
+  .answer .speed.fast { color: var(--ok); }
   .answer .error { color: var(--err); }
   .votes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   .votes button { flex: 1; min-width: 120px; }
@@ -44,25 +48,25 @@
 </head>
 <body>
 <main>
-  <h1>永野AI 比較</h1>
-  <p class="lead">同じ質問を Gemini Flash と Gemma 4 に投げて、どちらが「永野らしい」かを選びます。どちらの答えか分からない状態で選べます。続けて質問すると、それぞれのモデルが自分の前の答えを踏まえて会話を続けます。</p>
-
-  <details class="panel" id="personaBox">
-    <summary>永野さんの情報（口調・価値観・過去の回答例）</summary>
-    <textarea id="persona" placeholder="例：&#10;- 口調：落ち着いた敬体。結論から話す&#10;- 価値観：...&#10;- 回答例：&#10;Q: 休日は何をしていますか？&#10;A: ..."></textarea>
-    <p class="hint">この情報はこのブラウザにだけ保存され、質問のたびに AI へ送られます。リポジトリには保存されません。無料枠だと送信内容が Google のサービス改善に使われる場合があるので、公開してよい内容で試してください。</p>
-  </details>
+  <h1>Gemma 4 × Gemini Flash 比較</h1>
+  <p class="lead">同じコンテキストと質問を 2 つのモデルに投げて、答えと返答速度を並べて比べます。続けて質問すると、それぞれのモデルが自分の前の答えを踏まえて会話を続けます。</p>
 
   <div class="panel">
-    <label for="question">質問</label>
+    <label for="context">コンテキスト（任意）</label>
+    <textarea id="context" placeholder="質問の前提になる情報。例：資料の文章、口調や役割の指定、過去のやりとり など"></textarea>
+    <p class="hint">この内容はこのブラウザにだけ保存され、会話の最初の発言に付けて AI へ送られます。無料枠だと送信内容が Google のサービス改善に使われる場合があるので、公開してよい内容で試してください。</p>
+  </div>
+
+  <div class="panel">
+    <label for="question">質問プロンプト</label>
+    <textarea id="question" maxlength="3000" placeholder="例：このコンテキストを 3 行で要約して"></textarea>
     <div class="row">
-      <input type="text" id="question" maxlength="500" placeholder="例：新しいことを始めるとき、まず何をする？">
+      <label class="opt"><input type="checkbox" id="blind" checked> モデル名を伏せて比べる</label>
+      <span class="hint grow" id="turns" style="margin:0"></span>
+      <button id="newChat" hidden>新しい会話にする</button>
       <button class="primary" id="ask">聞く</button>
     </div>
-    <div class="row">
-      <span class="hint" id="turns" style="flex:1;margin:0;align-self:center"></span>
-      <button id="newChat" hidden>新しい会話にする</button>
-    </div>
+    <p class="hint">Ctrl（Mac は ⌘）+ Enter でも送れます。</p>
   </div>
 
   <div id="status" class="status" hidden></div>
@@ -70,10 +74,10 @@
   <div id="result" hidden>
     <div class="answers" id="answers"></div>
     <div class="votes" id="votes">
-      <button data-vote="A">Aが永野らしい</button>
-      <button data-vote="B">Bが永野らしい</button>
+      <button data-vote="A">Aが良い</button>
+      <button data-vote="B">Bが良い</button>
       <button data-vote="tie">どちらも同じくらい</button>
-      <button data-vote="none">どちらも違う</button>
+      <button data-vote="none">どちらもだめ</button>
     </div>
   </div>
 
@@ -88,13 +92,15 @@
 (() => {
   // GitHub Pages に置くときは API の置き場所（Vercel）を指す。他のアプリと同じ設定。
   const API_ORIGIN = "https://squiddessert.vercel.app";
-  const API_URL = API_ORIGIN + "/api/nagano-compare";
-  const LS_PERSONA = "nagano-ai.persona";
-  const LS_TALLY = "nagano-ai.tally";
+  const API_URL = API_ORIGIN + "/api/model-compare";
+  const LS_CONTEXT = "model-compare.context";
+  const LS_TALLY = "model-compare.tally";
+  const LS_SPEED = "model-compare.speed";
 
   const $ = (id) => document.getElementById(id);
-  const personaEl = $("persona"), questionEl = $("question"), askBtn = $("ask");
+  const contextEl = $("context"), questionEl = $("question"), askBtn = $("ask"), blindEl = $("blind");
   const MAX_TURNS = 10; // API 側の上限と同じ
+  const NAMES = { gemini: "Gemini Flash", gemma: "Gemma 4" };
   let current = null; // { order: [result, result], voted: boolean }
   // モデルごとの会話の履歴。それぞれ、そのモデル自身の答えが入る。
   let histories = { gemini: [], gemma: [] };
@@ -104,19 +110,23 @@
     get(key) { try { return localStorage.getItem(key); } catch { return null; } },
     set(key, value) { try { localStorage.setItem(key, value); } catch {} },
   };
-
-  personaEl.value = store.get(LS_PERSONA) ?? "";
-  personaEl.addEventListener("input", () => store.set(LS_PERSONA, personaEl.value));
-  if (!personaEl.value) $("personaBox").open = true;
-
-  // 集計：{ gemini: 勝ち数, gemma: 勝ち数, tie: 引き分け, none: どちらも違う, total: 回数 }
-  const loadTally = () => {
-    try { return { gemini: 0, gemma: 0, tie: 0, none: 0, total: 0, ...JSON.parse(store.get(LS_TALLY) || "{}") }; }
-    catch { return { gemini: 0, gemma: 0, tie: 0, none: 0, total: 0 }; }
+  const loadJson = (key, fallback) => {
+    try { return { ...fallback, ...JSON.parse(store.get(key) || "{}") }; } catch { return fallback; }
   };
+
+  contextEl.value = store.get(LS_CONTEXT) ?? "";
+  contextEl.addEventListener("input", () => store.set(LS_CONTEXT, contextEl.value));
+
+  const sec = (ms) => (ms / 1000).toFixed(1) + " 秒";
+
+  // 集計：勝ち数と、返答速度（両方成功した回の合計ミリ秒と回数）
+  const emptyTally = () => ({ gemini: 0, gemma: 0, tie: 0, none: 0, total: 0 });
+  const emptySpeed = () => ({ gemini: { sum: 0, n: 0 }, gemma: { sum: 0, n: 0 } });
   const renderTally = () => {
-    const t = loadTally();
+    const t = loadJson(LS_TALLY, emptyTally());
+    const sp = loadJson(LS_SPEED, emptySpeed());
     const pct = (n) => (t.total ? Math.round((n / t.total) * 100) + "%" : "-");
+    const avg = (id) => (sp[id]?.n ? sec(sp[id].sum / sp[id].n) : "-");
     $("tally").innerHTML = "";
     const add = (cells, head) => {
       const tr = document.createElement("tr");
@@ -127,16 +137,18 @@
       }
       $("tally").append(tr);
     };
-    add(["", "勝ち", "割合"], true);
-    add(["Gemini Flash", t.gemini, pct(t.gemini)]);
-    add(["Gemma 4", t.gemma, pct(t.gemma)]);
-    add(["同じくらい", t.tie, pct(t.tie)]);
-    add(["どちらも違う", t.none, pct(t.none)]);
-    add(["合計", t.total, ""]);
+    add(["", "良い", "割合", "平均の返答速度"], true);
+    add([NAMES.gemini, t.gemini, pct(t.gemini), avg("gemini")]);
+    add([NAMES.gemma, t.gemma, pct(t.gemma), avg("gemma")]);
+    add(["同じくらい", t.tie, pct(t.tie), ""]);
+    add(["どちらもだめ", t.none, pct(t.none), ""]);
+    add(["投票の合計", t.total, "", `${sp.gemini?.n ?? 0} 回分`]);
   };
   $("resetTally").addEventListener("click", () => {
-    if (confirm("集計をリセットしますか？")) { store.set(LS_TALLY, "{}"); renderTally(); }
+    if (confirm("集計をリセットしますか？")) { store.set(LS_TALLY, "{}"); store.set(LS_SPEED, "{}"); renderTally(); }
   });
+
+  const setStatus = (text) => { $("status").hidden = !text; $("status").textContent = text || ""; };
 
   const renderTurns = () => {
     $("turns").textContent = turns ? `この会話：${turns} 回目まで` : "";
@@ -150,11 +162,11 @@
     renderTurns();
   });
 
-  const setStatus = (text) => { $("status").hidden = !text; $("status").textContent = text || ""; };
-
   const renderAnswers = (revealed) => {
     const box = $("answers");
     box.innerHTML = "";
+    const okTimes = current.order.filter((r) => !r.error).map((r) => r.ms);
+    const fastest = okTimes.length === 2 ? Math.min(...okTimes) : null;
     current.order.forEach((r, i) => {
       const card = document.createElement("div");
       card.className = "answer";
@@ -170,10 +182,14 @@
         card.append(d);
       }
       if (revealed) {
+        const speed = document.createElement("div");
+        const isFast = fastest !== null && r.ms === fastest;
+        speed.className = "speed" + (isFast ? " fast" : "");
+        speed.textContent = `返答速度 ${sec(r.ms)}${isFast ? "（速い）" : ""}`;
         const meta = document.createElement("div");
         meta.className = "meta";
-        meta.textContent = `${r.model} ・ ${(r.ms / 1000).toFixed(1)} 秒`;
-        card.append(meta);
+        meta.textContent = r.model;
+        card.append(speed, meta);
       }
       box.append(card);
     });
@@ -198,12 +214,12 @@
     if (turns >= MAX_TURNS) { setStatus(`会話は ${MAX_TURNS} 回までです。「新しい会話にする」を押してください。`); return; }
     askBtn.disabled = true;
     $("result").hidden = true;
-    setStatus("2つのモデルに聞いています…");
+    setStatus("2つのモデルに聞いています…（数十秒かかることがあります）");
     try {
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ persona: personaEl.value, question, history: histories }),
+        body: JSON.stringify({ context: contextEl.value, question, history: histories }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "エラーが発生しました");
@@ -211,20 +227,27 @@
       const order = data.results.slice();
       if (Math.random() < 0.5) order.reverse();
       const bothOk = order.every((r) => !r.error);
+      const blind = blindEl.checked;
       current = { order, voted: !bothOk }; // 片方が失敗したときは比べられないので投票しない
       if (bothOk) {
-        // 両方成功した回だけ会話に加える（片方だけ進むと、同じ条件で比べられなくなる）
+        // 両方成功した回だけ会話に加え、返答速度を集計する（片方だけ進むと、同じ条件で比べられなくなる）
         for (const r of order) histories[r.id].push({ role: "user", text: question }, { role: "assistant", text: r.reply });
+        const sp = loadJson(LS_SPEED, emptySpeed());
+        for (const r of order) { sp[r.id] = sp[r.id] ?? { sum: 0, n: 0 }; sp[r.id].sum += r.ms; sp[r.id].n += 1; }
+        store.set(LS_SPEED, JSON.stringify(sp));
         turns += 1;
         questionEl.value = "";
         setStatus(turns >= MAX_TURNS ? `会話は ${MAX_TURNS} 回までです。続ける場合は「新しい会話にする」を押してください。` : "");
         renderTurns();
+        if (!blind) renderTally(); // 伏せているときは、速度で見分けがつかないよう投票のあとに更新する
       }
-      renderAnswers(!bothOk);
+      renderAnswers(!bothOk || !blind);
       $("votes").hidden = !bothOk;
       $("result").hidden = false;
-      if (!bothOk) setStatus("片方の呼び出しに失敗したので、この回は集計せず、会話にも加えません。");
-      if (!bothOk) showModels();
+      if (!bothOk) {
+        setStatus("片方の呼び出しに失敗したので、この回は集計せず、会話にも加えません。");
+        showModels();
+      }
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -233,13 +256,13 @@
   }
 
   askBtn.addEventListener("click", ask);
-  questionEl.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) ask(); });
+  questionEl.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.isComposing) ask(); });
 
   $("votes").addEventListener("click", (e) => {
     const vote = e.target.dataset?.vote;
     if (!vote || !current || current.voted) return;
     current.voted = true;
-    const t = loadTally();
+    const t = loadJson(LS_TALLY, emptyTally());
     t.total += 1;
     if (vote === "A" || vote === "B") t[current.order["AB".indexOf(vote)].id] += 1;
     else t[vote] += 1;

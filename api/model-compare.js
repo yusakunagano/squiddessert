@@ -1,9 +1,8 @@
-// 永野AI：Gemini Flash と Gemma に同じ質問を投げて、答えを並べて比べる API（Vercel Serverless Function）
-// POST /api/nagano-compare  body: { persona: string, question: string, history?: { [id]: [{ role: "user" | "assistant", text }] } }
-//   history はモデルごとの、これまでの会話（そのモデル自身の答えが入る）。
-//   → { results: [{ id, label, model, reply, ms, error }] }
-// POST /api/nagano-compare  body: { action: "models" }  → { models: string[] }（Gemma / Flash のモデル名の確認用）
-// 永野さんの情報（persona）はリポジトリに置かず、ページから毎回送ってもらう。
+// モデル比較：Gemini Flash と Gemma に同じプロンプトを投げて、答えと返答速度を並べて比べる API（Vercel Serverless Function）
+// POST /api/model-compare  body: { context?: string, question: string, history?: { [id]: [{ role: "user" | "assistant", text }] } }
+//   context は質問の前に付ける背景情報（任意）。history はモデルごとの、これまでの会話（そのモデル自身の答えが入る）。
+//   → { results: [{ id, label, model, reply, ms, error }] }  ms は返答までにかかった時間（ミリ秒）
+// POST /api/model-compare  body: { action: "models" }  → { models: string[] }（Gemma / Flash のモデル名の確認用）
 import { ApiError } from "@google/genai";
 import { acceptPost, ai, readBody, sendAiError } from "./_shared.js";
 
@@ -13,23 +12,19 @@ const SIDES = [
   { id: "gemma", label: "Gemma 4", model: process.env.GEMMA_MODEL || "gemma-4-31b-it" },
 ];
 
-const MAX_PERSONA = 8000;
-const MAX_QUESTION = 500;
-const MAX_REPLY = 1500;
+const MAX_CONTEXT = 20000;
+const MAX_QUESTION = 3000;
+const MAX_REPLY = 6000;
 const MAX_TURNS = 10; // 履歴に含める質問の数
 
 // Gemma は systemInstruction に対応していないことがあるので、どちらのモデルにも同じ 1 通のメッセージで渡す（公平な比較にもなる）。
-function buildFirstMessage(persona, question) {
-  return `あなたは「永野優作」本人になりきって、質問に答えます。
-<persona> は永野優作についての情報（口調・価値観・過去の回答例など）です。口調や考え方をできるだけ再現してください。
+function buildFirstMessage(context, question) {
+  if (!context) return question;
+  return `以下のコンテキストを踏まえて、質問に答えてください。
 
-- 一人称で、永野本人が話すように答える。AI であることや役作りをしていることには触れない。
-- <persona> に書かれていないことは、書かれている人柄から自然に推測して答える。事実を細かく作り込まない。
-- 長さは 100〜300 文字を目安にする。
-
-<persona>
-${persona || "（情報なし。自然な日本語で答えてください）"}
-</persona>
+<context>
+${context}
+</context>
 
 質問: ${question}`;
 }
@@ -81,13 +76,13 @@ function upstreamMessage(err) {
   }
 }
 
-async function ask(side, persona, history, question) {
+async function ask(side, context, history, question) {
   const started = Date.now();
   const base = { id: side.id, label: side.label, model: side.model };
   try {
-    // 永野さんの情報は会話の最初の発言にだけ付ける。以降は履歴＋今回の質問をそのまま渡す。
+    // コンテキストは会話の最初の発言にだけ付ける。以降は履歴＋今回の質問をそのまま渡す。
     const turns = [...history, { role: "user", text: question }];
-    turns[0] = { ...turns[0], text: buildFirstMessage(persona, turns[0].text) };
+    turns[0] = { ...turns[0], text: buildFirstMessage(context, turns[0].text) };
     const response = await generate({
       model: side.model,
       contents: turns.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
@@ -98,7 +93,7 @@ async function ask(side, persona, history, question) {
     return { ...base, ms: Date.now() - started, reply };
   } catch (err) {
     const status = err instanceof ApiError ? err.status : undefined;
-    console.error("nagano-compare", side.model, status, err.message);
+    console.error("model-compare", side.model, status, err.message);
     const error =
       status === 404 ? `モデル「${side.model}」が見つかりません`
       : status === 429 ? "混み合っています（無料枠の上限の可能性）"
@@ -127,13 +122,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ models: await listModels() });
     }
 
-    const persona = String(body.persona ?? "").slice(0, MAX_PERSONA).trim();
+    const context = String(body.context ?? "").slice(0, MAX_CONTEXT).trim();
     const question = String(body.question ?? "").slice(0, MAX_QUESTION).trim();
     if (!question) return res.status(400).json({ error: "質問を入力してください" });
 
     const histories = body.history && typeof body.history === "object" ? body.history : {};
     const results = await Promise.all(
-      SIDES.map((side) => ask(side, persona, cleanHistory(histories[side.id]), question)),
+      SIDES.map((side) => ask(side, context, cleanHistory(histories[side.id]), question)),
     );
     return res.status(200).json({ results });
   } catch (err) {

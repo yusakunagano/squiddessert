@@ -50,12 +50,16 @@ function cleanHistory(raw) {
   return alternating;
 }
 
-// Google 側の一時的な不調（500 台）は 1 回だけやり直す
+// Google 側の 500 台は、生成設定（温度・最大トークン）を外して 1 回だけやり直す。
+// 一時的な不調なのか、設定がモデルに合っていないのかを切り分けるため。
 async function generate(params) {
   try {
     return await ai.models.generateContent(params);
   } catch (err) {
-    if (err instanceof ApiError && err.status >= 500) return ai.models.generateContent(params);
+    if (err instanceof ApiError && err.status >= 500) {
+      const { config, ...rest } = params;
+      return ai.models.generateContent(rest);
+    }
     throw err;
   }
 }

@@ -7,6 +7,8 @@ export interface AppState {
   words: Word[];
   misses: MissEntry[];
   history: TestRecord[];
+  /** 日付（YYYY-MM-DD）ごとの解いた問題数と正解数 */
+  stats: Record<string, { total: number; correct: number }>;
   chat: ChatMessage[];
   settings: Settings;
 }
@@ -17,6 +19,7 @@ const DEFAULT_STATE: AppState = {
   words: [],
   misses: [],
   history: [],
+  stats: {},
   chat: [],
   settings: { provider: "claude", apiKey: "", model: "claude-opus-5-5", geminiKey: "", geminiModel: "gemini-flash-latest", autoGrade: true, gradeEngine: "google", speechRate: 0.9, voiceURI: "", speechEngine: "auto" },
 };
@@ -82,6 +85,15 @@ export const actions = {
     setState((s) => ({ ...s, words: s.words.filter((w) => w.id !== id) }));
   },
 
+  /** 1問答えるたびに、その日の記録に足す */
+  recordAnswer(correct: boolean) {
+    const d = new Date();
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    setState((s) => {
+      const cur = s.stats[key] ?? { total: 0, correct: 0 };
+      return { ...s, stats: { ...s.stats, [key]: { total: cur.total + 1, correct: cur.correct + (correct ? 1 : 0) } } };
+    });
+  },
   saveTest(label: string, items: TestItemResult[]) {
     const record: TestRecord = { id: uid(), label, date: Date.now(), items };
     setState((s) => ({ ...s, history: [record, ...s.history].slice(0, 50) }));

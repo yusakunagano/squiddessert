@@ -124,6 +124,7 @@ function SetupView({
 
   return (
     <div className="page">
+      <StatsCard />
       <h2>テストの範囲を選ぶ</h2>
       <div className="chips">
         {GRADES.map((g) => (
@@ -324,6 +325,7 @@ function QuizView({
   };
 
   const next = (isCorrect: boolean) => {
+    actions.recordAnswer(isCorrect);
     const r = [...results, { wordId: w.id, word: w.word, meaning: w.meaning, written, correct: isCorrect }];
     if (isLast) return onFinish(r);
     setResults(r);
@@ -651,5 +653,50 @@ function AiGradeToggle({ compact = false }: { compact?: boolean }) {
         🤖 自動採点 {autoGrade ? "ON" : "OFF"}
       </button>
     </div>
+  );
+}
+
+/** 記録：今日・合計の問題数と正解数、日ごとの一覧 */
+function StatsCard() {
+  const stats = useAppState((s) => s.stats);
+  const days = Object.keys(stats).sort().reverse();
+  const d = new Date();
+  const todayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const today = stats[todayKey] ?? { total: 0, correct: 0 };
+  const sum = days.reduce((a, k) => ({ total: a.total + stats[k].total, correct: a.correct + stats[k].correct }), { total: 0, correct: 0 });
+  return (
+    <details className="card stats-card">
+      <summary>
+        <span>📊 記録</span>
+        <span>
+          今日 <b>{today.total}</b>問・正解 <b>{today.correct}</b>問
+        </span>
+      </summary>
+      <div className="stats-total">
+        合計 <b>{sum.total}</b>問・正解 <b>{sum.correct}</b>問
+      </div>
+      {days.length === 0 ? (
+        <p className="muted small">まだ記録はありません。テストを解くと、1問ごとに記録されます。</p>
+      ) : (
+        <table className="stats-table">
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>問題数</th>
+              <th>正解数</th>
+            </tr>
+          </thead>
+          <tbody>
+            {days.map((k) => (
+              <tr key={k}>
+                <td>{k.slice(5).replace("-", "/")}</td>
+                <td>{stats[k].total}</td>
+                <td>{stats[k].correct}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </details>
   );
 }

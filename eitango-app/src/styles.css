@@ -259,3 +259,10 @@ h3 { font-size: 1rem; margin: 16px 0 8px; }
 .choice.ok { border-color: var(--ok); background: var(--ok-soft); }
 .choice.ng { border-color: var(--ng); background: var(--ng-soft); }
 .choice-meaning { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
+.stats-card summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; list-style: none; }
+.stats-card summary::-webkit-details-marker { display: none; }
+.stats-total { padding-top: 6px; border-top: 1px solid var(--border); }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.stats-table th, .stats-table td { padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: right; }
+.stats-table th:first-child, .stats-table td:first-child { text-align: left; }
+.stats-table th { color: var(--muted); font-weight: 400; }

@@ -119,6 +119,7 @@ function showTab(t) {
 }
 
 function renderNames() {
+  $('people').value = $('num').value;
   const n = +$('num').value;
   const old = [...document.querySelectorAll('#names input')].map(i => i.value);
   $('names').innerHTML = '';

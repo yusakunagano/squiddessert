@@ -266,3 +266,21 @@ h3 { font-size: 1rem; margin: 16px 0 8px; }
 .stats-table th, .stats-table td { padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: right; }
 .stats-table th:first-child, .stats-table td:first-child { text-align: left; }
 .stats-table th { color: var(--muted); font-weight: 400; }
+
+/* テスト画面を1画面に収めやすくするため、全体を少し詰める */
+.quiz { gap: 8px; padding-top: 10px; padding-bottom: 10px; }
+.quiz .card { padding: 10px 12px; gap: 6px; }
+.quiz .q-meaning { font-size: 1.3rem; }
+.quiz .q-word { font-size: 1.7rem; }
+.quiz .q-letter { font-size: 1.15rem; }
+.quiz .q-example { padding: 6px 10px; font-size: 0.95rem; }
+.quiz .icon-btn { width: 36px; height: 36px; font-size: 1.1rem; }
+.quiz .mark-buttons .chip { padding: 4px 10px; font-size: 0.8rem; }
+.quiz .btn { padding: 8px 12px; }
+.quiz .btn.big { padding: 11px 16px; font-size: 1.05rem; }
+.quiz .choices { gap: 6px; }
+.quiz .choice { padding: 9px; font-size: 1.15rem; }
+.quiz .verdict-answer { font-size: 1.05rem; }
+.quiz .verdict-mark { font-size: 1.15rem; }
+.quiz .quiz-top .btn { padding: 6px 10px; }
+.quiz .verdict { scroll-margin-bottom: calc(84px + env(safe-area-inset-bottom)); }

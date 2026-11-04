@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { HandwritingCanvas, type HandwritingHandle } from "../components/HandwritingCanvas";
-import { eikenWordsByGrade } from "../data/eiken";
+import { EIKEN_WORDS, eikenWordsByGrade } from "../data/eiken";
 import { speak } from "../lib/speech";
 import { recognizeStrokes } from "../lib/handwriting";
 import { highlight } from "../components/WordCard";
@@ -84,7 +84,8 @@ function SetupView({
   const [count, setCount] = useState(10);
   const [direction, setDirection] = useState<Direction>(() => {
     try {
-      return localStorage.getItem("eitango-test-direction") === "en2ja" ? "en2ja" : "ja2en";
+      const d = localStorage.getItem("eitango-test-direction");
+      return d === "en2ja" || d === "choice" ? d : "ja2en";
     } catch {
       return "ja2en";
     }
@@ -154,6 +155,9 @@ function SetupView({
           <button className={direction === "en2ja" ? "active" : ""} onClick={() => chooseDirection("en2ja")}>
             英語 → 日本語
           </button>
+          <button className={direction === "choice" ? "active" : ""} onClick={() => chooseDirection("choice")}>
+            3択クイズ
+          </button>
         </div>
 
         {direction === "ja2en" && <AiGradeToggle />}
@@ -191,7 +195,9 @@ function SetupView({
           <p className="hint">
             {direction === "ja2en"
               ? "✍️ 手書きしたあと、答えを見て自分で○×をつけます。"
-              : "💭 英単語を見て意味を思い浮かべ、答えを見て自分で○×をつけます。"}
+              : direction === "choice"
+                ? "🎯 日本語の意味に合う英単語を3つの中から選びます。"
+                : "💭 英単語を見て意味を思い浮かべ、答えを見て自分で○×をつけます。"}
           </p>
         )}
         <button className="btn primary big" disabled={pool.length === 0} onClick={begin}>
@@ -203,7 +209,7 @@ function SetupView({
   );
 }
 
-export type Direction = "ja2en" | "en2ja";
+export type Direction = "ja2en" | "en2ja" | "choice";
 
 function QuizView({
   words,
@@ -261,6 +267,25 @@ function QuizView({
   const example = w.examples[0];
   const blanked = example ? maskSentence(example.en, w.word) : null;
   const answer = answerOf(w.word);
+  // 3択クイズの選択肢（正解＋同じ範囲からランダムに2つ。範囲が小さいときは英検単語全体から）
+  const choices = useMemo(() => {
+    if (direction !== "choice") return [];
+    const base = words.length >= 3 ? words : EIKEN_WORDS;
+    const picked = new Map<string, Word>([[w.word.toLowerCase(), w]]);
+    for (let guard = 0; picked.size < 3 && guard < 200; guard++) {
+      const c = base[Math.floor(Math.random() * base.length)];
+      if (!picked.has(c.word.toLowerCase()) && c.meaning !== w.meaning) picked.set(c.word.toLowerCase(), c);
+    }
+    return [...picked.values()].sort(() => Math.random() - 0.5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w.id, direction]);
+  const [picked, setPicked] = useState<string | null>(null);
+  const choose = (word: string) => {
+    if (phase !== "write") return;
+    setPicked(word);
+    setCorrect(word === w.word);
+    setPhase("judged");
+  };
   const recent = results.slice(-20);
   const recentOk = recent.filter((r) => r.correct).length;
   const isLast = !random && index + 1 >= words.length;
@@ -309,6 +334,7 @@ function QuizView({
     setElapsed(null);
     setError("");
     setGradeError("");
+    setPicked(null);
     setShowExampleJa(false);
     canvas.current?.clear();
   };
@@ -345,7 +371,33 @@ function QuizView({
       </div>
       {direction === "ja2en" && <AiGradeToggle compact />}
 
-      {direction === "ja2en" ? (
+      {direction === "choice" ? (
+        <div className="card question">
+          <div className="q-meaning">{w.meaning || "（意味未登録）"}</div>
+          {blanked && (
+            <div className="q-example" onClick={() => setShowExampleJa((v) => !v)}>
+              <div>{phase === "judged" ? example!.en : blanked}</div>
+              {showExampleJa ? <div className="example-ja">{example!.ja}</div> : <div className="muted small">タップで訳</div>}
+            </div>
+          )}
+          <div className="choices">
+            {choices.map((c) => (
+              <button
+                key={c.id}
+                className={`choice ${phase === "judged" && c.word === w.word ? "ok" : ""} ${
+                  phase === "judged" && c.word === picked && c.word !== w.word ? "ng" : ""
+                }`}
+                onClick={() => choose(c.word)}
+                disabled={phase === "judged"}
+              >
+                {c.word}
+                {phase === "judged" && <span className="choice-meaning">{c.meaning}</span>}
+              </button>
+            ))}
+          </div>
+          {markButtons}
+        </div>
+      ) : direction === "ja2en" ? (
         <div className="card question">
           <div className="q-meaning">{w.meaning || "（意味未登録）"}</div>
           <div className="q-hint">
@@ -409,7 +461,7 @@ function QuizView({
           </button>
         </div>
       )}
-      {phase === "write" && (
+      {phase === "write" && direction !== "choice" && (
         <button className="btn primary big" onClick={check}>
           {direction === "ja2en" ? "答え合わせ" : "答えを見る"}
         </button>
@@ -438,7 +490,7 @@ function QuizView({
       {phase === "judged" && (
         <div className={`card verdict ${correct === true ? "ok" : correct === false ? "ng" : ""}`}>
           <div className="verdict-answer">
-            {direction === "ja2en" ? (
+            {direction !== "en2ja" ? (
               <>
                 正解: <b>{w.word}</b>
                 <button className="icon-btn" onClick={() => speak(w.word)}>
@@ -458,7 +510,9 @@ function QuizView({
             </div>
           )}
           {correct === true && <div className="verdict-mark">⭕ 正解！</div>}
-          {correct === false && <div className="verdict-mark">{written ? "❌ 不正解" : "❌ わからなかった"}</div>}
+          {correct === false && (
+            <div className="verdict-mark">{written || picked ? "❌ 不正解" : "❌ わからなかった"}</div>
+          )}
           {correct === null && <div>自分の答えと見くらべて、○か×を選んでください。</div>}
 
           <div className="row">

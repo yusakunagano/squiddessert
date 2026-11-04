@@ -707,7 +707,7 @@ function StatsCard() {
 
 function StatsModal({ onClose }: { onClose: () => void }) {
   const stats = useAppState((s) => s.stats);
-  const [view, setView] = useState<"30" | "7" | "day">("30");
+  const [view, setView] = useState<"30" | "7" | "day" | "all">("30");
   const days = Object.keys(stats).sort().reverse();
   const rangeDays = (n: number) =>
     Array.from({ length: n }, (_, i) => {
@@ -716,8 +716,8 @@ function StatsModal({ onClose }: { onClose: () => void }) {
       const k = dayKey(d);
       return { key: k, label: `${d.getMonth() + 1}/${d.getDate()}`, ...(stats[k] ?? { total: 0, correct: 0 }) };
     });
-  const data = view === "day" ? [] : rangeDays(view === "30" ? 30 : 7);
-  const sum = (view === "day" ? days.map((k) => stats[k]) : data).reduce(
+  const data = view === "30" || view === "7" ? rangeDays(view === "30" ? 30 : 7) : [];
+  const sum = (view === "day" || view === "all" ? days.map((k) => stats[k]) : data).reduce(
     (a, x) => ({ total: a.total + x.total, correct: a.correct + x.correct }),
     { total: 0, correct: 0 },
   );
@@ -740,12 +740,19 @@ function StatsModal({ onClose }: { onClose: () => void }) {
           <button className={view === "day" ? "active" : ""} onClick={() => setView("day")}>
             日別
           </button>
+          <button className={view === "all" ? "active" : ""} onClick={() => setView("all")}>
+            総合
+          </button>
         </div>
+        {view === "all" ? (
+          <AllTimeStats />
+        ) : (
         <div className="stats-total">
           {view === "day" ? "合計" : view === "30" ? "30日間" : "7日間"}　<b>{sum.total}</b>問・正解 <b>{sum.correct}</b>問
           {sum.total > 0 && <span className="muted">（{Math.round((sum.correct / sum.total) * 100)}%）</span>}
         </div>
-        {view === "day" ? (
+        )}
+        {view === "all" ? null : view === "day" ? (
           days.length === 0 ? (
             <p className="muted small">まだ記録はありません。テストを解くと、1問ごとに記録されます。</p>
           ) : (
@@ -773,6 +780,55 @@ function StatsModal({ onClose }: { onClose: () => void }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** 総合：これまでの合計（問題数・正解数・正答率・勉強した日数）と月ごとのグラフ */
+function AllTimeStats() {
+  const stats = useAppState((s) => s.stats);
+  const keys = Object.keys(stats).sort();
+  const sum = keys.reduce((a, k) => ({ total: a.total + stats[k].total, correct: a.correct + stats[k].correct }), { total: 0, correct: 0 });
+  const studyDays = keys.filter((k) => stats[k].total > 0).length;
+  // 月ごとにまとめる（記録のある最初の月から今月まで）
+  const months: { key: string; label: string; total: number; correct: number }[] = [];
+  if (keys.length) {
+    const [fy, fm] = keys[0].split("-").map(Number);
+    const now = new Date();
+    for (let y = fy, m = fm; y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth() + 1); m === 12 ? (y++, (m = 1)) : m++) {
+      const prefix = `${y}-${String(m).padStart(2, "0")}`;
+      const t = keys.filter((k) => k.startsWith(prefix)).reduce((a, k) => ({ total: a.total + stats[k].total, correct: a.correct + stats[k].correct }), { total: 0, correct: 0 });
+      months.push({ key: prefix, label: `${m}月`, ...t });
+    }
+  }
+  return (
+    <>
+      <div className="alltime">
+        <div>
+          <span className="muted small">問題数</span>
+          <b>{sum.total}</b>
+        </div>
+        <div>
+          <span className="muted small">正解数</span>
+          <b>{sum.correct}</b>
+        </div>
+        <div>
+          <span className="muted small">正答率</span>
+          <b>{sum.total ? Math.round((sum.correct / sum.total) * 100) : 0}%</b>
+        </div>
+        <div>
+          <span className="muted small">勉強した日</span>
+          <b>{studyDays}日</b>
+        </div>
+      </div>
+      {months.length > 0 ? (
+        <>
+          <div className="muted small">月ごと</div>
+          <StatsChart data={months.slice(-12)} />
+        </>
+      ) : (
+        <p className="muted small">まだ記録はありません。テストを解くと、1問ごとに記録されます。</p>
+      )}
+    </>
   );
 }
 
@@ -841,7 +897,7 @@ function StatsChart({ data }: { data: { key: string; label: string; total: numbe
             {picked.label}：<b>{picked.total}</b>問・正解 <b>{picked.correct}</b>問
           </>
         ) : (
-          <span className="muted small">棒をタップすると、その日の数が出ます</span>
+          <span className="muted small">棒をタップすると、くわしい数が出ます</span>
         )}
       </div>
     </div>

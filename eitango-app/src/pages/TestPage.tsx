@@ -80,8 +80,24 @@ function SetupView({
 
   const [source, setSource] = useState<Source>(initialSource ?? "grade:5");
   const autoGrade = useAppState((s) => s.settings.autoGrade);
-  // 出題数（0 = 全部、-1 = ランダム♾️）
+  // 出題数（0 = 全部）
   const [count, setCount] = useState(10);
+  // ランダムに出題するか（出題数とは別に選べる）
+  const [random, setRandom] = useState(() => {
+    try {
+      return localStorage.getItem("eitango-test-random") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleRandom = () => {
+    setRandom(!random);
+    try {
+      localStorage.setItem("eitango-test-random", random ? "0" : "1");
+    } catch {
+      /* 無視 */
+    }
+  };
   const [direction, setDirection] = useState<Direction>(() => {
     try {
       const d = localStorage.getItem("eitango-test-direction");
@@ -109,13 +125,19 @@ function SetupView({
   const [startOverride, setStartOverride] = useState<number | null>(null);
   const start = startOverride ?? savedStart;
 
-  const random = count === -1;
   const begin = () => {
+    const n = count === 0 ? pool.length : count;
     if (random) {
-      if (pool.length) onStart({ source, label: `${label}（ランダム）`, words: pool, random: true, direction });
+      // 範囲の中からランダムに n 問（重複なし）
+      const shuffled = [...pool];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const words = shuffled.slice(0, n);
+      if (words.length) onStart({ source, label: `${label}（ランダム）`, words, random: false, direction });
       return;
     }
-    const n = count === 0 ? pool.length : count;
     const words = pool.slice(start, start + n);
     if (words.length === 0) return;
     if (ordered) saveProgress(source, start + words.length >= pool.length ? 0 : start + words.length);
@@ -125,29 +147,26 @@ function SetupView({
   return (
     <div className="page">
       <StatsCard />
-      <h2>テストの範囲を選ぶ</h2>
-      <div className="chips">
-        {GRADES.map((g) => (
-          <button
-            key={g.id}
-            className={`chip ${source === `grade:${g.id}` ? "active" : ""}`}
-            onClick={() => {
-              setSource(`grade:${g.id}`);
+      <div className="card">
+        <label className="field">
+          テストの範囲
+          <select
+            className="input"
+            value={source}
+            onChange={(e) => {
+              setSource(e.target.value);
               setStartOverride(null);
             }}
           >
-            英検{g.label}
-          </button>
-        ))}
-        <button className={`chip ${source === "mine" ? "active" : ""}`} onClick={() => (setSource("mine"), setStartOverride(null))}>
-          マイ単語 ({myWords.length})
-        </button>
-        <button className={`chip retest ${source === "retest" ? "active" : ""}`} onClick={() => setSource("retest")}>
-          🔁 再テスト項目 ({retestWords.length})
-        </button>
-      </div>
-
-      <div className="card">
+            {GRADES.map((g) => (
+              <option key={g.id} value={`grade:${g.id}`}>
+                英検{g.label}（{eikenWordsByGrade(g.id).length}語）
+              </option>
+            ))}
+            <option value="mine">マイ単語（{myWords.length}語）</option>
+            <option value="retest">🔁 再テスト項目（{retestWords.length}語）</option>
+          </select>
+        </label>
         <div className="field">出題の向き</div>
         <div className="segmented">
           <button className={direction === "ja2en" ? "active" : ""} onClick={() => chooseDirection("ja2en")}>
@@ -165,13 +184,15 @@ function SetupView({
 
         <div className="field">出題数</div>
         <div className="chips">
-          {[10, 20, 30, 0, -1].map((n) => (
+          {[10, 20, 30, 0].map((n) => (
             <button key={n} className={`chip ${count === n ? "active" : ""}`} onClick={() => setCount(n)}>
-              {n === 0 ? "全部" : n === -1 ? "ランダム♾️" : `${n}問`}
+              {n === 0 ? "全部" : `${n}問`}
             </button>
           ))}
+          <button className={`chip ${random ? "active" : ""}`} onClick={toggleRandom}>
+            🔀 ランダム {random ? "ON" : "OFF"}
+          </button>
         </div>
-        {random && <p className="hint">♾️ 範囲の中からランダムに出題し続けます。直近20問の成績が表示されます。「■ 終了」で結果を見られます。</p>}
 
         {ordered && !random && pool.length > 0 && (
           <>
@@ -663,47 +684,166 @@ function AiGradeToggle({ compact = false }: { compact?: boolean }) {
   );
 }
 
-/** 記録：今日・合計の問題数と正解数、日ごとの一覧 */
+const dayKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** 記録：今日の問題数・正解数。タップでグラフ（直近30日・1週間）と日別の一覧 */
 function StatsCard() {
   const stats = useAppState((s) => s.stats);
-  const days = Object.keys(stats).sort().reverse();
-  const d = new Date();
-  const todayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const today = stats[todayKey] ?? { total: 0, correct: 0 };
-  const sum = days.reduce((a, k) => ({ total: a.total + stats[k].total, correct: a.correct + stats[k].correct }), { total: 0, correct: 0 });
+  const [open, setOpen] = useState(false);
+  const today = stats[dayKey(new Date())] ?? { total: 0, correct: 0 };
   return (
-    <details className="card stats-card">
-      <summary>
+    <>
+      <button className="card stats-card" onClick={() => setOpen(true)}>
         <span>📊 記録</span>
         <span>
-          今日 <b>{today.total}</b>問・正解 <b>{today.correct}</b>問
+          今日 <b>{today.total}</b>問・正解 <b>{today.correct}</b>問 <span className="stats-link">グラフ ›</span>
         </span>
-      </summary>
-      <div className="stats-total">
-        合計 <b>{sum.total}</b>問・正解 <b>{sum.correct}</b>問
+      </button>
+      {open && <StatsModal onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+function StatsModal({ onClose }: { onClose: () => void }) {
+  const stats = useAppState((s) => s.stats);
+  const [view, setView] = useState<"30" | "7" | "day">("30");
+  const days = Object.keys(stats).sort().reverse();
+  const rangeDays = (n: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (n - 1 - i));
+      const k = dayKey(d);
+      return { key: k, label: `${d.getMonth() + 1}/${d.getDate()}`, ...(stats[k] ?? { total: 0, correct: 0 }) };
+    });
+  const data = view === "day" ? [] : rangeDays(view === "30" ? 30 : 7);
+  const sum = (view === "day" ? days.map((k) => stats[k]) : data).reduce(
+    (a, x) => ({ total: a.total + x.total, correct: a.correct + x.correct }),
+    { total: 0, correct: 0 },
+  );
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="row">
+          <h2 className="grow">📊 記録</h2>
+          <button className="icon-btn small" onClick={onClose} aria-label="閉じる">
+            ✕
+          </button>
+        </div>
+        <div className="segmented">
+          <button className={view === "30" ? "active" : ""} onClick={() => setView("30")}>
+            直近30日
+          </button>
+          <button className={view === "7" ? "active" : ""} onClick={() => setView("7")}>
+            1週間
+          </button>
+          <button className={view === "day" ? "active" : ""} onClick={() => setView("day")}>
+            日別
+          </button>
+        </div>
+        <div className="stats-total">
+          {view === "day" ? "合計" : view === "30" ? "30日間" : "7日間"}　<b>{sum.total}</b>問・正解 <b>{sum.correct}</b>問
+          {sum.total > 0 && <span className="muted">（{Math.round((sum.correct / sum.total) * 100)}%）</span>}
+        </div>
+        {view === "day" ? (
+          days.length === 0 ? (
+            <p className="muted small">まだ記録はありません。テストを解くと、1問ごとに記録されます。</p>
+          ) : (
+            <table className="stats-table">
+              <thead>
+                <tr>
+                  <th>日付</th>
+                  <th>問題数</th>
+                  <th>正解数</th>
+                </tr>
+              </thead>
+              <tbody>
+                {days.map((k) => (
+                  <tr key={k}>
+                    <td>{k.slice(5).replace("-", "/")}</td>
+                    <td>{stats[k].total}</td>
+                    <td>{stats[k].correct}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        ) : (
+          <StatsChart data={data} />
+        )}
       </div>
-      {days.length === 0 ? (
-        <p className="muted small">まだ記録はありません。テストを解くと、1問ごとに記録されます。</p>
-      ) : (
-        <table className="stats-table">
-          <thead>
-            <tr>
-              <th>日付</th>
-              <th>問題数</th>
-              <th>正解数</th>
-            </tr>
-          </thead>
-          <tbody>
-            {days.map((k) => (
-              <tr key={k}>
-                <td>{k.slice(5).replace("-", "/")}</td>
-                <td>{stats[k].total}</td>
-                <td>{stats[k].correct}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </details>
+    </div>
+  );
+}
+
+/** 日ごとの積み上げ棒グラフ（正解＋不正解＝問題数）。棒をタップするとその日の数を表示 */
+function StatsChart({ data }: { data: { key: string; label: string; total: number; correct: number }[] }) {
+  const [sel, setSel] = useState<number | null>(null);
+  const W = 340;
+  const H = 180;
+  const padL = 28;
+  const padB = 22;
+  const padT = 10;
+  const padR = 14;
+  const max = Math.max(10, ...data.map((d) => d.total));
+  const niceMax = Math.ceil(max / 10) * 10;
+  const slot = (W - padL - padR) / data.length;
+  const bw = Math.max(3, Math.min(22, slot - 3));
+  const y = (v: number) => padT + (H - padB - padT) * (1 - v / niceMax);
+  const labelEvery = data.length > 10 ? 5 : 1;
+  const picked = sel !== null ? data[sel] : null;
+  return (
+    <div className="stats-chart">
+      <div className="chart-legend">
+        <span>
+          <i className="sw ok" />
+          正解
+        </span>
+        <span>
+          <i className="sw ng" />
+          不正解
+        </span>
+        <span className="muted small">棒の高さ＝問題数</span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="日ごとの問題数と正解数のグラフ">
+        {[0, 0.5, 1].map((t) => (
+          <g key={t}>
+            <line className="grid" x1={padL} x2={W - padR} y1={y(niceMax * t)} y2={y(niceMax * t)} />
+            <text className="axis" x={padL - 4} y={y(niceMax * t) + 4} textAnchor="end">
+              {Math.round(niceMax * t)}
+            </text>
+          </g>
+        ))}
+        {data.map((d, i) => {
+          const x = padL + slot * i + (slot - bw) / 2;
+          const wrong = d.total - d.correct;
+          return (
+            <g key={d.key} onClick={() => setSel(sel === i ? null : i)} className={sel === i ? "sel" : ""}>
+              <rect className="hit" x={padL + slot * i} y={0} width={slot} height={H - padB} />
+              {d.correct > 0 && (
+                <rect className="bar ok" x={x} y={y(d.correct)} width={bw} height={y(0) - y(d.correct)} rx={2} />
+              )}
+              {wrong > 0 && (
+                <rect className="bar ng" x={x} y={y(d.total)} width={bw} height={Math.max(0, y(d.correct) - y(d.total) - 1.5)} rx={2} />
+              )}
+              {(i % labelEvery === (data.length - 1) % labelEvery || i === data.length - 1) && (
+                <text className="axis" x={x + bw / 2} y={H - 6} textAnchor="middle">
+                  {d.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      <div className="chart-detail">
+        {picked ? (
+          <>
+            {picked.label}：<b>{picked.total}</b>問・正解 <b>{picked.correct}</b>問
+          </>
+        ) : (
+          <span className="muted small">棒をタップすると、その日の数が出ます</span>
+        )}
+      </div>
+    </div>
   );
 }

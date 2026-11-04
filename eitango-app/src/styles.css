@@ -284,3 +284,20 @@ h3 { font-size: 1rem; margin: 16px 0 8px; }
 .quiz .verdict-mark { font-size: 1.15rem; }
 .quiz .quiz-top .btn { padding: 6px 10px; }
 .quiz .verdict { scroll-margin-bottom: calc(84px + env(safe-area-inset-bottom)); }
+.stats-card { flex-direction: row; justify-content: space-between; align-items: center; cursor: pointer; text-align: left; width: 100%; font: inherit; color: inherit; }
+.stats-link { color: var(--primary); font-size: 0.85rem; margin-left: 4px; }
+.stats-chart svg { width: 100%; height: auto; display: block; }
+.stats-chart .grid { stroke: var(--border); stroke-width: 1; }
+.stats-chart .axis { fill: var(--muted); font-size: 10px; }
+.stats-chart .bar.ok { fill: #4f46e5; }
+.stats-chart .bar.ng { fill: #f59e0b; }
+.stats-chart .hit { fill: transparent; cursor: pointer; }
+.stats-chart g.sel .hit { fill: var(--primary-soft); }
+.chart-legend { display: flex; gap: 12px; align-items: center; font-size: 0.85rem; margin-bottom: 4px; }
+.chart-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.chart-legend .sw.ok { background: #4f46e5; }
+.chart-legend .sw.ng { background: #f59e0b; }
+.chart-detail { min-height: 1.5em; text-align: center; }
+@media (prefers-color-scheme: dark) {
+  .stats-chart .bar.ok, .chart-legend .sw.ok { fill: #818cf8; background: #818cf8; }
+}

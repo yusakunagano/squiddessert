@@ -195,9 +195,9 @@ function setupVoice(btn, input, onDone) {
 // ---------- Account linking + consent ----------
 // Personal questions need account data. Ask the user to link the account and choose
 // what the AI may see; only call onGranted once every needed scope is allowed.
-function withConsent(chat, needed, onGranted) {
+function withConsent(chat, needed, onGranted, opts = {}) {
   if (needed.every(s => Link.granted(s))) return onGranted();
-  chat.ai('このご質問にはお客さまのアカウント情報が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。', false);
+  chat.ai(opts.intro || 'このご質問にはお客さまのアカウント情報が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。', false);
   const el = chat.card(`
     <div class="consent">
       <b>アカウント連携とAIへの情報提供</b>

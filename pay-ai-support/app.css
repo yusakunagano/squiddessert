@@ -57,3 +57,19 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 .typing { padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: 13px; color: var(--sub); width: fit-content; }
 .links { display: flex; flex-direction: column; gap: 6px; }
 .links a { display: block; padding: 10px 12px; border: 1px solid var(--brand); border-radius: 10px; color: var(--brand); background: #fff; font-size: 13px; font-weight: 700; text-decoration: none; line-height: 1.5; }
+
+/* AIエージェント（デモ） */
+.agent-steps { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 8px 12px; font-size: 13px; }
+.agent-steps div { padding: 4px 0; color: var(--sub); }
+.agent-steps div::before { content: '○ '; }
+.agent-steps div.run { color: var(--text); font-weight: 700; } .agent-steps div.run::before { content: '◔ '; color: var(--brand); }
+.agent-steps div.done { color: var(--ok); } .agent-steps div.done::before { content: '✓ '; }
+.profile { border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; font-size: 13px; }
+.profile .head { padding: 12px; background: var(--brand-weak); line-height: 1.6; }
+.profile .head b { display: block; font-size: 16px; }
+.profile .body { padding: 10px 12px; }
+.profile .body p { margin: 8px 0 0; }
+.profile ul { margin: 6px 0; padding-left: 1.2em; line-height: 1.7; }
+.tagrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.tagrow span { background: var(--bg); border-radius: 12px; padding: 3px 10px; font-size: 12px; }
+.demo-note { font-size: 11px; color: #b26a00; }

@@ -13,7 +13,7 @@ export interface HandwritingHandle {
   toPngBase64: () => string;
 }
 
-const HEIGHT = 200;
+const HEIGHT = 160;
 
 /**
  * 英語ノートのような4本線つきの手書きキャンバス。
@@ -130,10 +130,10 @@ export const HandwritingCanvas = forwardRef<HandwritingHandle>(function Handwrit
 function drawGuides(ctx: CanvasRenderingContext2D, w: number) {
   // 4本線: 上線・中線（点線）・基線（赤）・下線
   const lines: { y: number; color: string; dash: number[] }[] = [
-    { y: 40, color: "#94a3b8", dash: [] },
-    { y: 85, color: "#cbd5e1", dash: [6, 6] },
-    { y: 130, color: "#f87171", dash: [] },
-    { y: 175, color: "#94a3b8", dash: [] },
+    { y: 30, color: "#94a3b8", dash: [] },
+    { y: 66, color: "#cbd5e1", dash: [6, 6] },
+    { y: 102, color: "#f87171", dash: [] },
+    { y: 138, color: "#94a3b8", dash: [] },
   ];
   for (const l of lines) {
     ctx.beginPath();

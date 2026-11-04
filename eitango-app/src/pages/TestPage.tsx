@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HandwritingCanvas, type HandwritingHandle } from "../components/HandwritingCanvas";
 import { EIKEN_WORDS, eikenWordsByGrade } from "../data/eiken";
 import { speak } from "../lib/speech";
@@ -246,6 +246,11 @@ function QuizView({
   const [correct, setCorrect] = useState<boolean | null>(null);
   const [showExampleJa, setShowExampleJa] = useState(false);
   const canvas = useRef<HandwritingHandle>(null);
+  // 答え合わせのあと、「次へ」ボタンが見えるところまで自動でスクロールする
+  const verdictRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (phase === "judged") verdictRef.current?.scrollIntoView({ block: "end" });
+  }, [phase, index]);
   const myWords = useAppState((s) => s.words);
   const misses = useAppState((s) => s.misses);
 
@@ -490,7 +495,9 @@ function QuizView({
       )}
 
       {phase === "judged" && (
-        <div className={`card verdict ${correct === true ? "ok" : correct === false ? "ng" : ""}`}>
+        <div
+          ref={verdictRef}
+          className={`card verdict ${correct === true ? "ok" : correct === false ? "ng" : ""}`}>
           <div className="verdict-answer">
             {direction !== "en2ja" ? (
               <>

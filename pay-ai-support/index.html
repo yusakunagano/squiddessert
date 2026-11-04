@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アプリホーム（プロトタイプ）</title>
-<link rel="stylesheet" href="app.css?v=20261029">
+<link rel="stylesheet" href="app.css?v=20261104">
 <style>
   .top { background: linear-gradient(135deg, #ff4d6d, var(--brand)); color: #fff; padding: 16px 16px 56px; }
   .top .brand { font-weight: 800; font-size: 18px; }
@@ -46,13 +46,14 @@
   <div class="banner"><span style="font-size:28px">🤖</span><div><b>AIアシスタントに聞いてみよう</b>アプリやカードの使い方、残高・ご利用額・請求のことまで答えます。</div></div>
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
-<script src="chat.js?v=20261102"></script>
+<script src="chat.js?v=20261104"></script>
+<script src="agent.js?v=20261104"></script>
 <script>
 document.getElementById('bal').textContent = yen(USER.balance);
 document.getElementById('pt').textContent = `ポイント ${USER.points.total.toLocaleString()}pt`;
 document.getElementById('revoke').onclick = () => { Link.revoke(); alert('AIとのアカウント連携を解除しました'); };
 
-const DEFAULT_CHIPS = ['🎁 お得な情報を知りたい', '送金したい', '履歴を見たい', '今月いくら使った？', '次のカード請求はいつ？', 'ポイントの期限は？', 'カードをなくした'];
+const DEFAULT_CHIPS = ['🧠 AIエージェントを使う', '🎁 お得な情報を知りたい', '送金したい', '履歴を見たい', '今月いくら使った？', '次のカード請求はいつ？', 'ポイントの期限は？', 'カードをなくした'];
 
 // General questions: answered from public product info, no account data needed.
 const FAQ = [
@@ -121,6 +122,7 @@ const PERSONAL = [
 
 // はっきりした依頼は、AIを使わずに直接動かす（お得な情報のAIモード／画面を開く）
 function quick(q, chat) {
+  if (/AIエージェント|プロファイ/.test(q)) { runAgentDemo(chat, { home: DEFAULT_CHIPS }); return true; }
   if (/お得|キャンペーン|特集/.test(q)) { chat.aiMode = true; chat.askAI(q); return true; }
   const act = ACTIONS.find(a => a.re.test(q));
   if (!act) return false;
@@ -143,7 +145,7 @@ const chat = createChat({
       chat.chips(DEFAULT_CHIPS);
     },
     free: { page: 'home', facts: () => FAQ.map(f => f.a).join('\n'), quick: (q, chat) => quick(q, chat) } },
-  greet: () => ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n質問を入力すると、AIがお答えします。残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),
+  greet: () => ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n質問を入力すると、AIがお答えします。「AIエージェントを使う」を選ぶと、あなたの利用の傾向を分析して、おすすめを提案します。残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),
   handle(q, chat) {
     if (quick(q, chat)) return;
     // Personal first: "ポイントの期限" must not fall through to the general points FAQ.

@@ -20,6 +20,7 @@ const SYSTEM_PROMPT = `あなたは決済アプリ「Pay」と「Payカード」
 - open_history: 利用履歴・明細を「見たい」とき、利用履歴の画面を開く。
 - open_register: 銀行口座を登録したいとき、口座登録の画面を開く。
 - open_services: 特典・還元率・倍率について画面で見たいとき、利用サービスの画面を開く。
+- open_campaigns: 利用者が「他の特集」「特集の一覧」など、ほかの特集をまとめて見たいとき、特集一覧の画面を開く。
 - need_consent: 答えるのに利用者本人の情報が必要なのに、<account> にその情報がないとき。scopes に必要な項目を入れる。
   - balance: 残高・ポイント
   - history: 利用額・利用明細
@@ -52,6 +53,7 @@ const PAGES = {
 - エントリーが必要な特集は「エントリーが必要です」と目立つように伝える。
 - <facts> に「詳細」がある特集は、その内容（還元・特典、上限、対象、エントリー方法、注意）に基づいて具体的に答える。
 - 詳細が付いていない特集の還元率・上限・対象店舗などは答えず、「くわしい条件は公式のキャンペーンページで確認してください」と案内する。<facts> が固定の概要のときだけ、そこに書かれた条件を目安として伝えてよい。
+- 利用者が、紹介した以外の特集も見たがっているときは、特集一覧の画面を開く（action は open_campaigns）。
 - お得情報と関係ない質問には、ひとこと答えたうえで「ほかのことを聞く」ボタンを押すよう案内する。`,
 };
 
@@ -59,7 +61,7 @@ const RESULT_SCHEMA = {
   type: "object",
   properties: {
     reply: { type: "string" },
-    action: { type: "string", enum: ["none", "open_send", "open_history", "open_register", "open_services", "need_consent"] },
+    action: { type: "string", enum: ["none", "open_send", "open_history", "open_register", "open_services", "open_campaigns", "need_consent"] },
     scopes: { type: "array", items: { type: "string", enum: ["balance", "history", "card"] } },
     params: {
       type: "object",

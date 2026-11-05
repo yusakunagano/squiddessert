@@ -53,10 +53,12 @@ const ACTION_URL = {
   open_history: () => 'services.html#hist',
   open_register: () => 'register.html',
   open_services: () => 'services.html',
+  open_campaigns: () => 'campaigns.html',
 };
-const ACTION_NAME = { open_send: '送金', open_history: '利用履歴', open_register: '銀行口座登録', open_services: '利用サービス' };
+const ACTION_NAME = { open_send: '送金', open_history: '利用履歴', open_register: '銀行口座登録', open_services: '利用サービス', open_campaigns: '特集一覧' };
 
-function createChat({ title, greet, handle, ai }) {
+// jumps: [{ re, action }]。ボタンや入力が re に合うときは、AIや決まった答えを使わず、その画面を直接開く
+function createChat({ title, greet, handle, ai, jumps = [] }) {
   const root = document.createElement('div');
   root.innerHTML = `
     <button class="ai-fab" aria-label="${title}を開く">AI</button>
@@ -85,6 +87,8 @@ function createChat({ title, greet, handle, ai }) {
     later(fn, ms = 450) { setTimeout(fn, ms); },
     aiMode: false,
     ask(q) {
+      const jump = jumps.find(j => j.re.test(q));
+      if (jump) { chat.me(q); return chat.launch(jump.action); }
       chat.me(q);
       if (chat.aiMode && q === ai.exitChip) return chat.stopAI();
       chat.aiMode ? askAI(q) : chat.later(() => handle(q, chat));
@@ -92,6 +96,8 @@ function createChat({ title, greet, handle, ai }) {
     // A question the user typed or spoke. The AI answers it (a screen-opening request is handled directly by quick()).
     // Buttons (chips) still use ask() and get the fixed answers.
     typed(q) {
+      const jump = jumps.find(j => j.re.test(q));
+      if (jump) { chat.me(q); return chat.launch(jump.action); }
       chat.me(q);
       if (!ai) return chat.later(() => handle(q, chat));
       if (chat.aiMode) return q === ai.exitChip ? chat.stopAI() : askAI(q, ai); // still inside the お得な情報 AI mode
@@ -157,8 +163,9 @@ function createChat({ title, greet, handle, ai }) {
       chat.card(`<div class="typing" style="font-size:11px">⏱ ${(r.debug.ms / 1000).toFixed(1)}秒（${r.debug.model} / 思考:${r.debug.used}${r.debug.rejected.length ? ' / 不可:' + r.debug.rejected.join(',') : ''}）／特集:${r.debug.source}${r.debug.campaignStatus ? '(' + r.debug.campaignStatus + ')' : ''}</div>`);
     }
     if (ACTION_URL[r.action]) return chat.launch(r.action, r.params);
-    const next = (r.chips || []).slice(0, 3);
-    chat.chips(cfg === ai ? [...next, ai.exitChip] : next.length ? next : greet().chips);
+    // 画面を開く質問候補は、AIが出したものは外し、こちらで 1 つだけ付ける（重複を防ぐ）
+    const next = (r.chips || []).filter(c => !jumps.some(j => j.re.test(c))).slice(0, 3);
+    chat.chips(cfg === ai ? [...next, ...(ai.listChip ? [ai.listChip] : []), ai.exitChip] : next.length ? next : greet().chips);
   }
 
   chat.askAI = (q, cfg) => askAI(q, cfg);

@@ -4,7 +4,7 @@
 const USER = {
   name: 'ヤマダ タロウ',
   balance: 12345,
-  points: { total: 3210, limited: 800, limitedExpire: '10/31' },
+  points: { total: 3210, limited: 800, limitedExpire: '11/30' },
   usage: {
     app:  { thisMonth: 18200, lastMonth: 22450 },
     card: { thisMonth: 30000, lastMonth: 41800 },
@@ -195,14 +195,16 @@ function setupVoice(btn, input, onDone) {
 // ---------- Account linking + consent ----------
 // Personal questions need account data. Ask the user to link the account and choose
 // what the AI may see; only call onGranted once every needed scope is allowed.
+// opts.single: { label, desc, note } のとき、連携する項目を 1 つにまとめる（許可すると、すべての項目を一度に連携する）
 function withConsent(chat, needed, onGranted, opts = {}) {
+  const single = opts.single;
   if (needed.every(s => Link.granted(s))) return onGranted();
   chat.ai(opts.intro || 'このご質問にはお客さまのアカウント情報が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。', false);
   const el = chat.card(`
     <div class="consent">
-      <b>アカウント連携とAIへの情報提供</b>
-      <p>選んだ情報だけをAIに渡します。情報は回答の作成にのみ使います。連携はホームの「AI連携を解除」からいつでも解除できます。</p>
-      ${Object.entries(SCOPES).map(([k, s]) => `
+      <b>${single ? single.title : 'アカウント連携とAIへの情報提供'}</b>
+      <p>${single ? single.note : '選んだ情報だけをAIに渡します。情報は回答の作成にのみ使います。連携はホームの「AI連携を解除」からいつでも解除できます。'}</p>
+      ${single ? `<label class="one"><span class="ck">✓</span><span><b>${single.label}</b><small>${single.desc}</small></span></label>` : Object.entries(SCOPES).map(([k, s]) => `
         <label><input type="checkbox" value="${k}" ${needed.includes(k) || Link.granted(k) ? 'checked' : ''}>
           <span><b>${s.label}</b>${needed.includes(k) ? '<em>この質問に必要</em>' : ''}<small>${s.desc}</small></span></label>`).join('')}
       <div class="row"><button type="button" class="no">許可しない</button><button type="button" class="yes">連携して許可</button></div>
@@ -213,8 +215,8 @@ function withConsent(chat, needed, onGranted, opts = {}) {
     chat.later(() => chat.ai('承知しました。アカウント情報は使わずにお答えします。\n残高や明細はホームの「利用履歴」からもご確認いただけます。'));
   };
   el.querySelector('.yes').onclick = () => {
-    const scopes = [...el.querySelectorAll('input:checked')].map(i => i.value);
-    done(); chat.me(`連携して許可（${scopes.map(s => SCOPES[s].label).join('・') || 'なし'}）`, false);
+    const scopes = single ? Object.keys(SCOPES) : [...el.querySelectorAll('input:checked')].map(i => i.value);
+    done(); chat.me(`連携して許可（${single ? single.label : scopes.map(s => SCOPES[s].label).join('・') || 'なし'}）`, false);
     // Mock of the account-linking step (biometric / password confirmation in the real app).
     const auth = chat.card('<div class="authing">🔐 本人確認中…（デモ）</div>');
     setTimeout(() => {

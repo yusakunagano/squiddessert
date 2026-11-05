@@ -176,9 +176,11 @@ function SetupView({
             英語 → 日本語
           </button>
           <button className={direction === "choice" ? "active" : ""} onClick={() => chooseDirection("choice")}>
-            3択クイズ
+            選択クイズ
           </button>
         </div>
+
+        {direction === "choice" && <ChoiceCountPicker />}
 
         {direction === "ja2en" && <AiGradeToggle />}
 
@@ -218,7 +220,7 @@ function SetupView({
             {direction === "ja2en"
               ? "✍️ 手書きしたあと、答えを見て自分で○×をつけます。"
               : direction === "choice"
-                ? "🎯 日本語の意味に合う英単語を3つの中から選びます。"
+                ? "🎯 日本語の意味に合う英単語を選択肢の中から選びます。"
                 : "💭 英単語を見て意味を思い浮かべ、答えを見て自分で○×をつけます。"}
           </p>
         )}
@@ -294,18 +296,19 @@ function QuizView({
   const example = w.examples[0];
   const blanked = example ? maskSentence(example.en, w.word) : null;
   const answer = answerOf(w.word);
-  // 3択クイズの選択肢（正解＋同じ範囲からランダムに2つ。範囲が小さいときは英検単語全体から）
+  // 選択クイズの選択肢（正解＋同じ範囲からランダムに。範囲が小さいときは英検単語全体から）
+  const choiceCount = useAppState((s) => s.settings.choiceCount) === 5 ? 5 : 3;
   const choices = useMemo(() => {
     if (direction !== "choice") return [];
-    const base = words.length >= 3 ? words : EIKEN_WORDS;
+    const base = words.length >= choiceCount ? words : EIKEN_WORDS;
     const picked = new Map<string, Word>([[w.word.toLowerCase(), w]]);
-    for (let guard = 0; picked.size < 3 && guard < 200; guard++) {
+    for (let guard = 0; picked.size < choiceCount && guard < 300; guard++) {
       const c = base[Math.floor(Math.random() * base.length)];
       if (!picked.has(c.word.toLowerCase()) && c.meaning !== w.meaning) picked.set(c.word.toLowerCase(), c);
     }
     return [...picked.values()].sort(() => Math.random() - 0.5);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [w.id, direction]);
+  }, [w.id, direction, choiceCount]);
   const [picked, setPicked] = useState<string | null>(null);
   const choose = (word: string) => {
     if (phase !== "write") return;
@@ -901,5 +904,22 @@ function StatsChart({ data }: { data: { key: string; label: string; total: numbe
         )}
       </div>
     </div>
+  );
+}
+
+/** 選択クイズの選択肢の数（3択 / 5択） */
+function ChoiceCountPicker() {
+  const n = useAppState((s) => s.settings.choiceCount) === 5 ? 5 : 3;
+  return (
+    <>
+      <div className="field">選択肢の数</div>
+      <div className="chips">
+        {[3, 5].map((c) => (
+          <button key={c} className={`chip ${n === c ? "active" : ""}`} onClick={() => actions.updateSettings({ choiceCount: c })}>
+            {c}択
+          </button>
+        ))}
+      </div>
+    </>
   );
 }

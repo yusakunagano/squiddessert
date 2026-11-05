@@ -49,3 +49,17 @@ test("スキーマにない action は、AI が返しても通らない設計（
     assert.deepEqual(enumValues, ["none", "open_send", "open_history", "open_register", "open_services", "open_campaigns", "need_consent"]);
   });
 });
+
+test("利用サービスのAI：提携銀行の口座を持っていないときは、銀行口座の登録画面を開くよう指示している", async () => {
+  const seen = stub({ reply: "登録の画面を開きます", action: "open_register" });
+  const [status, body] = await call(msg("services", "提携銀行の口座は持っていません"), "10.0.0.4");
+  assert.equal(status, 200);
+  assert.equal(body.action, "open_register");
+  assert.match(seen.at(-1).config.systemInstruction, /口座を「持っていない」「これから作る」と答えたときは、銀行口座の登録画面を開く/);
+  // ほかのページの指示には入っていない
+  stub({ reply: "ok", action: "none" });
+  const home = [];
+  ai.models.generateContent = async (req) => { home.push(req); return { text: JSON.stringify({ reply: "ok", action: "none", scopes: [], chips: [], links: [] }) }; };
+  await call(msg("home", "こんにちは"), "10.0.0.5");
+  assert.doesNotMatch(home.at(-1).config.systemInstruction, /これから作る/);
+});

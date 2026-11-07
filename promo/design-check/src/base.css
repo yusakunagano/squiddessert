@@ -1,0 +1,9 @@
+*{box-sizing:border-box}body{margin:0;font-family:"Noto Sans CJK JP","Hiragino Sans",sans-serif;background:#f4f5f7;color:#222;width:390px}
+header{background:#fff;padding:14px 16px;font-weight:700;border-bottom:1px solid #e5e5e5;display:flex;justify-content:space-between}
+.sec{padding:12px 16px}.card{background:#fff;border-radius:12px;padding:12px;margin-bottom:10px}
+.banner{height:120px;border-radius:12px;background:linear-gradient(135deg,#ff9a8b,#ff6a88);color:#fff;padding:14px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;font-size:10px;color:#666}
+.grid div div{width:44px;height:44px;margin:0 auto 4px;border-radius:10px;background:#eee}
+.item{display:flex;gap:10px;align-items:center}.thumb{width:64px;height:64px;border-radius:8px;background:#ddd}
+.price{font-weight:700}.small{font-size:11px;color:#999}
+.btn{display:block;text-align:center;padding:10px;border-radius:8px;background:#bbb;color:#fff;font-size:12px}

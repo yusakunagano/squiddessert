@@ -89,31 +89,6 @@
 <script src="../ga.js?v=20261104"></script>
 </head>
 <body>
-<div id="gate" style="position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px">
-  <form id="gateForm" style="background:var(--card);color:var(--text);padding:24px;border-radius:12px;width:100%;max-width:320px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
-    <h2 style="margin-top:0;font-size:18px">ログイン</h2>
-    <label style="display:block;margin:12px 0 4px">ID</label><input id="gid" style="width:100%;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:8px;box-sizing:border-box" autocomplete="username">
-    <label style="display:block;margin:12px 0 4px">パスワード</label><input id="gpw" type="password" style="width:100%;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:8px;box-sizing:border-box" autocomplete="current-password">
-    <div id="gerr" style="color:#d0021b;font-size:12px;min-height:1em;margin-top:6px"></div>
-    <button style="width:100%;margin-top:16px;padding:12px;font-size:16px;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer">ログイン</button>
-  </form>
-</div>
-<script>
-// Client-side gate (GitHub Pages can't do server-side Basic auth). Only the hash is stored.
-(() => {
-  const H = '386c24563b9256a0cb0f39148b85b0663cff50b23e4dd0b8a9a5e3a4a6675ee8';
-  const gate = document.getElementById('gate');
-  try { if (sessionStorage.getItem('payAuth') === H) { gate.remove(); return; } } catch (e) {}
-  document.getElementById('gateForm').onsubmit = async e => {
-    e.preventDefault();
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(gid.value + ':' + gpw.value));
-    const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-    if (hex !== H) { gerr.textContent = 'IDまたはパスワードが違います'; return; }
-    try { sessionStorage.setItem('payAuth', H); } catch (e) {}
-    gate.remove();
-  };
-})();
-</script>
 
 <main>
   <h1>UI/UX デザインチェッカー</h1>

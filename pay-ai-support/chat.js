@@ -31,9 +31,10 @@ const Link = {
   get() { try { return JSON.parse(sessionStorage.getItem('payLink') || 'null'); } catch (e) { return null; } },
   set(v) { try { sessionStorage.setItem('payLink', JSON.stringify(v)); } catch (e) {} this._mem = v; this.badge(); },
   granted(scope) { const v = this.get() || this._mem; return !!(v && v.scopes.includes(scope)); },
-  revoke() { try { sessionStorage.removeItem('payLink'); } catch (e) {} this._mem = null; this.badge(); },
-  // 連携中は、AIアイコンに ✓ のバッジを付ける（解除すると外れる）
-  badge() { const on = !!(this.get() || this._mem); document.querySelectorAll('.ai-fab').forEach(b => { b.classList.toggle('linked', on); b.setAttribute('data-linked', on ? '連携中' : ''); }); },
+  revoke() { try { sessionStorage.removeItem('payLink'); sessionStorage.removeItem('payAgentOn'); } catch (e) {} this._mem = null; this._agent = false; this.badge(); },
+  agentOn() { try { sessionStorage.setItem('payAgentOn', '1'); } catch (e) {} this._agent = true; this.badge(); },
+  // 「AIエージェントを使う」を始めて連携中のときだけ、AIアイコンに ✓ のバッジを付ける（AIを開いただけ・ほかの質問で連携しただけでは付かない。解除すると外れる）
+  badge() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} const on = a && !!(this.get() || this._mem); document.querySelectorAll('.ai-fab').forEach(b => { b.classList.toggle('linked', on); b.setAttribute('data-linked', on ? '連携中' : ''); }); },
 };
 
 // ---------- Chat widget ----------

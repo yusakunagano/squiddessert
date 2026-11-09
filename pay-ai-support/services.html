@@ -208,6 +208,7 @@ const chat = createChat({
     chat.chips(DEFAULT_CHIPS);
   },
 });
+if (location.hash === '#ai') chat.open(); // ホームの「お得な特典を知りたい」から来たとき、AIを開く
 document.getElementById('upAi').onclick = () => { chat.open(); chat.ask('倍率を上げるには？'); };
 </script>
 </body>

@@ -138,15 +138,15 @@ const JUMP_CAMPAIGNS = /(他|ほか|その他)の特集|特集(の)?(一覧|リ�
 
 const chat = createChat({
   title: 'AIアシスタント',
-  jumps: [{ re: JUMP_CAMPAIGNS, action: 'open_campaigns' }],
+  jumps: [{ re: JUMP_CAMPAIGNS, action: 'open_campaigns' }, { re: /お得な特典/, action: 'open_services_ai' }],
   // 質問候補のボタンは、下のルールで即答する。入力した質問・音声は、AI（free）が答える。
   // 「お得な情報」は、キャンペーンの一覧を使う専用のAIモード。
-  ai: { page: 'deals', facts: () => CAMPAIGNS.join('\n'), exitChip: 'ほかのことを聞く', listChip: '他の特集を見る',
+  ai: { page: 'deals', facts: () => CAMPAIGNS.join('\n'), exitChip: 'ほかのことを聞く', listChip: '他の特集を見る', rateChip: 'お得な特典を知りたい',
     // Without the AI, list the campaigns as they are.
     offline: chat => {
       chat.ai('いま開催中のお得な情報です。\n\n' + CAMPAIGNS.slice(0, 4).map(c => '・' + c).join('\n\n'));
       chat.links([{ title: 'キャンペーン一覧を見る', url: 'https://service.smt.docomo.ne.jp/keitai_payment/campaign/' }]);
-      chat.chips(['他の特集を見る', ...DEFAULT_CHIPS]);
+      chat.chips(['他の特集を見る', 'お得な特典を知りたい', ...DEFAULT_CHIPS]);
     },
     free: { page: 'home', facts: () => FAQ.map(f => f.a).join('\n'), quick: (q, chat) => quick(q, chat) } },
   greet: () => ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n質問を入力すると、AIがお答えします。「AIエージェントを使う」を選ぶと、あなたの利用の傾向を分析して、おすすめを提案します。残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),

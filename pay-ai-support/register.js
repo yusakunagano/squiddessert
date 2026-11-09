@@ -467,9 +467,7 @@ S.done = { p: 4, title: '登録完了', render(v) {
   v.innerHTML = `<div class="center"><div class="big" style="font-size:56px;color:var(--ok)">✓</div><h2>口座の登録が完了しました</h2>
     <p class="lead">${esc(state.bank)}（***${esc(state.number.slice(-4))}）からチャージできます。<br>登録のお知らせを、SMSで送りました。</p></div>
     <div class="sum"><div><span>チャージ上限</span><b>${yen(state.limit)}／回</b></div><div><span>オートチャージ</span><b>${state.auto.on ? 'あり' : 'なし'}</b></div></div>
-    <a class="primary" href="index.html" style="text-decoration:none;text-align:center">ホームに戻る</a>
-    <button class="ghost" id="another">もう1つ口座を登録する</button>`;
-  $('another').onclick = () => { Object.assign(state, fresh()); clearDraft(); render(); window.scrollTo(0, 0); };
+    <a class="primary" href="index.html" style="text-decoration:none;text-align:center">ホームに戻る</a>`;
 } };
 
 // 失敗が続いたら、AIサポートを案内する

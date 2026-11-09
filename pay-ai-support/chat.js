@@ -158,10 +158,6 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
     if (r.action === 'need_consent') return withConsent(chat, r.scopes, () => askAI(q, cfg));
     chat.ai(r.reply);
     chat.links(r.links);
-    if (r.debug) {
-      console.info('pay-assistant', r.debug);
-      chat.card(`<div class="typing" style="font-size:11px">⏱ ${(r.debug.ms / 1000).toFixed(1)}秒（${r.debug.model} / 思考:${r.debug.used}${r.debug.rejected.length ? ' / 不可:' + r.debug.rejected.join(',') : ''}）／特集:${r.debug.source}${r.debug.campaignStatus ? '(' + r.debug.campaignStatus + ')' : ''}</div>`);
-    }
     if (ACTION_URL[r.action]) return chat.launch(r.action, r.params);
     // 画面を開く質問候補は、AIが出したものは外し、こちらで 1 つだけ付ける（重複を防ぐ）
     const next = (r.chips || []).filter(c => !jumps.some(j => j.re.test(c))).slice(0, 3);

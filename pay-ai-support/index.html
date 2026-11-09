@@ -53,7 +53,7 @@ document.getElementById('bal').textContent = yen(USER.balance);
 document.getElementById('pt').textContent = `ポイント ${USER.points.total.toLocaleString()}pt`;
 document.getElementById('revoke').onclick = () => { Link.revoke(); alert('AIとのアカウント連携を解除しました'); };
 
-const DEFAULT_CHIPS = ['🧠 AIエージェントを使う', '🎁 お得な情報を知りたい', '送金したい', '履歴を見たい', '今月いくら使った？', '次のカード請求はいつ？', 'ポイントの期限は？', 'カードをなくした'];
+const DEFAULT_CHIPS = ['🧠 AIエージェントを使う', '🎁 お得な情報を知りたい', '送金したい', '履歴を見たい', '次のカード請求はいつ？', 'ポイントの期限は？', 'カードをなくした'];
 
 // General questions: answered from public product info, no account data needed.
 const FAQ = [

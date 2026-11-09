@@ -29,9 +29,11 @@ const yen = n => n.toLocaleString('ja-JP') + '円';
 
 const Link = {
   get() { try { return JSON.parse(sessionStorage.getItem('payLink') || 'null'); } catch (e) { return null; } },
-  set(v) { try { sessionStorage.setItem('payLink', JSON.stringify(v)); } catch (e) {} this._mem = v; },
+  set(v) { try { sessionStorage.setItem('payLink', JSON.stringify(v)); } catch (e) {} this._mem = v; this.badge(); },
   granted(scope) { const v = this.get() || this._mem; return !!(v && v.scopes.includes(scope)); },
-  revoke() { try { sessionStorage.removeItem('payLink'); } catch (e) {} this._mem = null; },
+  revoke() { try { sessionStorage.removeItem('payLink'); } catch (e) {} this._mem = null; this.badge(); },
+  // 連携中は、AIアイコンに ✓ のバッジを付ける（解除すると外れる）
+  badge() { const on = !!(this.get() || this._mem); document.querySelectorAll('.ai-fab').forEach(b => { b.classList.toggle('linked', on); b.setAttribute('data-linked', on ? '連携中' : ''); }); },
 };
 
 // ---------- Chat widget ----------
@@ -167,6 +169,7 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
 
   chat.askAI = (q, cfg) => askAI(q, cfg);
   $('.ai-fab').onclick = chat.open;
+  Link.badge();
   $('.close').onclick = chat.close;
   $('.sheet-bg').onclick = chat.close;
   $('.composer').onsubmit = e => { e.preventDefault(); const i = $('.composer input'); const q = i.value.trim(); if (q) { chat.typed(q); i.value = ''; } };

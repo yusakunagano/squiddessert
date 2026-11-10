@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="今日の出来事や気分、キーワードを書くと、AI の muse がひらめきの種を返します。">
-<title>muse</title>
+<meta name="description" content="今日の出来事や気分、キーワードを書くと、AI の nuse がひらめきの種を返します。">
+<title>nuse</title>
 <style>
   :root { --paper:#f7f4ef; --card:#fff; --ink:#26222d; --muted:#6b6577; --line:#e4ded4; --accent:#6a45b8; --accent-soft:#eee8fa; --on-accent:#fff; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#16131c; --card:#201c29; --ink:#eeeaf5; --muted:#a8a1b6; --line:#352f42; --accent:#b9a2f5; --accent-soft:#2b2440; --on-accent:#1a1230; color-scheme:dark; } }
@@ -38,7 +38,7 @@
 <body>
 <main>
   <header>
-    <h1>muse</h1>
+    <h1>nuse</h1>
     <p class="lead">今日のこと、気分、気になる言葉。断片のままで大丈夫。ひらめきの種に変えて返します。</p>
   </header>
 
@@ -64,7 +64,7 @@
   </section>
 </main>
 <script>
-  const API_URL = "https://squiddessert.vercel.app/api/muse";
+  const API_URL = "https://squiddessert.vercel.app/api/nuse";
   const $ = (id) => document.getElementById(id);
   const input = $("input"), status = $("status"), go = $("go");
 
@@ -75,7 +75,7 @@
     const text = input.value.trim();
     if (!text) return;
     go.disabled = true; $("result").hidden = true;
-    status.className = ""; status.textContent = "museが耳をすませています…";
+    status.className = ""; status.textContent = "nuseが耳をすませています…";
     try {
       const res = await fetch(API_URL, {
         method: "POST",

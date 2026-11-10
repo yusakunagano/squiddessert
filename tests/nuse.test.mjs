@@ -1,10 +1,10 @@
-// muse（api/muse.js）の自動テスト。実行：npm test
+// nuse（api/nuse.js）の自動テスト。実行：npm test
 import assert from "node:assert/strict";
 import test from "node:test";
 
 process.env.GEMINI_API_KEY ||= "test";
 const { ai } = await import("../api/_shared.js");
-const { default: handler } = await import("../api/muse.js");
+const { default: handler } = await import("../api/nuse.js");
 
 const call = async (body, ip = "1.1.1.1") => {
   let out;

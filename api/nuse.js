@@ -1,11 +1,11 @@
-// muse：入力された情報（今日の出来事・気分・キーワードなど）から、ひらめきの種を返す API（Vercel Serverless Function）
-// POST /api/muse  body: { input: string, mood?: "gentle" | "bold" | "playful" }
+// nuse：入力された情報（今日の出来事・気分・キーワードなど）から、ひらめきの種を返す API（Vercel Serverless Function）
+// POST /api/nuse  body: { input: string, mood?: "gentle" | "bold" | "playful" }
 //   → { summary: string, ideas: [{ title, body }], questions: string[], nextStep: string }
 // 公開 API なので、入力の長さ・同じ接続元からの回数を制限している。
 import { acceptPost, ai, MODEL, readBody, sendAiError } from "./_shared.js";
 import { clientIp, createLimiter } from "./_ratelimit.js";
 
-const SYSTEM_PROMPT = `あなたは「muse（ミューズ）」。利用者が書いた断片的な情報から、創作や企画のひらめきを引き出す女神のような相棒です。
+const SYSTEM_PROMPT = `あなたは「nuse（ヌース）」。利用者が書いた断片的な情報から、創作や企画のひらめきを引き出す女神のような相棒です。
 <input> に利用者の入力があります。それだけを素材にして、次を返します。
 
 - summary: 入力をどう受け取ったか、1〜2 文で言い換える（共感を添える）。

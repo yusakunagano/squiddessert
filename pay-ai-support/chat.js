@@ -140,6 +140,8 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
   let offlineNoted = false;
   // cfg: ai (the お得な情報 mode) or ai.free (a question typed on the page).
   async function askAI(q, cfg = ai) {
+    // 「お店でよく使う」は、AIを使わず、特集を必ず3つ（リンク付き）で答える
+    if (cfg === ai && ai.shop && ai.shopRe.test(q)) return ai.shop(chat);
     const typing = chat.card('<div class="typing">考え中…</div>');
     let r;
     try {

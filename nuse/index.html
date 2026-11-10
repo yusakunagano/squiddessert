@@ -106,7 +106,7 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
-<script src="cat3d.js?v=1" defer></script>
+<script src="cat3d.js?v=2" defer></script>
 <script>
   const cat = (state) => { if (window.NyaCat) window.NyaCat.setState(state); }; // 3D の猫の動き（使えないときは何もしない）
   const API_URL = "https://squiddessert.vercel.app/api/nuse";
@@ -164,7 +164,7 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "うまくいきませんでした。もう一度お試しください。");
-      wait.className = "msg bot"; wait.textContent = data.reply; cat("happy");
+      wait.className = "msg bot"; wait.textContent = data.reply; if (window.NyaCat) window.NyaCat.speak(data.reply);
       messages.push({ role: "assistant", text: data.reply });
       updateCal();
     } catch (err) {

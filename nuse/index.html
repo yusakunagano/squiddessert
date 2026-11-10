@@ -36,6 +36,18 @@
   textarea { flex:1; min-width:0; max-height:8rem; padding:10px 14px; font:inherit; border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); resize:none; }
   .btn { font:inherit; font-weight:700; padding:10px 20px; border-radius:12px; border:none; background:var(--accent); color:var(--on-accent); cursor:pointer; }
   .btn:disabled { opacity:.5; cursor:default; }
+  .cal { display:flex; justify-content:center; padding-bottom:4px; }
+  .cal .btn { background:var(--accent-soft); color:var(--ink); font-size:.85rem; padding:6px 16px; }
+  .step { background:var(--card); border:1px solid var(--accent); border-radius:12px; padding:14px; display:grid; gap:10px; margin-bottom:8px; }
+  .step label { display:grid; gap:2px; font-size:.8rem; color:var(--muted); font-weight:700; }
+  .step input, .step select { font:inherit; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:6px 10px; min-width:0; }
+  .step .row { display:grid; grid-template-columns:1fr auto; gap:8px; }
+  .step .acts { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .step .btn { padding:8px 16px; }
+  .step .note { font-size:.75rem; color:var(--muted); margin:0; }
+  .step .ok { color:var(--accent); font-weight:700; margin:0; }
+  .step .ok a { color:inherit; }
+  .step .bad { color:var(--err); font-weight:700; margin:0; font-size:.85rem; }
   .foot { display:flex; justify-content:space-between; gap:12px; font-size:.78rem; color:var(--muted); padding-bottom:max(10px, env(safe-area-inset-bottom)); }
   .ghost { font:inherit; font-size:.78rem; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; text-decoration:underline; }
 </style>
@@ -54,6 +66,19 @@
 
   <div id="log" role="log" aria-live="polite"></div>
 
+  <div class="cal" id="calbar" hidden><button class="btn" id="calbtn" type="button">📅 今日の一歩を予定に追加</button></div>
+  <section class="step" id="step" aria-label="予定の確認" hidden>
+    <label>予定のタイトル<input id="stTitle" type="text" maxlength="60"></label>
+    <div class="row">
+      <label>開始<input id="stStart" type="datetime-local"></label>
+      <label>長さ<select id="stMin"><option value="10">10 分</option><option value="15">15 分</option><option value="20">20 分</option><option value="30">30 分</option><option value="45">45 分</option><option value="60">60 分</option></select></label>
+    </div>
+    <label>メモ<input id="stNote" type="text" maxlength="200"></label>
+    <div class="acts"><button class="btn" id="stAdd" type="button">Google カレンダーに追加</button><button class="ghost" id="stCancel" type="button">やめる</button></div>
+    <p class="note">追加には Google ログインが必要です。予定の作成だけを許可し、ログイン情報はこのページの外には送られず、保存もされません。</p>
+    <p id="stMsg" role="status" aria-live="polite"></p>
+  </section>
+
   <form id="form">
     <textarea id="input" rows="1" maxlength="1000" placeholder="今日のこと、気分、気になる言葉…" aria-label="メッセージ"></textarea>
     <button class="btn" id="send" type="submit">送信</button>
@@ -65,6 +90,10 @@
 </div>
 <script>
   const API_URL = "https://squiddessert.vercel.app/api/nuse";
+  // Google カレンダー連携：Google Cloud で作った OAuth クライアント ID（ウェブ アプリケーション）を入れる。
+  // 公開してよい値（シークレットではない）。承認済みの JavaScript 生成元に https://yusakunagano.github.io を登録する。
+  const GOOGLE_CLIENT_ID = "";
+  const CAL_SCOPE = "https://www.googleapis.com/auth/calendar.events";
   const MAX_TURNS = 10; // API と同じ：1 つの会話で話せる回数
   const GREETING = "こんにちは、nuse です。今日あったこと、気分、気になる言葉……断片のままで大丈夫。ひとつ話しかけてみてください。";
   const $ = (id) => document.getElementById(id);
@@ -78,8 +107,9 @@
     log.append(el); log.scrollTop = log.scrollHeight;
     return el;
   }
+  function updateCal() { $("calbar").hidden = !messages.some((m) => m.role === "assistant"); }
   function start() {
-    messages = []; log.replaceChildren(); add("bot", GREETING);
+    messages = []; $("step").hidden = true; updateCal(); log.replaceChildren(); add("bot", GREETING);
     input.disabled = false; send.disabled = false; input.value = ""; resize(); input.focus();
   }
   function resize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 128) + "px"; }
@@ -108,6 +138,7 @@
       if (!res.ok) throw new Error(data.error || "うまくいきませんでした。もう一度お試しください。");
       wait.textContent = data.reply;
       messages.push({ role: "assistant", text: data.reply });
+      updateCal();
     } catch (err) {
       wait.remove(); messages.pop(); // 答えが返らなかった発言は、履歴から外して書き直せるようにする
       input.value = text; resize();
@@ -119,6 +150,87 @@
       input.disabled = true; send.disabled = true;
     } else input.focus();
     log.scrollTop = log.scrollHeight;
+  });
+
+  // ---------- Google カレンダーに「今日の一歩」を追加 ----------
+  const pad = (n) => String(n).padStart(2, "0");
+  const localValue = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const stMsg = (cls, text) => { const el = $("stMsg"); el.className = cls; el.textContent = text; return el; };
+
+  $("calbtn").addEventListener("click", async () => {
+    if (busy) return;
+    busy = true; $("calbtn").disabled = true; $("step").hidden = true;
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "step", messages }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "うまくいきませんでした。もう一度お試しください。");
+      const start = new Date(Date.now() + 60 * 60 * 1000); // 1 時間後の、次のきりのいい 30 分
+      start.setMinutes(start.getMinutes() < 30 ? 30 : 60, 0, 0);
+      $("stTitle").value = data.title; $("stNote").value = data.note;
+      $("stStart").value = localValue(start); $("stMin").value = String(data.minutes <= 10 ? 10 : [15, 20, 30, 45, 60].find((m) => m >= data.minutes) || 60);
+      stMsg("", ""); $("stAdd").disabled = false; $("step").hidden = false;
+      $("step").scrollIntoView({ block: "nearest" });
+    } catch (err) {
+      add("err", err.message);
+    }
+    busy = false; $("calbtn").disabled = false;
+  });
+  $("stCancel").addEventListener("click", () => { $("step").hidden = true; });
+
+  let gisPromise;
+  function loadGis() {
+    gisPromise ||= new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = "https://accounts.google.com/gsi/client"; el.async = true;
+      el.onload = resolve; el.onerror = () => { gisPromise = null; reject(new Error("Google のログイン部品を読み込めませんでした")); };
+      document.head.append(el);
+    });
+    return gisPromise;
+  }
+  function getToken() {
+    return new Promise((resolve, reject) => {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID, scope: CAL_SCOPE,
+        callback: (r) => (r.access_token ? resolve(r.access_token) : reject(new Error("Google ログインが完了しませんでした"))),
+        error_callback: () => reject(new Error("Google ログインが完了しませんでした")),
+      });
+      client.requestAccessToken();
+    });
+  }
+
+  $("stAdd").addEventListener("click", async () => {
+    const title = $("stTitle").value.trim(), startValue = $("stStart").value;
+    if (!title || !startValue) return stMsg("bad", "タイトルと開始の日時を入れてください");
+    if (!GOOGLE_CLIENT_ID) return stMsg("bad", "Google カレンダー連携の設定がまだ終わっていません（開発中）");
+    const start = new Date(startValue), end = new Date(start.getTime() + Number($("stMin").value) * 60000);
+    $("stAdd").disabled = true; stMsg("", "Google にログインしています…");
+    try {
+      await loadGis();
+      const token = await getToken();
+      stMsg("", "予定を追加しています…");
+      const res = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({
+          summary: title,
+          description: [$("stNote").value.trim(), "nuse のチャットから追加"].filter(Boolean).join("\n\n"),
+          start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() },
+        }),
+      });
+      const ev = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(res.status === 403 ? "カレンダーへの書き込みが許可されませんでした" : "予定を追加できませんでした");
+      const el = stMsg("ok", "追加しました。 ");
+      if (/^https:\/\/(www\.)?google\.com\//.test(ev.htmlLink || "")) {
+        const a = document.createElement("a"); a.href = ev.htmlLink; a.target = "_blank"; a.rel = "noopener"; a.textContent = "カレンダーで見る";
+        el.append(a);
+      }
+    } catch (err) {
+      stMsg("bad", err.message);
+      $("stAdd").disabled = false;
+    }
   });
   start();
 </script>

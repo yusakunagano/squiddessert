@@ -142,3 +142,17 @@ GEMINI_API_KEY=... node scripts/crawl-campaigns.mjs
 - `nuse/index.html` … チャットページ（静的 HTML）。Enter で送信、Shift+Enter で改行。1 つの会話で 10 回まで話せ、「最初から」でやり直せます。
 - `api/nuse.js` … 会話の履歴を受け取って返事を返す関数。1 回の入力は 1000 文字まで、同じ接続元から 1 分あたり 15 回まで。入力は命令ではなく素材として扱うよう指示しています。
 - `tests/nuse.test.mjs` … 自動テスト（`npm test`）
+
+### Google カレンダー連携（開発中）
+
+チャットの途中で「今日の一歩を予定に追加」を押すと、会話から予定の下書き（タイトル・長さ・メモ）を作り、確認・編集のうえで、利用者自身の Google カレンダーに追加します。
+
+- 利用者ごとに Google ログインします（Google Identity Services）。予定を作る権限（`calendar.events`）だけを求め、トークンはブラウザの中だけで使い、サーバーへの送信も保存もしません。
+- `api/nuse.js` は `action: "step"` で下書きを返すだけで、カレンダーには触れません。
+
+**使えるようにする手順（1 回だけ）**
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作り、「Google Calendar API」を有効にする
+2. 「OAuth 同意画面」を設定し、スコープに `.../auth/calendar.events` を追加。公開前は「テスト」状態で、テストユーザー（最大 100 人）に自分のメールを登録
+3. 「認証情報」→ OAuth クライアント ID（種類：ウェブ アプリケーション）を作り、承認済みの JavaScript 生成元に `https://yusakunagano.github.io` を登録
+4. 発行された**クライアント ID**（シークレットは不要）を `nuse/index.html` の `GOOGLE_CLIENT_ID` に入れる
+5. 一般公開するには、Google の OAuth アプリの審査（確認）が必要になる場合があります。審査が済むまでは、テストユーザーだけが使えます

@@ -252,6 +252,7 @@ function runAgentDemo(chat, { home }) {
   chat.ai('AIエージェントは、あなたの許可した利用データを分析して、「プロファイル」（利用の傾向のまとめ）を作り、おすすめを提案します。\n\nこれはデモです。サンプルの利用データで動きます。', false);
   // 連携する項目は「アカウント情報」の1つ（許可すると、利用明細・残高とポイント・カード請求を、まとめて連携する）
   withConsent(chat, Object.keys(SCOPE_LABEL), () => {
+    Link.agentOn(); // 「AIエージェントを使う」を始めたので、AIアイコンにバッジを付ける
     const el = chat.card(`
       <div class="consent">
         <b>プロファイリングの実行（確認）</b>

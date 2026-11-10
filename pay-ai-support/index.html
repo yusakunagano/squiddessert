@@ -46,8 +46,8 @@
   <div class="banner"><span style="font-size:28px">🤖</span><div><b>AIアシスタントに聞いてみよう</b>アプリやカードの使い方、残高・ご利用額・請求のことまで答えます。</div></div>
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
-<script src="chat.js?v=20261110"></script>
-<script src="agent.js?v=20261105"></script>
+<script src="chat.js?v=20261112"></script>
+<script src="agent.js?v=20261111"></script>
 <script>
 document.getElementById('bal').textContent = yen(USER.balance);
 document.getElementById('pt').textContent = `ポイント ${USER.points.total.toLocaleString()}pt`;
@@ -142,6 +142,18 @@ const chat = createChat({
   // 質問候補のボタンは、下のルールで即答する。入力した質問・音声は、AI（free）が答える。
   // 「お得な情報」は、キャンペーンの一覧を使う専用のAIモード。
   ai: { page: 'deals', facts: () => CAMPAIGNS.join('\n'), exitChip: 'ほかのことを聞く', listChip: '他の特集を見る', rateChip: 'お得な特典を知りたい',
+    // 「お店でよく使う」：お店で使える特集を、必ず3つ、リンク付きで紹介する（リンクは仮）
+    shopRe: /お店|店(舗)?で|店頭/,
+    shop: chat => {
+      const T = 'https://service.smt.docomo.ne.jp/keitai_payment/campaign/';
+      chat.ai('お店でお得に使える特集を3つご紹介します。\n\n'
+        + '① エリアキャンペーン（地域ごとの抽選）\n全国8地域の対象店舗でアプリ払い。1等100%・2等50%・3等10%・4等1%を抽選で還元。エントリー不要。期間は地域ごとに異なります。\n\n'
+        + '② 自治体キャンペーン\n自治体ごとの対象店舗で、最大30%還元など。上限は自治体ごと。エントリーの要否・期間は、キャンペーンごとに異なります。\n\n'
+        + '③ ネットショッピング 抽選で最大20%還元\n対象のネットショップでアプリ払いすると、抽選で最大20%還元。エントリーが必要な場合があります。\n\n'
+        + '※ くわしい条件は、各ページで確認してください。');
+      chat.links([{ title: 'エリアキャンペーン', url: T }, { title: '自治体キャンペーン', url: T }, { title: 'ネットショッピング', url: T + 'app_netshopping/' }]);
+      chat.chips(['他の特集を見る', 'お得な特典を知りたい', 'ほかのことを聞く']);
+    },
     // Without the AI, list the campaigns as they are.
     offline: chat => {
       chat.ai('いま開催中のお得な情報です。\n\n' + CAMPAIGNS.slice(0, 4).map(c => '・' + c).join('\n\n'));

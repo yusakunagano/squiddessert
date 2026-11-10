@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="今日の出来事や気分、キーワードを書くと、AI の nuse がひらめきの種を返します。">
+<title>nuse</title>
+<style>
+  :root { --paper:#f7f4ef; --card:#fff; --ink:#26222d; --muted:#6b6577; --line:#e4ded4; --accent:#6a45b8; --accent-soft:#eee8fa; --on-accent:#fff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#16131c; --card:#201c29; --ink:#eeeaf5; --muted:#a8a1b6; --line:#352f42; --accent:#b9a2f5; --accent-soft:#2b2440; --on-accent:#1a1230; color-scheme:dark; } }
+  :root[data-theme="dark"] { --paper:#16131c; --card:#201c29; --ink:#eeeaf5; --muted:#a8a1b6; --line:#352f42; --accent:#b9a2f5; --accent-soft:#2b2440; --on-accent:#1a1230; color-scheme:dark; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif; line-height:1.8; padding-inline:16px; }
+  main { max-width:36rem; margin:0 auto; padding-block:40px 64px; display:grid; gap:20px; }
+  h1 { font-size:clamp(2.4rem,9vw,3.2rem); margin:0; letter-spacing:.08em; }
+  .lead { color:var(--muted); margin:4px 0 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; display:grid; gap:14px; }
+  textarea { width:100%; min-height:7rem; padding:12px 14px; font:inherit; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; }
+  textarea:focus-visible, .btn:focus-visible, .mood input:focus-visible + span { outline:2px solid var(--accent); outline-offset:2px; }
+  .moods { display:flex; flex-wrap:wrap; gap:8px; border:0; padding:0; margin:0; }
+  .mood input { position:absolute; opacity:0; }
+  .mood span { display:inline-block; padding:6px 14px; border:1px solid var(--line); border-radius:999px; cursor:pointer; font-size:.9rem; }
+  .mood input:checked + span { background:var(--accent-soft); border-color:var(--accent); font-weight:700; }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .count { font-size:.85rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .btn { font:inherit; font-weight:700; padding:12px 24px; border-radius:8px; border:none; background:var(--accent); color:var(--on-accent); cursor:pointer; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .idea { border-left:3px solid var(--accent); padding-left:14px; }
+  .idea h3 { margin:0; font-size:1.05rem; }
+  .idea p, .card p, .card ul { margin:0; }
+  .label { font-size:.78rem; letter-spacing:.14em; color:var(--accent); font-weight:700; margin:0; }
+  .err { color:#b3261e; font-weight:700; }
+  @media (prefers-color-scheme: dark) { .err { color:#ff8a80; } }
+  .note { font-size:.82rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>nuse</h1>
+    <p class="lead">今日のこと、気分、気になる言葉。断片のままで大丈夫。ひらめきの種に変えて返します。</p>
+  </header>
+
+  <form class="card" id="form">
+    <label for="input" class="label">あなたのかけら</label>
+    <textarea id="input" maxlength="1000" placeholder="例：雨の日の図書館で、知らない人が同じ本を返していた" required></textarea>
+    <fieldset class="moods"><legend class="label">トーン</legend>
+      <label class="mood"><input type="radio" name="mood" value="gentle" checked><span>やさしく</span></label>
+      <label class="mood"><input type="radio" name="mood" value="bold"><span>大胆に</span></label>
+      <label class="mood"><input type="radio" name="mood" value="playful"><span>遊び心</span></label>
+    </fieldset>
+    <div class="row"><span class="count" id="count">0 / 1000</span><button class="btn" id="go" type="submit">ひらめきをもらう</button></div>
+    <p class="note">入力内容は AI（Google Gemini）に送信されます。個人情報や秘密の情報は書かないでください。</p>
+  </form>
+
+  <p id="status" role="status" aria-live="polite"></p>
+
+  <section id="result" class="card" hidden>
+    <p id="summary"></p>
+    <div id="ideas" style="display:grid;gap:14px"></div>
+    <div><p class="label">問いかけ</p><ul id="questions"></ul></div>
+    <div><p class="label">今日の一歩</p><p id="next"></p></div>
+  </section>
+</main>
+<script>
+  const API_URL = "https://squiddessert.vercel.app/api/nuse";
+  const $ = (id) => document.getElementById(id);
+  const input = $("input"), status = $("status"), go = $("go");
+
+  input.addEventListener("input", () => { $("count").textContent = input.value.length + " / 1000"; });
+
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    go.disabled = true; $("result").hidden = true;
+    status.className = ""; status.textContent = "nuseが耳をすませています…";
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: text, mood: document.querySelector("input[name=mood]:checked").value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "うまくいきませんでした。もう一度お試しください。");
+      render(data);
+      status.textContent = "";
+    } catch (err) {
+      status.className = "err"; status.textContent = err.message;
+    } finally { go.disabled = false; }
+  });
+
+  function render(d) {
+    $("summary").textContent = d.summary;
+    const ideas = $("ideas"); ideas.replaceChildren();
+    for (const i of d.ideas) {
+      const el = document.createElement("div"); el.className = "idea";
+      const h = document.createElement("h3"); h.textContent = i.title;
+      const p = document.createElement("p"); p.textContent = i.body;
+      el.append(h, p); ideas.append(el);
+    }
+    const q = $("questions"); q.replaceChildren();
+    for (const t of d.questions) { const li = document.createElement("li"); li.textContent = t; q.append(li); }
+    $("next").textContent = d.nextStep;
+    $("result").hidden = false;
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+</script>
+</body>
+</html>

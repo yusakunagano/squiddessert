@@ -13,11 +13,13 @@
   [hidden] { display: none !important; }
   html, body { height: 100%; }
   body { margin:0; background:var(--paper); color:var(--ink); font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif; line-height:1.7; }
-  .app { max-width:40rem; margin:0 auto; height:100dvh; display:flex; flex-direction:column; padding-inline:16px; }
-  header { padding-block:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .app { max-width:40rem; margin:0 auto; height:100dvh; overflow:hidden; display:flex; flex-direction:column; padding-inline:16px; }
+  header { flex:none; padding-block:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   #cat3d { width:128px; height:128px; flex:none; margin-block:-8px; }
   #cat3d canvas { display:block; width:128px; height:128px; }
   .cat3d-on .face { display:none; }
+  /* 画面が低いとき（キーボードが開いたときなど）は、猫を小さくして、いつも見えるようにする */
+  @media (max-height:560px) { #cat3d, #cat3d canvas { width:76px !important; height:76px !important; } header { gap:8px; } .app .step { max-height:34dvh; } }
   .titles { display:grid; gap:2px; }
   h1 { font-size:1.5rem; margin:0; letter-spacing:.06em; display:flex; align-items:center; gap:8px; }
   .face { font-size:1.9rem; line-height:1; }
@@ -49,7 +51,7 @@
   .btn:disabled { opacity:.5; cursor:default; }
   .cal { display:flex; justify-content:center; padding-bottom:4px; }
   .cal .btn { background:var(--accent-soft); color:var(--ink); font-size:.85rem; padding:6px 16px; }
-  .step { background:var(--card); border:1px solid var(--accent); border-radius:12px; padding:14px; display:grid; gap:10px; margin-bottom:8px; }
+  .step { flex:none; max-height:50dvh; overflow-y:auto; background:var(--card); border:1px solid var(--accent); border-radius:12px; padding:14px; display:grid; gap:10px; margin-bottom:8px; }
   .step label { display:grid; gap:2px; font-size:.8rem; color:var(--muted); font-weight:700; }
   .step input, .step select { font:inherit; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:6px 10px; min-width:0; }
   .step .row { display:grid; grid-template-columns:1fr auto; gap:8px; }
@@ -259,6 +261,13 @@
       $("stAdd").disabled = false;
     }
   });
+
+  // スマホでキーボードが開くと、画面が上にずれて猫が見えなくなる。見えている範囲の高さに合わせ、いつも先頭に戻す
+  if (window.visualViewport) {
+    const fit = () => { document.querySelector(".app").style.height = window.visualViewport.height + "px"; window.scrollTo(0, 0); log.scrollTop = log.scrollHeight; };
+    window.visualViewport.addEventListener("resize", fit);
+    window.visualViewport.addEventListener("scroll", () => window.scrollTo(0, 0));
+  }
   start();
 </script>
 </body>

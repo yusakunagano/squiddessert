@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="今日のことや気分、気になる言葉を話しかけると、AI の nuse が会話でひらめきを引き出します。">
-<title>nuse</title>
+<meta name="description" content="今日のことや気分、気になる言葉を話しかけると、AI の猫「ニャーズ」が会話でひらめきを引き出します。">
+<title>ニャーズ</title>
 <style>
   :root { --paper:#f7f4ef; --card:#fff; --ink:#26222d; --muted:#6b6577; --line:#e4ded4; --accent:#6a45b8; --accent-soft:#eee8fa; --on-accent:#fff; --err:#b3261e; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#16131c; --card:#201c29; --ink:#eeeaf5; --muted:#a8a1b6; --line:#352f42; --accent:#b9a2f5; --accent-soft:#2b2440; --on-accent:#1a1230; --err:#ff8a80; color-scheme:dark; } }
@@ -15,7 +15,8 @@
   body { margin:0; background:var(--paper); color:var(--ink); font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif; line-height:1.7; }
   .app { max-width:40rem; margin:0 auto; height:100dvh; display:flex; flex-direction:column; padding-inline:16px; }
   header { padding-block:16px 8px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
-  h1 { font-size:1.6rem; margin:0; letter-spacing:.08em; }
+  h1 { font-size:1.5rem; margin:0; letter-spacing:.06em; display:flex; align-items:center; gap:8px; }
+  .face { font-size:1.9rem; line-height:1; }
   .sub { color:var(--muted); font-size:.85rem; margin:0; }
   .moods { display:flex; gap:6px; border:0; padding:0; margin:0 0 0 auto; }
   .mood input { position:absolute; opacity:0; }
@@ -25,6 +26,7 @@
   #log { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-block:12px; }
   .msg { max-width:85%; padding:10px 14px; border-radius:16px; white-space:pre-wrap; overflow-wrap:anywhere; }
   .msg.bot { align-self:flex-start; background:var(--card); border:1px solid var(--line); border-bottom-left-radius:4px; }
+  .msg.bot::before { content:"🐱"; margin-right:6px; }
   .msg.me { align-self:flex-end; background:var(--accent); color:var(--on-accent); border-bottom-right-radius:4px; }
   .msg.err { align-self:center; color:var(--err); font-weight:700; font-size:.9rem; background:none; }
   .typing { display:inline-flex; gap:5px; }
@@ -56,8 +58,8 @@
 <body>
 <div class="app">
   <header>
-    <h1>nuse</h1>
-    <p class="sub">ひらめきの相棒</p>
+    <h1><span class="face" aria-hidden="true">🐱</span>ニャーズ</h1>
+    <p class="sub">ひらめきの相棒の猫</p>
     <fieldset class="moods" aria-label="トーン">
       <label class="mood"><input type="radio" name="mood" value="gentle" checked><span>やさしく</span></label>
       <label class="mood"><input type="radio" name="mood" value="bold"><span>大胆に</span></label>
@@ -81,7 +83,7 @@
   </section>
 
   <form id="form">
-    <textarea id="input" rows="1" maxlength="1000" placeholder="今日のこと、気分、気になる言葉…" aria-label="メッセージ"></textarea>
+    <textarea id="input" rows="1" maxlength="1000" placeholder="ニャーズに話しかける…（今日のこと、気分、言葉）" aria-label="メッセージ"></textarea>
     <button class="btn" id="send" type="submit">送信</button>
   </form>
   <div class="foot">
@@ -96,7 +98,7 @@
   const GOOGLE_CLIENT_ID = "";
   const CAL_SCOPE = "https://www.googleapis.com/auth/calendar.events";
   const MAX_TURNS = 10; // API と同じ：1 つの会話で話せる回数
-  const GREETING = "こんにちは、nuse です。今日あったこと、気分、気になる言葉……断片のままで大丈夫。ひとつ話しかけてみてください。";
+  const GREETING = "にゃーん、ぼくはニャーズ。ひらめきの毛糸玉をころがすのが大好きな猫だにゃ。今日あったこと、気分、気になる言葉……断片のままで大丈夫にゃ。ひとつ話しかけてみてにゃ。";
   const $ = (id) => document.getElementById(id);
   const log = $("log"), input = $("input"), send = $("send");
   let messages = []; // { role: "user" | "assistant", text }
@@ -147,7 +149,7 @@
     }
     busy = false; send.disabled = false;
     if (messages.filter((m) => m.role === "user").length >= MAX_TURNS) {
-      add("bot", "たくさん話せました。新しく始めるときは、右下の「最初から」を押してください。");
+      add("bot", "たくさんおしゃべりできたにゃ。また新しく始めるときは、右下の「最初から」を押してにゃ。");
       input.disabled = true; send.disabled = true;
     } else input.focus();
     log.scrollTop = log.scrollHeight;
@@ -217,7 +219,7 @@
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify({
           summary: title,
-          description: [$("stNote").value.trim(), "nuse のチャットから追加"].filter(Boolean).join("\n\n"),
+          description: [$("stNote").value.trim(), "ニャーズのチャットから追加"].filter(Boolean).join("\n\n"),
           start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() },
         }),
       });

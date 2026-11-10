@@ -1,4 +1,4 @@
-// nuse（api/nuse.js）の自動テスト。実行：npm test
+// ニャーズ（api/nuse.js）の自動テスト。実行：npm test
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -29,6 +29,7 @@ test("返事を返し、会話履歴とトーンを渡す（先頭の assistant 
   assert.equal(body.reply, "こんにちは");
   assert.deepEqual(seen.contents.map((c) => c.role), ["user", "model", "user"]);
   assert.match(seen.config.systemInstruction, /大胆/);
+  assert.match(seen.config.systemInstruction, /ニャーズ.*猫/s, "猫のキャラクターとして答える指示がある");
 });
 
 test("10 回より古い発言は切り捨てて答える", async () => {
@@ -52,7 +53,7 @@ test("action: step は会話から予定の下書きを返す（会話は <conve
   const [status, body] = await call({ action: "step", messages: [u("雨の日の図書館"), a("いいですね。どんな本？")] }, "6.6.6.6");
   assert.equal(status, 200);
   assert.deepEqual(body, { title: "図書館の本を1冊選ぶ", minutes: 60, note: "雨の日の図書館から" });
-  assert.match(seen.contents[0].parts[0].text, /<conversation>\n利用者: 雨の日の図書館\nnuse: いいですね/);
+  assert.match(seen.contents[0].parts[0].text, /<conversation>\n利用者: 雨の日の図書館\nニャーズ: いいですね/);
   assert.ok(seen.config.responseJsonSchema.required.includes("title"));
 });
 

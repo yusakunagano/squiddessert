@@ -1,4 +1,4 @@
-// nuse：入力された情報（今日の出来事・気分・キーワードなど）から、ひらめきを引き出すチャット API（Vercel Serverless Function）
+// ニャーズ（猫のキャラクター）：入力された情報（今日の出来事・気分・キーワードなど）から、ひらめきを引き出すチャット API（Vercel Serverless Function）
 // POST /api/nuse  body: { messages: [{ role: "user" | "assistant", text: string }], mood?: "gentle" | "bold" | "playful" }
 //   messages はこれまでの会話で、最後は利用者の発言。 → { reply: string }
 // POST /api/nuse  body: { action: "step", messages: [...] }
@@ -7,7 +7,9 @@
 import { acceptPost, ai, MODEL, readBody, sendAiError } from "./_shared.js";
 import { clientIp, createLimiter } from "./_ratelimit.js";
 
-const SYSTEM_PROMPT = `あなたは「nuse（ヌース）」。利用者が話してくれた断片的な情報から、創作や企画のひらめきを引き出す、会話の相棒です。
+const SYSTEM_PROMPT = `あなたは「ニャーズ」。ひらめきが大好きな、好奇心いっぱいの猫のキャラクターです。利用者が話してくれた断片的な情報から、創作や企画のひらめきを引き出す、会話の相棒になります。
+
+- 話し方は猫らしく、語尾に「にゃ」「にゃん」をつける（毎回すべての文でなくてよい）。ときどき猫のたとえ（日なた、毛糸玉、しっぽなど）を使うが、ふざけすぎず、中身は具体的で役に立つものにする。
 
 - 日本語で、会話として返す。1 回の返事は 100〜250 文字が目安。見出しや長い箇条書きは使わない。
 - 利用者の言葉（具体的な単語や情景）を拾って、そこから広がるアイデアや見立てを 1〜2 個、具体的に出す。ありきたりな一般論は避ける。
@@ -23,7 +25,7 @@ const MOODS = {
   playful: "遊び心とユーモアのあるトーンで。",
 };
 
-const STEP_PROMPT = `あなたは「nuse」。<conversation> の会話から、利用者が今日 10〜30 分でできる小さな一歩を 1 つ決めて、カレンダーの予定の下書きにしてください。
+const STEP_PROMPT = `あなたは猫のキャラクター「ニャーズ」。<conversation> の会話から、利用者が今日 10〜30 分でできる小さな一歩を 1 つ決めて、カレンダーの予定の下書きにしてください。
 - title: 予定のタイトル。30 文字以内。「〜する」の形で、具体的に。
 - minutes: かかる時間（分）。5〜60 の整数。
 - note: 予定のメモ。会話のどの言葉から出てきた一歩かを、100 文字以内で。
@@ -58,7 +60,7 @@ export default async function handler(req, res) {
 
   // Gemini には利用者の発言から始まり、利用者の発言で終わる会話を渡す
   while (messages.length && messages[0].role !== "user") messages.shift();
-  const isStep = body.action === "step"; // 「一歩」は nuse の返事のあとに頼むので、最後が nuse でもよい
+  const isStep = body.action === "step"; // 「一歩」はニャーズの返事のあとに頼むので、最後がニャーズでもよい
   if (messages.length === 0 || (!isStep && messages.at(-1).role !== "user")) {
     return res.status(400).json({ error: "何か書いてみてください" });
   }
@@ -68,7 +70,7 @@ export default async function handler(req, res) {
   const tone = MOODS[body.mood] ?? MOODS.gentle;
 
   if (isStep) {
-    const transcript = messages.map((m) => `${m.role === "model" ? "nuse" : "利用者"}: ${m.text}`).join("\n");
+    const transcript = messages.map((m) => `${m.role === "model" ? "ニャーズ" : "利用者"}: ${m.text}`).join("\n");
     try {
       const response = await ai.models.generateContent({
         model: MODEL,

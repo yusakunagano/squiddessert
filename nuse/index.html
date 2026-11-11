@@ -6,56 +6,61 @@
 <meta name="description" content="今日のことや気分、気になる言葉を話しかけると、AI の猫「Nyaaz」が会話でひらめきを引き出します。">
 <title>Nyaaz</title>
 <style>
-  :root { --paper:#f7f4ef; --card:#fff; --ink:#26222d; --muted:#6b6577; --line:#e4ded4; --accent:#6a45b8; --accent-soft:#eee8fa; --on-accent:#fff; --err:#b3261e; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#16131c; --card:#201c29; --ink:#eeeaf5; --muted:#a8a1b6; --line:#352f42; --accent:#b9a2f5; --accent-soft:#2b2440; --on-accent:#1a1230; --err:#ff8a80; color-scheme:dark; } }
-  :root[data-theme="dark"] { --paper:#16131c; --card:#201c29; --ink:#eeeaf5; --muted:#a8a1b6; --line:#352f42; --accent:#b9a2f5; --accent-soft:#2b2440; --on-accent:#1a1230; --err:#ff8a80; color-scheme:dark; }
+  :root { --paper:#ffffff; --card:#ffffff; --bubble:#ececef; --ink:#1c1c1e; --muted:#8a8a90; --line:#e2e2e6; --accent:#1c1c1e; --accent-soft:#ececef; --on-accent:#ffffff; --err:#c62828; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#000000; --card:#1c1c1f; --bubble:#232327; --ink:#f2f2f4; --muted:#9a9aa2; --line:#2e2e33; --accent:#f2f2f4; --accent-soft:#2a2a2e; --on-accent:#111111; --err:#ff8a80; color-scheme:dark; } }
+  :root[data-theme="dark"] { --paper:#000000; --card:#1c1c1f; --bubble:#232327; --ink:#f2f2f4; --muted:#9a9aa2; --line:#2e2e33; --accent:#f2f2f4; --accent-soft:#2a2a2e; --on-accent:#111111; --err:#ff8a80; color-scheme:dark; }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body { height: 100%; }
-  body { margin:0; background:var(--paper); color:var(--ink); font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif; line-height:1.7; }
-  .app { position:relative; max-width:40rem; margin:0 auto; height:100dvh; overflow:hidden; display:flex; flex-direction:column; padding-inline:16px; }
-  /* キャラだけを画面の上に重ねる（背景なし）。タイトルと会話はその下を流れる */
-  #cat3d { position:absolute; top:4px; left:16px; z-index:5; width:128px; height:128px; pointer-events:none; }
-  #cat3d canvas { display:block; width:128px; height:128px; }
-  #cat3d .face { font-size:64px; line-height:128px; display:block; text-align:center; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:-apple-system,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif; line-height:1.75; }
+  .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  .app { position:relative; max-width:40rem; margin:0 auto; height:100dvh; overflow:hidden; display:flex; flex-direction:column; padding-inline:14px; }
+  /* 上端：会話は薄く消えていき、その手前にキャラと名前のラベルだけが重なる */
+  .app::before { content:""; position:absolute; inset:0 0 auto 0; height:235px; z-index:4; pointer-events:none; background:linear-gradient(var(--paper) 0%, var(--paper) 52%, transparent 100%); }
+  #cat3d { position:absolute; top:6px; left:50%; transform:translateX(-50%); z-index:5; width:190px; height:190px; pointer-events:none; }
+  #cat3d canvas { display:block; width:190px; height:190px; }
+  #cat3d .face { font-size:90px; line-height:190px; display:block; text-align:center; }
   .cat3d-on #cat3d .face { display:none; }
-  .hero { flex:none; min-height:120px; display:flex; align-items:center; padding-left:136px; }
-  h1 { font-size:2rem; margin:0; letter-spacing:.06em; }
-  /* 画面が低いとき（キーボードが開いたときなど）は、猫を小さくする */
-  @media (max-height:560px) { #cat3d, #cat3d canvas { width:76px !important; height:76px !important; } #cat3d .face { font-size:40px; line-height:76px; } .hero { min-height:80px; padding-left:88px; } h1 { font-size:1.5rem; } .app .step { max-height:34dvh; } }
-  .btn:focus-visible, textarea:focus-visible, .ghost:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-  #log { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-block:12px; }
-  .msg { max-width:85%; padding:10px 14px; border-radius:16px; white-space:pre-wrap; overflow-wrap:anywhere; }
-  .msg.bot { align-self:flex-start; background:var(--card); border:1px solid var(--line); border-bottom-left-radius:4px; }
-  .msg.bot::before { content:"🐱"; margin-right:6px; }
-  .msg.me { align-self:flex-end; background:var(--accent); color:var(--on-accent); border-bottom-right-radius:4px; }
-  .msg.err { align-self:center; color:var(--err); font-weight:700; font-size:.9rem; background:none; }
-  .msg.wait::before { content:none; }
+  .namepill { position:absolute; top:164px; left:50%; transform:translateX(-50%); z-index:6; background:var(--card); color:var(--ink); font-weight:700; font-size:1rem; letter-spacing:.02em; padding:5px 20px; border-radius:999px; box-shadow:0 2px 12px rgba(0,0,0,.08); pointer-events:none; }
+  .hero { flex:none; height:218px; }
+  /* 画面が低いとき（キーボードが開いたときなど）は、キャラを小さくする */
+  @media (max-height:560px) { #cat3d, #cat3d canvas { width:104px !important; height:104px !important; } #cat3d .face { font-size:52px; line-height:104px; } .namepill { top:88px; font-size:.85rem; padding:3px 14px; } .hero { height:126px; } .app::before { height:140px; } .app .step { max-height:34dvh; } }
+  .btn:focus-visible, textarea:focus-visible, .ghost:focus-visible, .send:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  #log { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:14px; padding-block:0 12px; }
+  .msg { padding:14px 18px; border-radius:26px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .msg.bot { align-self:stretch; background:var(--bubble); }
+  .msg.me { align-self:flex-end; max-width:82%; background:var(--accent); color:var(--on-accent); border-radius:24px 24px 8px 24px; }
+  .msg.err { align-self:center; padding:4px; color:var(--err); font-weight:700; font-size:.9rem; background:none; }
   .msg.wait { color:var(--muted); font-size:.9rem; }
-  form { display:flex; gap:8px; align-items:flex-end; padding-block:8px; }
-  textarea { flex:1; min-width:0; max-height:8rem; padding:10px 14px; font:inherit; border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); resize:none; }
-  .btn { font:inherit; font-weight:700; padding:10px 20px; border-radius:12px; border:none; background:var(--accent); color:var(--on-accent); cursor:pointer; }
+  form { display:flex; gap:8px; align-items:flex-end; padding:6px 6px 6px 18px; margin-top:4px; background:var(--bubble); border-radius:30px; }
+  textarea { flex:1; min-width:0; max-height:8rem; padding:8px 0; font:inherit; border:none; background:transparent; color:var(--ink); resize:none; }
+  textarea:focus-visible { outline:none; }
+  textarea::placeholder { color:var(--muted); }
+  .send { flex:none; width:40px; height:40px; border-radius:50%; border:none; background:var(--accent); color:var(--on-accent); cursor:pointer; display:grid; place-items:center; padding:0; }
+  .send:disabled { opacity:.35; cursor:default; }
+  .btn { font:inherit; font-weight:700; padding:10px 20px; border-radius:999px; border:none; background:var(--accent); color:var(--on-accent); cursor:pointer; }
   .btn:disabled { opacity:.5; cursor:default; }
-  .cal { display:flex; justify-content:center; padding-bottom:4px; }
-  .cal .btn { background:var(--accent-soft); color:var(--ink); font-size:.85rem; padding:6px 16px; }
-  .step { flex:none; max-height:50dvh; overflow-y:auto; background:var(--card); border:1px solid var(--accent); border-radius:12px; padding:14px; display:grid; gap:10px; margin-bottom:8px; }
+  .cal { display:flex; justify-content:center; padding-bottom:6px; }
+  .cal .btn { background:var(--bubble); color:var(--ink); font-size:.85rem; padding:7px 18px; }
+  .step { flex:none; max-height:50dvh; overflow-y:auto; background:var(--card); border:1px solid var(--line); border-radius:24px; padding:16px; display:grid; gap:10px; margin-bottom:8px; }
   .step label { display:grid; gap:2px; font-size:.8rem; color:var(--muted); font-weight:700; }
-  .step input, .step select { font:inherit; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:6px 10px; min-width:0; }
+  .step input, .step select { font:inherit; color:var(--ink); background:var(--bubble); border:none; border-radius:12px; padding:8px 12px; min-width:0; }
   .step .row { display:grid; grid-template-columns:1fr auto; gap:8px; }
   .step .acts { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .step .btn { padding:8px 16px; }
+  .step .btn { padding:9px 18px; }
   .step .note { font-size:.75rem; color:var(--muted); margin:0; }
-  .step .ok { color:var(--accent); font-weight:700; margin:0; }
+  .step .ok { color:var(--ink); font-weight:700; margin:0; }
   .step .ok a { color:inherit; }
   .step p:empty { display:none; }
   .step .bad { color:var(--err); font-weight:700; margin:0; font-size:.85rem; }
-  .foot { display:flex; justify-content:space-between; gap:12px; font-size:.78rem; color:var(--muted); padding-bottom:max(10px, env(safe-area-inset-bottom)); }
-  .ghost { font:inherit; font-size:.78rem; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; text-decoration:underline; }
+  .foot { display:flex; justify-content:space-between; gap:12px; font-size:.75rem; color:var(--muted); padding:6px 6px max(10px, env(safe-area-inset-bottom)); }
+  .ghost { font:inherit; font-size:.75rem; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; text-decoration:underline; }
 </style>
 </head>
 <body>
 <div class="app">
   <div id="cat3d" aria-hidden="true"><span class="face">🐱</span></div>
+  <div class="namepill" aria-hidden="true">Nyaaz</div>
 
   <div id="log" role="log" aria-live="polite"></div>
 
@@ -73,8 +78,8 @@
   </section>
 
   <form id="form">
-    <textarea id="input" rows="1" maxlength="1000" placeholder="Nyaazに話しかける…（今日のこと、気分、言葉）" aria-label="メッセージ"></textarea>
-    <button class="btn" id="send" type="submit">送信</button>
+    <textarea id="input" rows="1" maxlength="1000" placeholder="メッセージ" aria-label="メッセージ"></textarea>
+    <button class="send" id="send" type="submit" aria-label="送信"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
   </form>
   <div class="foot">
     <span>入力は AI（Google Gemini）に送信されます。個人情報は書かないでください。</span>
@@ -82,7 +87,7 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
-<script src="cat3d.js?v=2" defer></script>
+<script src="cat3d.js?v=4" defer></script>
 <script>
   const cat = (state) => { if (window.NyaCat) window.NyaCat.setState(state); }; // 3D の猫の動き（使えないときは何もしない）
   const API_URL = "https://squiddessert.vercel.app/api/nuse";
@@ -113,7 +118,7 @@
   function start() {
     messages = []; $("step").hidden = true; updateCal(); log.replaceChildren();
     const hero = document.createElement("div"); hero.className = "hero";
-    const h1 = document.createElement("h1"); h1.textContent = "Nyaaz"; hero.append(h1); log.append(hero);
+    const h1 = document.createElement("h1"); h1.className = "sr-only"; h1.textContent = "Nyaaz"; hero.append(h1); log.append(hero);
     add("bot", GREETING);
     input.disabled = false; send.disabled = false; input.value = ""; resize(); input.focus();
   }

@@ -1,5 +1,5 @@
 // ニャーズの 3D キャラクター（three.js r128 の基本図形だけで組み立てた猫）。外部のモデルファイルは使わない。
-// window.NyaCat.setState("idle" | "thinking" | "happy") で動きを切り替える。
+// window.NyaCat.setState("idle" | "thinking" | "happy") で動きを切り替え、window.NyaCat.speak(text) で、その長さに合わせて口をぱくぱく動かす。
 // three.js や WebGL が使えないときは何もしない（ページ側の絵文字 🐱 がそのまま残る）。
 (function () {
   "use strict";
@@ -88,6 +88,20 @@
       head.add(w);
     }
   });
+  // 口：ふだんは「ω」の形に閉じていて、しゃべるときは開く（中に舌）
+  const closedMouth = new THREE.Group();
+  [-1, 1].forEach((s) => {
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.009, 6, 16, Math.PI), DARK);
+    arc.position.set(s * 0.055, -0.155, 0.6); arc.rotation.z = Math.PI;
+    closedMouth.add(arc);
+  });
+  head.add(closedMouth);
+  const mouth = ball(0.14, DARK, 0, -0.23, 0.58, 1, 0.01, 0.55);
+  const tongue = ball(0.06, PINK, 0, -0.07, 0.04, 1, 0.6, 0.7);
+  mouth.add(tongue);
+  head.add(mouth);
+  let talkUntil = 0, mouthOpen = 0;
+
   [-0.14, 0, 0.14].forEach((x) => { // ひたいのしま
     const st = ball(0.035, STRIPE, x, 0.46, 0.38, 0.8, 3.2, 0.5); st.rotation.x = -0.6;
     head.add(st);
@@ -127,12 +141,21 @@
     const blink = t < blinkEnd ? 0.1 : happy ? 0.35 : thinking ? 0.8 : 1;
     eyes.scale.y += (blink - eyes.scale.y) * 0.4;
 
+    // 口：しゃべっているあいだ、母音のように不規則に開け閉めする。閉じるときは「ω」に戻る
+    const talking = t < talkUntil;
+    const target = talking ? 0.3 + 0.7 * Math.abs(Math.sin(t * 12)) * (0.65 + 0.35 * Math.sin(t * 4.7)) : 0;
+    mouthOpen += (target - mouthOpen) * 0.5;
+    mouth.scale.set(1 - mouthOpen * 0.15, Math.max(0.01, mouthOpen * 1.2), 0.55);
+    mouth.visible = mouthOpen > 0.06;
+    closedMouth.visible = !mouth.visible;
+    if (talking) head.rotation.x += Math.sin(t * 6) * 0.04;
+
     // 前あし：考え中は右あしでぽんぽんする
     pawR.position.y = 0.2 + (thinking ? Math.max(0, Math.sin(t * 9)) * 0.22 : 0);
     pawR.position.z = 0.7 + (thinking ? Math.max(0, Math.sin(t * 9)) * 0.12 : 0);
 
     // しっぽ：ふだんはゆっくり、考え中・うれしいときは速く大きく
-    const speed = thinking || happy ? 6 : 1.6, amp = thinking || happy ? 0.55 : 0.28;
+    const speed = thinking || happy ? 6 : talking ? 3 : 1.6, amp = thinking || happy ? 0.55 : talking ? 0.4 : 0.28;
     // 体の右がわから外に出て、上へカーブする。ふるときは角度をゆらす
     let x = 0.62, y = 0.28, ang = -0.35;
     tail.forEach((seg, i) => {
@@ -151,8 +174,16 @@
   if (reduced) { pose(0); renderer.render(scene, camera); } else requestAnimationFrame(frame);
 
   window.NyaCat = {
+    // 返事の長さに合わせて、口を動かす（長くても 7 秒まで）。はじめに小さく跳ぶ
+    speak(text) {
+      const now = (performance.now() - t0) / 1000;
+      state = "happy"; happyUntil = now + 0.7;
+      talkUntil = now + Math.min(7, 0.5 + String(text || "").length * 0.09);
+      if (reduced) { pose(now); renderer.render(scene, camera); }
+    },
     setState(next) {
       state = next;
+      if (next !== "happy") talkUntil = 0; // 考え中などに切り替えたら、口は閉じる
       if (next === "happy") happyUntil = (performance.now() - t0) / 1000 + 1.4;
       if (reduced) { pose((performance.now() - t0) / 1000); renderer.render(scene, camera); }
     },

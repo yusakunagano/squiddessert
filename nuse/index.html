@@ -106,13 +106,13 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
-<script src="cat3d.js?v=1" defer></script>
+<script src="cat3d.js?v=2" defer></script>
 <script>
   const cat = (state) => { if (window.NyaCat) window.NyaCat.setState(state); }; // 3D の猫の動き（使えないときは何もしない）
   const API_URL = "https://squiddessert.vercel.app/api/nuse";
   // Google カレンダー連携：Google Cloud で作った OAuth クライアント ID（ウェブ アプリケーション）を入れる。
-  // 公開してよい値（シークレットではない）。承認済みの JavaScript 生成元に https://yusakunagano.github.io を登録する。
-  const GOOGLE_CLIENT_ID = "";
+  // 公開してよい値（シークレットではない）。承認済みの JavaScript 生成元に https://yusakunagano.github.io を登録済み。
+  const GOOGLE_CLIENT_ID = "510064716211-d05165huruhsjrj2ktl29s6shk0fv4rp.apps.googleusercontent.com";
   const CAL_SCOPE = "https://www.googleapis.com/auth/calendar.events";
   const MAX_TURNS = 10; // API と同じ：1 つの会話で話せる回数
   const GREETING = "にゃーん、ぼくはニャーズ。ひらめきの毛糸玉をころがすのが大好きな猫だにゃ。今日あったこと、気分、気になる言葉……断片のままで大丈夫にゃ。ひとつ話しかけてみてにゃ。";
@@ -164,7 +164,7 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "うまくいきませんでした。もう一度お試しください。");
-      wait.className = "msg bot"; wait.textContent = data.reply; cat("happy");
+      wait.className = "msg bot"; wait.textContent = data.reply; if (window.NyaCat) window.NyaCat.speak(data.reply);
       messages.push({ role: "assistant", text: data.reply });
       updateCal();
     } catch (err) {

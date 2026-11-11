@@ -40,11 +40,6 @@
   const root = new THREE.Group();
   scene.add(root);
 
-  // 影
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.95, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 }));
-  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.01; shadow.scale.set(1.15, 0.8, 1);
-  scene.add(shadow);
-
   // からだ・むね・前あし
   const body = ball(0.8, ORANGE, 0, 0.72, 0, 1, 0.95, 0.92);
   root.add(body);
@@ -107,6 +102,15 @@
     head.add(st);
   });
 
+  // 毛糸玉：考え中だけ出て、猫の前を左右に転がる（猫は目で追う）
+  const yarn = ball(0.17, mat(0xe0457b), 0, 0.17, 1.05);
+  [0, Math.PI / 2].forEach((r) => {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.172, 0.011, 6, 24), mat(0xf7a8c4));
+    band.rotation.y = r; band.rotation.x = 0.6; yarn.add(band);
+  });
+  yarn.visible = false;
+  scene.add(yarn);
+
   // 動きの状態
   let state = "idle", happyUntil = 0;
   let blinkAt = 2, blinkEnd = 0;
@@ -127,10 +131,13 @@
     // 全体のはずみ：考え中は小さくはずみ、うれしいときは大きく跳ぶ
     const hop = happy ? Math.abs(Math.sin((happyUntil - t) * 7)) * 0.32 : thinking ? Math.abs(Math.sin(t * 5)) * 0.1 : 0;
     root.position.y = hop;
-    shadow.scale.set(1.15 - hop * 0.5, 0.8 - hop * 0.3, 1);
 
     // あたま：ポインタのほうを向く。考え中は首をかしげ、うれしいときはうなずく
-    look.x += (aim.x - look.x) * 0.08; look.y += (aim.y - look.y) * 0.08;
+    const yx = Math.sin(t * 2.2) * 0.95;
+    yarn.visible = thinking;
+    if (thinking) { yarn.position.x = yx; yarn.rotation.z = -yx * 6; }
+    const ax = thinking ? yx * 0.9 : aim.x, ay = thinking ? 0.5 : aim.y; // 考え中は毛糸玉を目で追う
+    look.x += (ax - look.x) * 0.12; look.y += (ay - look.y) * 0.08;
     head.position.y = 1.62 + 0.015 * breathe;
     head.rotation.y = look.x * 0.55;
     head.rotation.x = look.y * 0.3 + (happy ? Math.sin(t * 14) * 0.12 : 0);

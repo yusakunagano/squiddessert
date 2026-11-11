@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="今日のことや気分、気になる言葉を話しかけると、AI の猫「ニャーズ」が会話でひらめきを引き出します。">
-<title>ニャーズ</title>
+<meta name="description" content="今日のことや気分、気になる言葉を話しかけると、AI の猫「Nyaaz」が会話でひらめきを引き出します。">
+<title>Nyaaz</title>
 <style>
   :root { --paper:#f7f4ef; --card:#fff; --ink:#26222d; --muted:#6b6577; --line:#e4ded4; --accent:#6a45b8; --accent-soft:#eee8fa; --on-accent:#fff; --err:#b3261e; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#16131c; --card:#201c29; --ink:#eeeaf5; --muted:#a8a1b6; --line:#352f42; --accent:#b9a2f5; --accent-soft:#2b2440; --on-accent:#1a1230; --err:#ff8a80; color-scheme:dark; } }
@@ -13,22 +13,17 @@
   [hidden] { display: none !important; }
   html, body { height: 100%; }
   body { margin:0; background:var(--paper); color:var(--ink); font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif; line-height:1.7; }
-  .app { max-width:40rem; margin:0 auto; height:100dvh; overflow:hidden; display:flex; flex-direction:column; padding-inline:16px; }
-  header { flex:none; padding-block:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  #cat3d { width:128px; height:128px; flex:none; margin-block:-8px; }
+  .app { position:relative; max-width:40rem; margin:0 auto; height:100dvh; overflow:hidden; display:flex; flex-direction:column; padding-inline:16px; }
+  /* キャラだけを画面の上に重ねる（背景なし）。タイトルと会話はその下を流れる */
+  #cat3d { position:absolute; top:4px; left:16px; z-index:5; width:128px; height:128px; pointer-events:none; }
   #cat3d canvas { display:block; width:128px; height:128px; }
-  .cat3d-on .face { display:none; }
-  /* 画面が低いとき（キーボードが開いたときなど）は、猫を小さくして、いつも見えるようにする */
-  @media (max-height:560px) { #cat3d, #cat3d canvas { width:76px !important; height:76px !important; } header { gap:8px; } .app .step { max-height:34dvh; } }
-  .titles { display:grid; gap:2px; }
-  h1 { font-size:1.5rem; margin:0; letter-spacing:.06em; display:flex; align-items:center; gap:8px; }
-  .face { font-size:1.9rem; line-height:1; }
-  .sub { color:var(--muted); font-size:.85rem; margin:0; }
-  .moods { display:flex; gap:6px; border:0; padding:0; margin:0 0 0 auto; }
-  .mood input { position:absolute; opacity:0; }
-  .mood span { display:inline-block; padding:3px 12px; border:1px solid var(--line); border-radius:999px; cursor:pointer; font-size:.8rem; }
-  .mood input:checked + span { background:var(--accent-soft); border-color:var(--accent); font-weight:700; }
-  .mood input:focus-visible + span, .btn:focus-visible, textarea:focus-visible, .ghost:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  #cat3d .face { font-size:64px; line-height:128px; display:block; text-align:center; }
+  .cat3d-on #cat3d .face { display:none; }
+  .hero { flex:none; min-height:120px; display:flex; align-items:center; padding-left:136px; }
+  h1 { font-size:2rem; margin:0; letter-spacing:.06em; }
+  /* 画面が低いとき（キーボードが開いたときなど）は、猫を小さくする */
+  @media (max-height:560px) { #cat3d, #cat3d canvas { width:76px !important; height:76px !important; } #cat3d .face { font-size:40px; line-height:76px; } .hero { min-height:80px; padding-left:88px; } h1 { font-size:1.5rem; } .app .step { max-height:34dvh; } }
+  .btn:focus-visible, textarea:focus-visible, .ghost:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   #log { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-block:12px; }
   .msg { max-width:85%; padding:10px 14px; border-radius:16px; white-space:pre-wrap; overflow-wrap:anywhere; }
   .msg.bot { align-self:flex-start; background:var(--card); border:1px solid var(--line); border-bottom-left-radius:4px; }
@@ -36,15 +31,7 @@
   .msg.me { align-self:flex-end; background:var(--accent); color:var(--on-accent); border-bottom-right-radius:4px; }
   .msg.err { align-self:center; color:var(--err); font-weight:700; font-size:.9rem; background:none; }
   .msg.wait::before { content:none; }
-  .thinking { display:flex; align-items:center; gap:10px; font-size:.9rem; color:var(--muted); }
-  .run { position:relative; width:96px; height:30px; overflow:hidden; flex:none; }
-  .run span { position:absolute; bottom:0; font-size:22px; line-height:1; animation:2.2s linear infinite; }
-  .run .cat { left:0; transform:scaleX(-1); animation-name:chase-cat; }
-  .run .yarn { left:34px; animation-name:chase-yarn; }
-  /* 猫（右向き）が毛糸玉を追いかけて走り抜ける。毛糸玉は転がり、猫は上下にはずむ */
-  @keyframes chase-cat { 0% { transform:translate(-30px,0) scaleX(-1); opacity:0; } 12% { opacity:1; } 50% { transform:translate(30px,-4px) scaleX(-1); } 88% { opacity:1; } 100% { transform:translate(90px,0) scaleX(-1); opacity:0; } }
-  @keyframes chase-yarn { 0% { transform:translateX(-30px) rotate(0); opacity:0; } 12% { opacity:1; } 88% { opacity:1; } 100% { transform:translateX(60px) rotate(540deg); opacity:0; } }
-  @media (prefers-reduced-motion: reduce) { .run span { animation:none; opacity:1; } .run .cat { transform:translateX(30px) scaleX(-1); } .run .yarn { transform:none; } }
+  .msg.wait { color:var(--muted); font-size:.9rem; }
   form { display:flex; gap:8px; align-items:flex-end; padding-block:8px; }
   textarea { flex:1; min-width:0; max-height:8rem; padding:10px 14px; font:inherit; border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); resize:none; }
   .btn { font:inherit; font-weight:700; padding:10px 20px; border-radius:12px; border:none; background:var(--accent); color:var(--on-accent); cursor:pointer; }
@@ -68,18 +55,7 @@
 </head>
 <body>
 <div class="app">
-  <header>
-    <div id="cat3d"></div>
-    <div class="titles">
-      <h1><span class="face" aria-hidden="true">🐱</span>ニャーズ</h1>
-      <p class="sub">ひらめきの相棒の猫</p>
-    </div>
-    <fieldset class="moods" aria-label="トーン">
-      <label class="mood"><input type="radio" name="mood" value="gentle" checked><span>やさしく</span></label>
-      <label class="mood"><input type="radio" name="mood" value="bold"><span>大胆に</span></label>
-      <label class="mood"><input type="radio" name="mood" value="playful"><span>遊び心</span></label>
-    </fieldset>
-  </header>
+  <div id="cat3d" aria-hidden="true"><span class="face">🐱</span></div>
 
   <div id="log" role="log" aria-live="polite"></div>
 
@@ -97,7 +73,7 @@
   </section>
 
   <form id="form">
-    <textarea id="input" rows="1" maxlength="1000" placeholder="ニャーズに話しかける…（今日のこと、気分、言葉）" aria-label="メッセージ"></textarea>
+    <textarea id="input" rows="1" maxlength="1000" placeholder="Nyaazに話しかける…（今日のこと、気分、言葉）" aria-label="メッセージ"></textarea>
     <button class="btn" id="send" type="submit">送信</button>
   </form>
   <div class="foot">
@@ -115,7 +91,7 @@
   const GOOGLE_CLIENT_ID = "510064716211-d05165huruhsjrj2ktl29s6shk0fv4rp.apps.googleusercontent.com";
   const CAL_SCOPE = "https://www.googleapis.com/auth/calendar.events";
   const MAX_TURNS = 10; // API と同じ：1 つの会話で話せる回数
-  const GREETING = "にゃーん、ぼくはニャーズ。ひらめきの毛糸玉をころがすのが大好きな猫だにゃ。今日あったこと、気分、気になる言葉……断片のままで大丈夫にゃ。ひとつ話しかけてみてにゃ。";
+  const GREETING = "にゃーん、ぼくはNyaaz。ひらめきの毛糸玉をころがすのが大好きな猫だにゃ。今日あったこと、気分、気になる言葉……断片のままで大丈夫にゃ。ひとつ話しかけてみてにゃ。";
   const $ = (id) => document.getElementById(id);
   const log = $("log"), input = $("input"), send = $("send");
   let messages = []; // { role: "user" | "assistant", text }
@@ -129,15 +105,16 @@
   }
   // 返事を待つあいだ、猫が毛糸玉を追いかける
   function thinking(label) {
-    const el = add("bot wait", "");
-    el.innerHTML = '<div class="thinking" role="status"><span class="run" aria-hidden="true"><span class="yarn">🧶</span><span class="cat">🐈</span></span><span></span></div>';
-    el.querySelector(".thinking > span:last-child").textContent = label;
-    log.scrollTop = log.scrollHeight;
+    const el = add("bot wait", label);
+    el.setAttribute("role", "status");
     return el;
   }
   function updateCal() { $("calbar").hidden = !messages.some((m) => m.role === "assistant"); }
   function start() {
-    messages = []; $("step").hidden = true; updateCal(); log.replaceChildren(); add("bot", GREETING);
+    messages = []; $("step").hidden = true; updateCal(); log.replaceChildren();
+    const hero = document.createElement("div"); hero.className = "hero";
+    const h1 = document.createElement("h1"); h1.textContent = "Nyaaz"; hero.append(h1); log.append(hero);
+    add("bot", GREETING);
     input.disabled = false; send.disabled = false; input.value = ""; resize(); input.focus();
   }
   function resize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 128) + "px"; }
@@ -160,7 +137,7 @@
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages, mood: document.querySelector("input[name=mood]:checked").value }),
+        body: JSON.stringify({ messages }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "うまくいきませんでした。もう一度お試しください。");
@@ -245,7 +222,7 @@
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify({
           summary: title,
-          description: [$("stNote").value.trim(), "ニャーズのチャットから追加"].filter(Boolean).join("\n\n"),
+          description: [$("stNote").value.trim(), "Nyaazのチャットから追加"].filter(Boolean).join("\n\n"),
           start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() },
         }),
       });

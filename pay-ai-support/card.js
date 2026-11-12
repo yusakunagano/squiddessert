@@ -28,8 +28,67 @@ function toQA(chat, id, lead) {
   chat.chips(DEFAULT_CHIPS);
 }
 
-// 最後：手続き・設定（確認 → 実行（デモ）→ 完了のお知らせ）
-function doAct(chat, { ask, yes = 'はい', run, done }) {
+// 入力フォーム：手続きに必要な項目を入力してもらう（必須・形式のチェックつき）
+let cardFormSeq = 0;
+function askForm(chat, { title, fields, submit = '入力内容の確認へ' }, onSubmit) {
+  chat.chips([]);
+  chat.history.push({ role: 'assistant', text: title });
+  const el = chat.card('<div class="qform"><b class="q"></b><div class="flds"></div><div class="ferr" role="alert"></div><button type="button" class="go"></button></div>');
+  el.querySelector('.q').textContent = title;
+  el.querySelector('.go').textContent = submit;
+  const box = el.querySelector('.flds'), ctl = [];
+  fields.forEach((f) => {
+    const w = document.createElement('div'); w.className = 'fld';
+    const id = 'cf' + (++cardFormSeq);
+    let input;
+    if (f.type === 'check') {
+      w.className = 'fld chk';
+      const lb = document.createElement('label'); lb.htmlFor = id;
+      input = document.createElement('input'); input.type = 'checkbox'; input.id = id;
+      const sp = document.createElement('span'); sp.textContent = f.label;
+      lb.append(input, sp); w.append(lb);
+    } else {
+      const lb = document.createElement('label'); lb.className = 'lb'; lb.htmlFor = id; lb.textContent = f.label + (f.required === false ? '（任意）' : '');
+      w.append(lb);
+      if (f.type === 'select') {
+        input = document.createElement('select'); input.id = id;
+        f.options.forEach((o) => { const op = document.createElement('option'); op.value = o; op.textContent = o; input.append(op); });
+        if (f.value) input.value = f.value;
+      } else {
+        input = document.createElement('input'); input.id = id; input.type = f.type === 'password' ? 'password' : 'text';
+        input.autocomplete = 'off'; if (f.type === 'tel' || f.type === 'password') input.inputMode = 'numeric';
+        if (f.placeholder) input.placeholder = f.placeholder; if (f.max) input.maxLength = f.max;
+      }
+      w.append(input);
+      if (f.hint) { const h = document.createElement('small'); h.textContent = f.hint; w.append(h); }
+    }
+    box.append(w); ctl.push([f, input]);
+  });
+  el.querySelector('.go').onclick = () => {
+    const err = el.querySelector('.ferr'); err.textContent = '';
+    const vals = {}, lines = [];
+    for (const [f, input] of ctl) {
+      const v = f.type === 'check' ? input.checked : input.value.trim();
+      if (f.type === 'check') { if (!v) { err.textContent = '「' + f.label.slice(0, 18) + '…」にチェックしてください。'; input.focus(); return; } continue; }
+      if (!v && f.required !== false) { err.textContent = f.label + 'を入力してください。'; input.focus(); return; }
+      if (v && f.pattern && !f.pattern.test(v)) { err.textContent = f.label + 'を、' + (f.msg || '正しい形式') + 'で入力してください。'; input.focus(); return; }
+      vals[f.key] = v;
+      lines.push('・' + f.label + '：' + (f.type === 'password' ? '••••' : v || '（なし）'));
+    }
+    ctl.forEach(([, i]) => { i.disabled = true; });
+    el.querySelector('.go').hidden = true; el.classList.add('done');
+    chat.me('入力しました'); chat.later(() => onSubmit(vals, lines));
+  };
+}
+const PIN_FIELD = { key: 'pin', label: 'カードの暗証番号（4桁）', type: 'password', max: 4, pattern: /^\d{4}$/, msg: '数字4桁', hint: '本人確認に使います。保存はされません（デモ）。' };
+const TEL_FIELD = { key: 'tel', label: 'ご連絡先の電話番号', type: 'tel', max: 11, pattern: /^0\d{9,10}$/, msg: 'ハイフンなしの10〜11桁の数字', placeholder: '09012345678' };
+
+// 最後：手続き・設定（入力 → 確認 → 実行（デモ）→ 完了のお知らせ）
+// fields があるときは、先に入力フォームを出す。done は、文字、または、入力内容を受け取る関数
+function doAct(chat, { ask, yes = 'はい', run, done, fields, formTitle }) {
+  if (fields) {
+    return askForm(chat, { title: formTitle, fields }, (vals, lines) => doAct(chat, { ask: ask + '\n\n【入力内容】\n' + lines.join('\n'), yes, run: () => run && run(vals), done: typeof done === 'function' ? done(vals) : done }));
+  }
   hear(chat, ask, [yes, 'やめる'], (a) => {
     if (a !== yes) { chat.ai('手続きは行いませんでした。ほかにお困りのことがあれば、選んでください。'); return chat.chips(DEFAULT_CHIPS); }
     const el = chat.card('<div class="authing">' + ic('lock') + ' 手続き中…（デモ）</div>');
@@ -44,7 +103,17 @@ function doAct(chat, { ask, yes = 'はい', run, done }) {
 
 const CARD_FLOWS = {
   cancel: (chat) => hear(chat, '解約をお考えなのですね。差し支えなければ、理由を教えてください。', ['年会費が高い', 'あまり使わなくなった', '別のカードにしたい', '不正利用が心配'], (a) => {
-    const cancelAct = () => doAct(chat, { ask: 'カードの解約を申し込みます。よろしいですか？', yes: '解約を申し込む', done: '解約の申込を受け付けました（デモ）。\n手続き完了のお知らせは、SMSでお送りします。ポイントは、解約の前に、お使いください。' });
+    const cancelAct = () => doAct(chat, {
+      formTitle: 'カードの解約のお手続き（入力）',
+      fields: [
+        { key: 'reason', label: '解約の理由', type: 'select', options: ['年会費が高い', 'あまり使わなくなった', '別のカードにする', 'そのほか'], value: a === '別のカードにしたい' ? '別のカードにする' : a === '年会費が高い' ? '年会費が高い' : a === 'あまり使わなくなった' ? 'あまり使わなくなった' : 'そのほか' },
+        { key: 'point', label: 'ポイントの扱い', type: 'select', options: ['解約の前に使い切る', '別のカードに引き継ぐ', 'そのまま失効してよい'] },
+        TEL_FIELD, PIN_FIELD,
+        { type: 'check', label: '解約すると、カードに紐づく支払い設定（公共料金など）が使えなくなることを理解しました' },
+      ],
+      ask: 'カードの解約を申し込みます。よろしいですか？', yes: '解約を申し込む',
+      done: (v) => `解約の申込を受け付けました（デモ）。\n手続き完了のお知らせは、${v.tel} にSMSでお送りします。\nポイントは「${v.point}」で承りました。`,
+    });
     if (a === '年会費が高い') {
       return hear(chat, '一般のカードに切り替えると、年会費を抑えられます（ポイントは引き継がれます）。どうしますか？', ['一般に切り替える', 'それでも解約したい', 'QAを見る'], (b) => {
         if (b === '一般に切り替える') return doAct(chat, { ask: 'カードを、一般に切り替えます。よろしいですか？', run: () => setCardRank('normal'), done: 'カードを一般に切り替えました（デモ）。ホームのカードの券面も、一般に戻っています。' });
@@ -69,11 +138,28 @@ const CARD_FLOWS = {
   }),
 
   fraud: (chat) => hear(chat, '身に覚えのない請求がありますか？', ['ある', 'ない、念のため止めたい'], (a) => {
-    if (a === 'ある') return doAct(chat, { ask: '次の2つを行います。\n① カードを一時停止する\n② 請求の調査を依頼する\nよろしいですか？', yes: '一時停止して、調査を依頼する', run: () => setCardStopped(true), done: 'カードを一時停止し、調査の依頼を受け付けました（デモ）。\n結果は、SMSでお知らせします。ホームのカードは「一時停止中」の表示になっています。' });
+    if (a === 'ある') return doAct(chat, {
+      formTitle: '請求の調査と、カードの一時停止（入力）',
+      fields: [
+        { key: 'what', label: '身に覚えのない請求（日付・金額・お店）', type: 'text', placeholder: '例：11/5 12,800円 ○○ネットショップ' },
+        TEL_FIELD, PIN_FIELD,
+      ],
+      ask: '次の2つを行います。\n① カードを一時停止する\n② 請求の調査を依頼する\nよろしいですか？', yes: '一時停止して、調査を依頼する', run: () => setCardStopped(true),
+      done: (v) => `カードを一時停止し、調査の依頼を受け付けました（デモ）。\n対象：${v.what}\n結果は、${v.tel} にSMSでお知らせします。ホームのカードは「一時停止中」の表示になっています。`,
+    });
     CARD_FLOWS.stop(chat);
   }),
 
-  stop: (chat) => doAct(chat, { ask: 'カードを、今すぐ一時停止します。よろしいですか？（再開は、いつでもできます）', yes: '一時停止する', run: () => setCardStopped(true), done: 'カードを一時停止しました（デモ）。ホームのカードは「一時停止中」の表示になっています。\n再開するときは、もう一度、カードのメニューから「カードを利用できない原因を確認したい」を選んでください。' }),
+  stop: (chat) => doAct(chat, {
+    formTitle: 'カードの一時停止のお手続き（入力）',
+    fields: [
+      { key: 'reason', label: '停止の理由', type: 'select', options: ['紛失した', '盗まれた', '不正利用の疑いがある', 'しばらく使わない'] },
+      { key: 'last', label: '最後に使った日・お店', type: 'text', required: false, placeholder: '例：11/8 コンビニ' },
+      PIN_FIELD,
+    ],
+    ask: 'カードを、今すぐ一時停止します。よろしいですか？（再開は、いつでもできます）', yes: '一時停止する', run: () => setCardStopped(true),
+    done: (v) => `カードを一時停止しました（デモ）。理由：${v.reason}\nホームのカードは「一時停止中」の表示になっています。\n再開するときは、もう一度、カードのメニューから「カードを利用できない原因を確認したい」を選んでください。${/紛失|盗/.test(v.reason) ? '\n紛失・盗難の場合は、カードの再発行も手続きしてください。' : ''}`,
+  }),
 
   switch: (chat) => hear(chat, '上位のカードから、下位（一般）のカードへの切り替えですね。どちらの方法にしますか？', ['アプリで今すぐ切り替える', '郵送の書類で手続きする'], (a) => (a.startsWith('アプリ')
     ? doAct(chat, { ask: 'カードを、一般に切り替えます。特典や年会費が変わります。よろしいですか？', run: () => setCardRank('normal'), done: 'カードを一般に切り替えました（デモ）。ホームのカードの券面も、一般に戻っています。' })
@@ -110,9 +196,26 @@ const CARD_FLOWS = {
     chat.launch('open_services_ai');
   }),
 
-  address: (chat) => hear(chat, 'ご住所について、近いものを選んでください。', ['引っ越した', '番地・部屋番号が抜けている'], (a) => doAct(chat, { ask: `ご登録の住所の変更（${a}）を、手続きします。よろしいですか？`, yes: '手続きする', done: '住所の変更を受け付けました（デモ）。戻ってきているカードや書類は、あらためて発送します。' })),
+  address: (chat) => hear(chat, 'ご住所について、近いものを選んでください。', ['引っ越した', '番地・部屋番号が抜けている'], (a) => doAct(chat, {
+    formTitle: 'ご登録の住所の変更（入力）',
+    fields: [
+      { key: 'zip', label: '郵便番号', type: 'tel', max: 7, pattern: /^\d{7}$/, msg: 'ハイフンなしの7桁の数字', placeholder: '1000001' },
+      { key: 'addr', label: '都道府県・市区町村・番地', type: 'text', placeholder: '例：東京都千代田区千代田1-1' },
+      { key: 'bld', label: '建物名・部屋番号', type: 'text', required: false, placeholder: '例：○○マンション 101' },
+    ],
+    ask: `ご登録の住所の変更（${a}）を、手続きします。よろしいですか？`, yes: '手続きする',
+    done: (v) => `住所の変更を受け付けました（デモ）。\n新しいご住所：〒${v.zip} ${v.addr} ${v.bld}\n戻ってきているカードや書類は、あらためて発送します。`,
+  })),
 
-  unlock: (chat) => doAct(chat, { ask: '本人確認のうえ、暗証番号のロックを解除します。よろしいですか？', yes: '解除する', done: 'ロックを解除しました（デモ）。新しい暗証番号は、カードの画面から設定できます。' }),
+  unlock: (chat) => doAct(chat, {
+    formTitle: '暗証番号のロック解除（本人確認）',
+    fields: [
+      { key: 'birth', label: '生年月日（8桁）', type: 'tel', max: 8, pattern: /^\d{8}$/, msg: '西暦8桁の数字', placeholder: '19900101' },
+      { key: 'pin', label: '新しい暗証番号（4桁）', type: 'password', max: 4, pattern: /^\d{4}$/, msg: '数字4桁', hint: '推測されやすい番号（1234など）は避けてください。' },
+    ],
+    ask: '本人確認のうえ、暗証番号のロックを解除します。よろしいですか？', yes: '解除する',
+    done: 'ロックを解除し、新しい暗証番号を設定しました（デモ）。',
+  }),
 };
 // 項目 → 会話の流れ（「不正利用のおそれがあるカードを停止したい」は、一時停止の手続きへ）
 const flowOf = (id) => (id === 'stop' ? CARD_FLOWS.stop : CARD_FLOWS[id]);

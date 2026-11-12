@@ -249,7 +249,7 @@ function agentRun(chat, p, home) {
 
 // 入口。home: 最初の質問候補（終わったあとに戻す）
 function runAgentDemo(chat, { home }) {
-  chat.ai('AIエージェントは、あなたの許可した利用データを分析して、「プロファイル」（利用の傾向のまとめ）を作り、おすすめを提案します。\n\nこれはデモです。サンプルの利用データで動きます。', false);
+  chat.ai('AIエージェントは、許可された利用データから傾向（プロファイル）をまとめ、おすすめを提案します。デモのため、サンプルデータで動きます。利用には「アカウント情報」の連携が必要です。', false);
   // 連携する項目は「アカウント情報」の1つ（許可すると、利用明細・残高とポイント・カード請求を、まとめて連携する）
   withConsent(chat, Object.keys(SCOPE_LABEL), () => {
     Link.agentOn(); // 「AIエージェントを使う」を始めたので、AIアイコンにバッジを付ける
@@ -274,7 +274,7 @@ function runAgentDemo(chat, { home }) {
       chat.later(() => agentRun(chat, buildProfile(agentUser(), granted), home), 300);
     };
   }, {
-    intro: 'プロファイリングには、アカウント情報の連携が必要です。連携する項目は、「アカウント情報」の1つです。',
+    intro: null, // 案内は、上の 1 つのメッセージにまとめた
     single: { title: 'AIエージェントとの連携', label: 'アカウント情報', desc: '利用明細（直近3か月）・残高とポイント・カード請求情報', note: 'AIエージェントに連携する項目は、次の1つです。連携はホームの「AI連携を解除」からいつでも解除できます。' },
   });
 }

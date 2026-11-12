@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アプリホーム（プロトタイプ）</title>
-<link rel="stylesheet" href="app.css?v=20261110">
+<link rel="stylesheet" href="app.css?v=20261113">
 <style>
   .top { background: linear-gradient(135deg, #ff4d6d, var(--brand)); color: #fff; padding: 16px 16px 56px; }
   .top .brand { font-weight: 800; font-size: 18px; }
-  /* 券面：横にスワイプして切り替える（Pay の残高 ⇄ dカードの券面） */
+  /* 券面：横にスワイプして切り替える（カードの券面 ⇄ Pay の残高。最初は残高を表示し、右にスワイプするとカード） */
   .cards { display: flex; gap: 12px; margin-top: -44px; padding: 0 16px 6px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; cursor: grab; touch-action: pan-x pan-y; }
   .cards::-webkit-scrollbar { display: none; }
   .cards.drag { cursor: grabbing; scroll-snap-type: none; user-select: none; }
@@ -17,6 +17,10 @@
   .dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%; background: #c9c9ce; cursor: pointer; transition: width .2s, background .2s; }
   .dots button.on { width: 20px; border-radius: 4px; background: var(--brand); }
   .dcard { aspect-ratio: 1.586; border-radius: 14px; padding: 16px 18px; color: #fff; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 14px rgba(0,0,0,.14); background: linear-gradient(135deg, #f0284f 0%, #e60033 45%, #b3002a 100%); }
+  /* AIで「ゴールド」にしたときの券面 */
+  .dcard.gold { background: linear-gradient(135deg, #f6e08e 0%, #d9a93b 45%, #a97a16 100%); color: #3d2a05; }
+  .dcard.gold .brandname, .dcard.gold .num { text-shadow: 0 1px 1px rgba(255,255,255,.35); }
+  .dcard.gold .kind { font-weight: 700; letter-spacing: .08em; }
   .dcard::before { content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%; right: -90px; top: -110px; background: rgba(255,255,255,.12); }
   .dcard::after { content: ''; position: absolute; width: 220px; height: 220px; border-radius: 50%; left: -80px; bottom: -130px; background: rgba(255,255,255,.08); }
   .dcard > * { position: relative; z-index: 1; }
@@ -33,7 +37,7 @@
   .wallet small { color: var(--sub); font-size: 12px; }
   .wallet .amt { font-size: 28px; font-weight: 800; margin: 2px 0 8px; }
   .wallet .pt { font-size: 13px; color: var(--sub); }
-  .wallet.slide { display: flex; flex-direction: column; } /* dカードの高さに合わせて伸びても、ボタンは下に寄せる */
+  .wallet.slide { display: flex; flex-direction: column; } /* カードの高さに合わせて伸びても、ボタンは下に寄せる */
   .pay { display: flex; gap: 8px; margin-top: auto; padding-top: 12px; }
   .pay button { flex: 1; padding: 12px; border-radius: 22px; border: 0; background: var(--brand); color: #fff; font-weight: 700; font-size: 15px; }
   .pay button.sub { background: var(--brand-weak); color: var(--brand); }
@@ -53,20 +57,20 @@
 <div class="app">
   <div class="proto">※ UIプロトタイプです。実在のサービスとは接続していません</div>
   <div class="top"><span class="brand">Pay</span></div>
-  <div class="cards" id="cards" role="region" aria-label="券面（左にスワイプするとdカードの券面）" tabindex="0">
+  <div class="cards" id="cards" role="region" aria-label="券面（右にスワイプするとカードの券面）" tabindex="0">
+    <section class="dcard slide" aria-label="カードの券面（サンプル）">
+      <div class="row"><div><div class="brandname">カード</div><div class="kind" id="ckind">クレジットカード</div></div><div class="chip" aria-hidden="true"></div></div>
+      <div class="num" id="dnum">••••  ••••  ••••  1234</div>
+      <div class="bottom"><div><small>カード会員名</small><span id="dname">TARO YAMADA</span></div><div style="text-align:right"><small>有効期限</small>12/29</div></div>
+    </section>
     <section class="wallet slide" aria-label="Pay の残高">
       <small>残高</small>
       <div class="amt" id="bal"></div>
       <div class="pt" id="pt"></div>
       <div class="pay"><button>支払う</button><button class="sub">チャージ</button></div>
     </section>
-    <section class="dcard slide" aria-label="dカードの券面（サンプル）">
-      <div class="row"><div><div class="brandname">dカード</div><div class="kind">クレジットカード</div></div><div class="chip" aria-hidden="true"></div></div>
-      <div class="num" id="dnum">••••  ••••  ••••  1234</div>
-      <div class="bottom"><div><small>カード会員名</small><span id="dname">TARO YAMADA</span></div><div style="text-align:right"><small>有効期限</small>12/29</div></div>
-    </section>
   </div>
-  <div class="dots" id="dots" role="group" aria-label="券面の切り替え"><button class="on" type="button" aria-label="Pay の残高を表示"></button><button type="button" aria-label="dカードの券面を表示"></button></div>
+  <div class="dots" id="dots" role="group" aria-label="券面の切り替え"><button type="button" aria-label="カードの券面を表示"></button><button class="on" type="button" aria-label="Pay の残高を表示"></button></div>
   <nav class="menu">
     <a href="register.html"><span>🏦</span>銀行口座<br>登録</a>
     <a href="services.html" class="new"><span>🎁</span>利用<br>サービス</a>
@@ -76,7 +80,7 @@
   <div class="banner"><span style="font-size:28px">🤖</span><div><b>AIアシスタントに聞いてみよう</b>アプリやカードの使い方、残高・ご利用額・請求のことまで答えます。</div></div>
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
-<script src="chat.js?v=20261112"></script>
+<script src="chat.js?v=20261113"></script>
 <script src="agent.js?v=20261111"></script>
 <script>
 document.getElementById('bal').textContent = yen(USER.balance);
@@ -89,6 +93,10 @@ document.getElementById('pt').textContent = `ポイント ${USER.points.total.to
   const current = () => Math.max(0, Math.min(dots.length - 1, Math.round(box.scrollLeft / step())));
   box.addEventListener('scroll', () => dots.forEach((d, i) => d.classList.toggle('on', i === current())), { passive: true });
   dots.forEach((d, i) => { d.onclick = () => show(i); });
+  // カードの券面（左端）に来たら、AIにも知らせる（AIのメニューが、カードの問い合わせに切り替わる）
+  let wasCard = false;
+  box.addEventListener('scroll', () => { const c = current() === 0; if (c !== wasCard) { wasCard = c; document.dispatchEvent(new CustomEvent('cardarea', { detail: c })); } }, { passive: true });
+  show(1, false); // 最初は Pay の残高を表示（カードは左側）
   box.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') show(current() - 1); if (e.key === 'ArrowRight') show(current() + 1); });
   let startX = 0, startLeft = 0, startIndex = 0, moved = false, dragging = false;
   box.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') return; dragging = true; moved = false; startX = e.clientX; startLeft = box.scrollLeft; startIndex = current(); });
@@ -101,14 +109,46 @@ document.getElementById('pt').textContent = `ポイント ${USER.points.total.to
     if (!dragging) return; dragging = false;
     if (!moved) return;
     box.classList.remove('drag');
-    const dx = e.clientX - startX; // 40px 以上動かしたら、動かした向きの隣へ（左に動かすと次の券面）
+    const dx = e.clientX - startX; // 40px 以上動かしたら、動かした向きの隣へ
     show(Math.max(0, Math.min(dots.length - 1, startIndex + (dx < -40 ? 1 : dx > 40 ? -1 : 0))));
   });
   box.addEventListener('click', (e) => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true); // ドラッグのあとは、ボタンを押したことにしない
 })();
 document.getElementById('revoke').onclick = () => { Link.revoke(); alert('AIとのアカウント連携を解除しました'); };
 
-const DEFAULT_CHIPS = ['🧠 AIエージェントを使う', '🎁 お得な情報を知りたい', '送金したい', '履歴を見たい', 'ポイントの期限は？', 'カードをなくした'];
+const BASE_CHIPS = ['🧠 AIエージェントを使う', '🎁 お得な情報を知りたい', '送金したい', '履歴を見たい', 'ポイントの期限は？', 'カードをなくした'];
+// カードの券面にスワイプしたときの、問い合わせ項目（コールリーズンをもとにした一覧）
+const CARD_REASONS = [
+  { q: '手元にあるカードを解約したい', a: 'カードの解約は、アプリの「カード」→「カードの解約」から手続きできます。\n解約すると、ポイントの引き継ぎや、カードに紐づくお支払い設定（公共料金など）が使えなくなります。先にご確認ください。\n手元のカードは、解約の手続きのあと、ハサミで切って処分してください（ICチップと磁気帯に切り込みを入れます）。' },
+  { q: 'カードを利用できない原因を確認したい', a: '次のような原因が考えられます。\n・利用限度額に達している\n・お支払いの遅れや、引き落とし口座の残高不足\n・暗証番号を連続して間違えて、ロックされている\n・不正利用の疑いで、一時的に止められている\n・カードの有効期限が切れている\n心当たりのあるものを選んでください。分からないときは、アプリの「カード」→「ご利用状況」で、止まっている理由を確認できます。' },
+  { q: '身に覚えのないカード請求への対応を確認したい', a: '身に覚えのない請求を見つけたときは、次の順で対応してください。\n① すぐに、アプリの「カード」→「カードの一時停止」で、カードを止めます。\n② 利用明細で、日付・店舗・金額を確認します。家族の利用や、定期払いの引き落としではないかも、確認してください。\n③ 心当たりがなければ、カード会社に連絡して、調査を依頼します。\n不正利用だと確認できた場合は、補償の対象になることがあります（届け出の期限があります）。' },
+  { q: '郵送で上位カードから下位カードへの切替手続きをしたい', a: '上位のカード（例：ゴールド）から、下位のカード（例：一般）への切り替えは、郵送の書類でも手続きできます。\n① 「カード」→「カードの切り替え」で、切り替えの申込書を請求します（数日で届きます）。\n② 申込書に記入して、返信用封筒で返送します。\n③ 手続き完了後、新しいカードが届きます。\n切り替えると、特典の内容や年会費が変わります。ポイントは引き継がれます。' },
+  { q: '預かり中のカードの発送を依頼したい', a: '不在などで、カード会社が預かっているカードは、発送を依頼できます。\n「カード」→「預かり中のカード」から、受け取りたい日時と、送り先の住所を選んでください。\n送り先は、ご本人の住所のみです。依頼から数日でお届けします（本人限定の受け取りです）。' },
+  { q: 'Apple Payでカードを利用するため電話認証を完了したい', a: 'Apple Payにカードを登録したあと、ご本人確認として、電話での認証が必要です。\n① Apple Payのカードの画面に出ている、認証の電話番号に発信してください。\n② 音声ガイダンスに沿って、カードの暗証番号や、生年月日を入力します。\n③ 認証が完了すると、Apple Payで使えるようになります。\nなお、認証の電話は、ご登録の電話番号からおかけください。' },
+  { q: '用件不明のため問い合わせ内容を確認したい', a: '問い合わせの内容が、はっきりしないときは、次のうち近いものを選んでください。\n・カードが使えない\n・請求の内容が分からない\n・手続き（解約・住所変更など）をしたい\n・紛失・盗難にあった\n・ポイントについて知りたい\n入力で、困っていることを書いていただいても大丈夫です。' },
+  { q: '更新カードの発送', a: '有効期限が近いカードは、期限の前に、新しい更新カードが自動で届きます（期限の1〜2か月前に発送）。\n届いていないときは、「カード」→「更新カードの発送状況」で、発送の状況を確認できます。住所に不備があると、届かずに戻ってしまうため、ご住所もご確認ください。\n新しいカードが届いたら、古いカードは、ハサミで切って処分してください。' },
+  { q: 'カードの申込', a: 'カードの新規のお申し込みは、アプリの「カード」→「カードを申し込む」から、最短5分ほどで手続きできます。\n必要なもの：本人確認書類（マイナンバーカードや運転免許証）、引き落とし口座（銀行口座）。\n審査のあと、カードは、約1週間で届きます。一部のお店では、届く前でもアプリで使えます。' },
+  { q: 'ポイ活 MAXが現在の料金プランより得か比較したい', a: '「ポイ活 MAX」が、いまのプランより得かどうかは、毎月のご利用額で変わります。\n目安：毎月のカードのご利用額が多いほど、ポイントで得になりやすいです。\n正確な比較は、「利用サービス」の画面で、いまの倍率と、ポイ活 MAXにしたときの倍率を並べて確認できます。開いて、比べてみましょう。' },
+  { q: '住所不備', a: 'ご登録の住所に不備があると、カードや書類が届かず、戻ってきてしまうことがあります。\n「カード」→「登録情報の変更」→「住所」から、都道府県・番地・建物名・部屋番号まで、正しく入力し直してください。\n変更後、戻ってきているカードや書類は、あらためて発送されます（発送の依頼が必要な場合があります）。' },
+  { q: 'カードの暗証番号ロックを解除したい', a: '暗証番号を連続して間違えると、カードがロックされます。\n解除の方法：「カード」→「暗証番号のロックの解除」で、本人確認（認証）をしてください。解除後に、新しい暗証番号を設定できます。\nお急ぎのときや、アプリで解除できないときは、カード会社のサポートへお問い合わせください。' },
+  { q: '不正利用のおそれがあるカードを停止したい', a: '不正利用のおそれがあるときは、すぐにカードを止めてください。\n「カード」→「カードの一時停止」で、今すぐ止められます（24時間いつでも）。止めても、再開は、いつでもできます。\n紛失・盗難や、不正利用が確認できたときは、カードの再発行も手続きしてください。身に覚えのない請求がある場合は、調査も依頼してください。' },
+];
+// ステータス（カードの種類）：一般 ⇄ ゴールド。AIが利用状況を見て、ゴールドの券面にする（デモ）
+const GOLD_NEED = 50000; // 直近2か月のカード利用額の目安（デモ用）
+const cardRank = () => { try { return sessionStorage.getItem('payCardRank') === 'gold' ? 'gold' : 'normal'; } catch (e) { return 'normal'; } };
+function applyCardRank() {
+  const gold = cardRank() === 'gold', c = document.querySelector('.dcard'), k = document.getElementById('ckind');
+  if (c) c.classList.toggle('gold', gold);
+  if (k) k.textContent = gold ? 'ゴールド' : 'クレジットカード';
+}
+function setCardRank(r) { try { sessionStorage.setItem('payCardRank', r); } catch (e) {} applyCardRank(); }
+applyCardRank();
+const DEFAULT_CHIPS = [...BASE_CHIPS];
+// カードの券面を表示している間は、AIのメニューをカードの問い合わせにする（配列の中身を入れ替える）
+document.addEventListener('cardarea', (e) => {
+  DEFAULT_CHIPS.splice(0, DEFAULT_CHIPS.length, ...(e.detail ? [...CARD_REASONS.map(r => r.q), 'カードの請求額', '✨ カードをゴールドにしたい'] : BASE_CHIPS));
+  chat.resetGreeting(); // まだ会話していなければ、次に開いたときに、メニューを作り直す
+});
 
 // General questions: answered from public product info, no account data needed.
 const FAQ = [
@@ -175,6 +215,21 @@ const PERSONAL = [
       }) },
 ];
 
+// ステータスに合わせて、カードをゴールドにする（デモ）
+function goldFlow(chat) {
+  const total = USER.usage.card.thisMonth + USER.usage.card.lastMonth;
+  if (cardRank() === 'gold') { chat.ai('カードは、すでにゴールドです。一般に戻すこともできます。'); return chat.chips(['カードを一般に戻す', ...DEFAULT_CHIPS]); }
+  chat.card(`<div class="data"><div class="h"><span>ステータスの確認</span></div><div><span>カードのご利用（今月）</span><b>${yen(USER.usage.card.thisMonth)}</b></div><div><span>カードのご利用（先月）</span><b>${yen(USER.usage.card.lastMonth)}</b></div><div><span>2か月の合計</span><b>${yen(total)}</b></div><div><span>ゴールドの目安</span><b>${yen(GOLD_NEED)}以上</b></div></div>`);
+  if (total >= GOLD_NEED) {
+    setCardRank('gold');
+    chat.ai('直近2か月のカードのご利用額が、ゴールドの目安を超えています。\nステータスに合わせて、カードをゴールドにしました。ホームのカードの券面が、ゴールドになっています。');
+    chat.chips(['カードを一般に戻す', ...DEFAULT_CHIPS]);
+  } else {
+    chat.ai(`直近2か月のカードのご利用額が、ゴールドの目安（${yen(GOLD_NEED)}）にあと ${yen(GOLD_NEED - total)} 届きません。ご利用が増えたら、もう一度お試しください。`);
+    chat.chips(DEFAULT_CHIPS);
+  }
+}
+
 // はっきりした依頼は、AIを使わずに直接動かす（お得な情報のAIモード／画面を開く）
 function quick(q, chat) {
   if (/AIエージェント|プロファイ/.test(q)) { runAgentDemo(chat, { home: DEFAULT_CHIPS }); return true; }
@@ -216,8 +271,18 @@ const chat = createChat({
       chat.chips(['他の特集を見る', 'お得な特典を知りたい', ...DEFAULT_CHIPS]);
     },
     free: { page: 'home', facts: () => FAQ.map(f => f.a).join('\n'), quick: (q, chat) => quick(q, chat) } },
-  greet: () => ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n質問を入力すると、AIがお答えします。「AIエージェントを使う」を選ぶと、あなたの利用の傾向を分析して、おすすめを提案します。残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),
+  greet: () => DEFAULT_CHIPS[0] !== BASE_CHIPS[0] ? ({ text: 'カードについてのお問い合わせですね。当てはまるものを選んでください。\n入力して聞くこともできます。', chips: DEFAULT_CHIPS }) : ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n質問を入力すると、AIがお答えします。「AIエージェントを使う」を選ぶと、あなたの利用の傾向を分析して、おすすめを提案します。残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),
   handle(q, chat) {
+    // カードの問い合わせ項目（ボタン）は、決まった答えで返す
+    const cr = CARD_REASONS.find(r => r.q === q);
+    if (cr) {
+      chat.ai(cr.a);
+      if (q.startsWith('ポイ活 MAX')) chat.launchLink?.('利用サービスで比べる', 'services.html');
+      chat.chips(DEFAULT_CHIPS);
+      return;
+    }
+    if (/ゴールド/.test(q)) return withConsent(chat, ['history'], () => goldFlow(chat), { intro: 'ステータス（ご利用状況）の確認に、カードの利用明細が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。' });
+    if (/一般に戻/.test(q)) { setCardRank('normal'); chat.ai('カードを、一般の券面に戻しました。'); chat.chips(DEFAULT_CHIPS); return; }
     if (quick(q, chat)) return;
     // Personal first: "ポイントの期限" must not fall through to the general points FAQ.
     const p = PERSONAL.find(e => e.k.some(k => q.includes(k)));

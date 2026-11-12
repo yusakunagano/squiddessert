@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>よくある質問（カード）</title>
+<link rel="stylesheet" href="app.css?v=20261116">
+<style>
+  .qa { margin: 12px 16px 0; background: #fff; border-radius: 14px; padding: 14px 16px; }
+  .qa:target { outline: 2px solid var(--brand); }
+  .qa h2 { font-size: 15px; margin: 0 0 8px; }
+  .qa p { margin: 0; font-size: 13.5px; line-height: 1.8; white-space: pre-wrap; }
+  .back { display: block; margin: 18px 16px; text-align: center; color: var(--brand); font-size: 14px; }
+</style>
+<script src="../ga.js?v=20261105"></script>
+</head>
+<body>
+<script src="gate.js?v=20261029"></script>
+<div class="app">
+  <div class="proto">※ UIプロトタイプです。実在のサービスとは接続していません</div>
+  <h1 style="font-size:18px;margin:16px 16px 0">よくある質問（カード）</h1>
+  <div id="list"></div>
+  <a class="back" href="index.html">← ホームに戻る</a>
+</div>
+<script src="card.js?v=20261116"></script>
+<script>
+// 問い合わせ項目の答えを、QAとして一覧にする（AIの会話の最後に、ここへ案内する）
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+document.getElementById('list').innerHTML = CARD_REASONS.map((r) => `<section class="qa" id="${r.id}"><h2>Q. ${esc(r.q)}</h2><p>${esc(r.a)}</p></section>`).join('');
+if (location.hash) { const t = document.getElementById(decodeURIComponent(location.hash.slice(1))); if (t) t.scrollIntoView(); }
+</script>
+</body>
+</html>

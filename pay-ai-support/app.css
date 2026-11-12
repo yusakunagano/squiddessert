@@ -27,7 +27,7 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 .msg.ai { background: var(--bg); align-self: flex-start; }
 .msg.me { background: var(--brand); color: #fff; align-self: flex-end; }
 .msg.card { align-self: stretch; max-width: none; padding: 0; white-space: normal; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 8px; max-height: 34vh; overflow-y: auto; } /* 項目が多いときは、この中でスクロール */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px; align-self: stretch; } /* 会話の文章の最後に置く（画面の下には固定しない） */
 .chips button { border: 1px solid var(--brand); color: var(--brand); background: #fff; border-radius: 16px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
 .composer { display: flex; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid var(--line); }
 .composer input { flex: 1; padding: 10px; font-size: 16px; border: 1px solid var(--line); border-radius: 8px; }

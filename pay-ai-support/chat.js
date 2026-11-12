@@ -70,22 +70,27 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
     <div class="sheet" role="dialog" aria-label="${title}">
       <div class="sheet-head"><span>🤖</span><b>${title}</b><button class="close" aria-label="閉じる">×</button></div>
       <div class="msgs"></div>
-      <div class="chips"></div>
       <form class="composer"><div class="field"><input placeholder="質問を入力" autocomplete="off"><button type="button" class="mic" aria-label="音声で入力" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/></svg></button></div><button>送信</button></form>
     </div>`;
   document.body.appendChild(root);
   const $ = s => root.querySelector(s);
   const msgs = $('.msgs');
+  const dropChips = () => msgs.querySelectorAll('.chips').forEach(c => c.remove());
+  // あとから文章が増えても、質問候補は、いちばん最後に置く
+  const keepChipsLast = () => { const c = msgs.querySelector('.chips'); if (c && c !== msgs.lastElementChild) msgs.appendChild(c); };
 
   const chat = {
     history: [],
     // record=false: shown on screen but not sent to the AI as part of the conversation (e.g. the consent exchange)
-    ai(text, record = true) { const d = document.createElement('div'); d.className = 'msg ai'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; if (record) chat.history.push({ role: 'assistant', text }); },
-    me(text, record = true) { const d = document.createElement('div'); d.className = 'msg me'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; if (record) chat.history.push({ role: 'user', text }); },
-    card(html) { const d = document.createElement('div'); d.className = 'msg card'; d.innerHTML = html; msgs.appendChild(d); msgs.scrollTop = 1e9; return d; },
+    ai(text, record = true) { const d = document.createElement('div'); d.className = 'msg ai'; d.textContent = text; msgs.appendChild(d); keepChipsLast(); msgs.scrollTop = 1e9; if (record) chat.history.push({ role: 'assistant', text }); },
+    me(text, record = true) { dropChips(); const d = document.createElement('div'); d.className = 'msg me'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; if (record) chat.history.push({ role: 'user', text }); },
+    card(html) { const d = document.createElement('div'); d.className = 'msg card'; d.innerHTML = html; msgs.appendChild(d); keepChipsLast(); msgs.scrollTop = 1e9; return d; },
     chips(list, onPick = q => chat.ask(q)) {
-      const c = $('.chips'); c.innerHTML = '';
+      dropChips();
+      if (!list.length) return;
+      const c = document.createElement('div'); c.className = 'chips';
       list.forEach(t => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.onclick = () => onPick(t); c.appendChild(b); });
+      msgs.appendChild(c); msgs.scrollTop = 1e9; // 会話の最後に置く（下に固定しない）
     },
     // Show a reply after a short "typing" delay so the exchange reads naturally.
     later(fn, ms = 450) { setTimeout(fn, ms); },
@@ -136,7 +141,7 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
     },
     close() { root.classList.remove('open'); },
     // まだ利用者が話しかけていなければ、あいさつとメニューを消して、次に開いたときに作り直す
-    resetGreeting() { if (!chat.history.some(m => m.role === 'user')) { msgs.innerHTML = ''; $('.chips').innerHTML = ''; chat.history = []; } },
+    resetGreeting() { if (!chat.history.some(m => m.role === 'user')) { msgs.innerHTML = ''; chat.history = []; } },
     // 同じサイト内の画面へのリンクボタン
     launchLink(title, href) { const el = chat.card('<div class="links"></div>'); const a = document.createElement('a'); a.href = href; a.textContent = `🔗 ${title}`; el.firstChild.appendChild(a); },
   };

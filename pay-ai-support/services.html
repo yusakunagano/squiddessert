@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>利用サービス（プロトタイプ）</title>
-<link rel="stylesheet" href="app.css?v=20261123">
+<link rel="stylesheet" href="app.css?v=20261124">
 <style>
   :root { --page: #efedeb; --mint: #e8f6ee; --check: #2bb36a; --red: #c80000; }
   body { background: var(--page); }
@@ -66,7 +66,7 @@
 <div class="detail" id="detail"><div class="panel" id="panel"></div></div>
 
 <script src="icons.js?v=20261121"></script>
-<script src="chat.js?v=20261122"></script>
+<script src="chat.js?v=20261124"></script>
 <script>
 const MONTH_TOTAL = 47140;
 
@@ -160,7 +160,7 @@ function rateUpPlan(chat, focus) {
   hear(chat, '① 提携銀行の口座はお持ちですか？', ['持っている', '持っていない'], acc => {
     // 口座がないと、この特典は使えない。まず、銀行口座の登録へ進む
     if (acc === '持っていない') {
-      chat.ai('提携銀行の口座がないと、この特典（＋2%）は使えません。まず、銀行口座の登録に進みましょう。登録の画面を開きます。\n（口座をこれから作る場合は、開設してからの登録になります）');
+      chat.ai('提携銀行の口座がないと、この特典（＋2%）は使えません。まず、銀行口座の登録に進みましょう。下のボタンから、登録の画面へ進めます。\n（口座をこれから作る場合は、開設してからの登録になります）');
       return chat.later(() => chat.launch('open_register'), 500);
     }
     hear(chat, '② ふだんの1か月のご利用額は？', ['2万円くらい', '5万円くらい', '10万円以上'], amt => {
@@ -201,7 +201,7 @@ const chat = createChat({
     } else if (/頭打ち|上限/.test(q)) {
       chat.ai(`月の上限がある特典：\n${BENEFITS.filter(b => b.cap).map(b => `・${b.name}：月${b.cap.toLocaleString()}pt（月${Math.round(b.cap / b.rate * 100).toLocaleString()}円で到達）`).join('\n')}\n\n今月のご利用（${yen(MONTH_TOTAL)}）では「ランク特典」が上限に届いています。これ以上使っても、ランク特典のポイントは増えません。`);
     } else if (/手続き|始める/.test(q)) {
-      chat.ai('銀行口座の登録の画面を開きます。登録が終わったら、カードの引き落とし口座を提携銀行に変えると、特典が付きます。\n途中で分からないことがあれば、いつでも聞いてください。');
+      chat.ai('下のボタンから、銀行口座の登録の画面へ進めます。登録が終わったら、カードの引き落とし口座を提携銀行に変えると、特典が付きます。\n途中で分からないことがあれば、いつでも聞いてください。');
       return chat.later(() => chat.launch('open_register'), 500);
     } else if (b) return explain(b, chat);
     else chat.ai('すみません、うまく理解できませんでした。「倍率を上げるには？」や特典の名前で聞いてみてください。');

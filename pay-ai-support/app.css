@@ -145,3 +145,16 @@ header h1 { font-size: 18px; margin: 0; flex: 1; text-align: center; }
 .consent.agent > b .icon { color: #ffd36b; fill: #ffd36b; }
 .profile .head { background: #1f5fe0; color: #fff; }
 .profile .head b { color: #ffd36b; }
+
+/* AIの中の文字を、大きく */
+.msg { font-size: 18px; line-height: 1.7; }
+.chips button { font-size: 16px; padding: 8px 14px; border-radius: 20px; }
+.composer input { font-size: 18px; }
+.data { font-size: 17px; } .data div { padding: 10px 14px; }
+.launch { font-size: 17px; line-height: 1.6; }
+.consent p { font-size: 15px; } .consent label { font-size: 16px; } .consent .row button { font-size: 16px; }
+.qform .opt { font-size: 17px; } .qform .q { font-size: 17px; }
+.links a { font-size: 16px; }
+.agent-steps { font-size: 16px; } .profile { font-size: 15px; }
+.typing { font-size: 15px; }
+.launch .go-btn { display: block; width: 100%; margin-top: 10px; padding: 14px; border: 0; border-radius: 24px; background: var(--brand); color: #fff; font-size: 17px; font-weight: 700; cursor: pointer; }

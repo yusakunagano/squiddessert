@@ -65,7 +65,7 @@ const ACTION_NAME = { open_send: '送金', open_history: '利用履歴', open_re
 function createChat({ title, greet, handle, ai, jumps = [] }) {
   const root = document.createElement('div');
   root.innerHTML = `
-    <button class="ai-fab" aria-label="${title}を開く">AI</button>
+    <button class="ai-fab" aria-label="${title}を開く"><svg class="ai-ic" viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M28 9H16a7 7 0 0 0-7 7v16a7 7 0 0 0 7 7h16a7 7 0 0 0 7-7v-3"/><path d="M14.5 32 21 16.5 27.5 32M16.8 26.5h8.4"/><path d="M32.5 16.5v15.5"/><g fill="currentColor" stroke="none"><path d="M34 3q0 6 6 6-6 0-6 6 0-6-6-6 6 0 6-6z"/><path d="M43 8q0 3 3 3-3 0-3 3 0-3-3-3 3 0 3-3z"/><path d="M41 19q0 3.4 3.4 3.4-3.4 0-3.4 3.4 0-3.4-3.4-3.4 3.4 0 3.4-3.4z"/></g></svg></button>
     <div class="sheet-bg"></div>
     <div class="sheet" role="dialog" aria-label="${title}">
       <div class="sheet-head"><span>🤖</span><b>${title}</b><button class="close" aria-label="閉じる">×</button></div>

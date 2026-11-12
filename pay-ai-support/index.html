@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アプリホーム（プロトタイプ）</title>
-<link rel="stylesheet" href="app.css?v=20261122">
+<link rel="stylesheet" href="app.css?v=20261123">
 <style>
   .top { background: linear-gradient(135deg, #ff4d6d, var(--brand)); color: #fff; padding: 16px 16px 56px; }
   .top .brand { font-weight: 800; font-size: 20px; }
@@ -40,9 +40,12 @@
   .wallet .amt { font-size: 28px; font-weight: 800; margin: 2px 0 8px; }
   .wallet .pt { font-size: 15px; color: var(--sub); }
   .wallet.slide { display: flex; flex-direction: column; } /* カードの高さに合わせて伸びても、ボタンは下に寄せる */
-  .pay { display: flex; gap: 8px; margin-top: auto; padding-top: 12px; }
-  .pay button { flex: 1; padding: 12px; border-radius: 22px; border: 0; background: var(--brand); color: #fff; font-weight: 700; font-size: 17px; }
-  .pay button.sub { background: var(--brand-weak); color: var(--brand); }
+  /* バーコード（サンプル） */
+  .barcode { margin-top: auto; padding-top: 12px; }
+  .barcode .bars { display: flex; align-items: stretch; height: 64px; }
+  .barcode .bars i { display: block; height: 100%; background: #111; }
+  .barcode .bars i.sp { background: transparent; }
+  .barcode .bnum { text-align: center; font-size: 15px; letter-spacing: .18em; margin-top: 6px; font-variant-numeric: tabular-nums; }
   .menu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #fff; margin: 14px 16px 0; padding: 14px 8px; border-radius: 14px; }
   .menu a { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; color: var(--text); text-decoration: none; text-align: center; }
   .menu a span .icon { width: 24px; height: 24px; color: var(--brand); }
@@ -69,7 +72,7 @@
       <small>残高</small>
       <div class="amt" id="bal"></div>
       <div class="pt" id="pt"></div>
-      <div class="pay"><button>支払う</button><button class="sub">チャージ</button></div>
+      <div class="barcode" aria-label="バーコード（サンプル）"><div class="bars" id="bars"></div><div class="bnum" id="bnum">4912 3456 7890 1234</div></div>
     </section>
   </div>
   <div class="dots" id="dots" role="group" aria-label="券面の切り替え"><button type="button" aria-label="カードの券面を表示"></button><button class="on" type="button" aria-label="Pay の残高を表示"></button></div>
@@ -87,6 +90,14 @@
 <script src="agent.js?v=20261122"></script>
 <script src="card.js?v=20261122"></script>
 <script>
+// サンプルのバーコード：決まった並びで、太い線・細い線・すきまを並べる（読み取りはできません）
+(() => {
+  const box = document.getElementById('bars'); let x = 20260;
+  const rnd = () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  let html = '';
+  for (let i = 0; i < 46; i++) { const bar = 1 + Math.floor(rnd() * 3), gap = 1 + Math.floor(rnd() * 2); html += `<i style="flex:${bar}"></i><i class="sp" style="flex:${gap}"></i>`; }
+  box.innerHTML = html;
+})();
 document.getElementById('bal').textContent = yen(USER.balance);
 document.getElementById('pt').textContent = `ポイント ${USER.points.total.toLocaleString()}pt`;
 // 券面：スクロール位置に合わせて点を切り替え、点のクリックや、マウスのドラッグでも切り替えられる

@@ -135,13 +135,13 @@ header h1 { font-size: 18px; margin: 0; flex: 1; text-align: center; }
 .qform.done .fld { opacity: .75; }
 
 /* 「AIエージェントを使う」：特別なデザイン（濃い色・横いっぱい） */
-.chips .agent-chip { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; text-align: left; background: #1d1d2b; color: #fff; border: 0; border-radius: 14px; padding: 12px 16px; cursor: pointer; }
+.chips .agent-chip { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; text-align: left; background: #1f5fe0; color: #fff; border: 0; border-radius: 14px; padding: 12px 16px; cursor: pointer; }
 .chips .agent-chip .icon { width: 28px; height: 28px; color: #ffd36b; fill: #ffd36b; }
 .chips .agent-chip span { display: flex; flex-direction: column; gap: 2px; }
 .chips .agent-chip b { font-size: 17px; }
-.chips .agent-chip small { font-size: 13px; color: #c9cbf5; }
-.consent.agent { border: 2px solid #1d1d2b; padding-top: 0; overflow: hidden; }
-.consent.agent > b { display: flex; align-items: center; gap: 8px; background: #1d1d2b; color: #fff; margin: 0 -14px 10px; padding: 12px 14px; }
+.chips .agent-chip small { font-size: 13px; color: #d6e4ff; }
+.consent.agent { border: 2px solid #1f5fe0; padding-top: 0; overflow: hidden; }
+.consent.agent > b { display: flex; align-items: center; gap: 8px; background: #1f5fe0; color: #fff; margin: 0 -14px 10px; padding: 12px 14px; }
 .consent.agent > b .icon { color: #ffd36b; fill: #ffd36b; }
-.profile .head { background: #1d1d2b; color: #fff; }
+.profile .head { background: #1f5fe0; color: #fff; }
 .profile .head b { color: #ffd36b; }

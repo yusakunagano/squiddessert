@@ -5,16 +5,16 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--bg); color: var(--text); }
 .app { max-width: 420px; margin: 0 auto; min-height: 100vh; background: var(--bg); position: relative; padding-bottom: 96px; }
-.proto { font-size: 11px; color: var(--sub); text-align: center; padding: 6px; background: #fff8e1; }
+.proto { font-size: 13px; color: var(--sub); text-align: center; padding: 6px; background: #fff8e1; }
 header { display: flex; align-items: center; gap: 8px; padding: 14px 16px; background: var(--card); border-bottom: 1px solid var(--line); }
 header a, header button { background: none; border: 0; font-size: 20px; cursor: pointer; color: var(--sub); text-decoration: none; width: 20px; }
-header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
+header h1 { font-size: 18px; margin: 0; flex: 1; text-align: center; }
 .slide-in { animation: slideIn .28s ease-out; }
 @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } }
 
 /* AI icon + chat sheet */
 .ai-fab { position: fixed; right: max(16px, calc(50vw - 194px)); bottom: 24px; width: 60px; height: 60px; border-radius: 50%;
-  border: 0; cursor: pointer; background: var(--brand); color: #fff; font-weight: 800; font-size: 18px; z-index: 10; }
+  border: 0; cursor: pointer; background: var(--brand); color: #fff; font-weight: 800; font-size: 20px; z-index: 10; }
 .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 20; }
 .sheet { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 420px; height: 92vh; height: 92dvh; background: #fff;
   border-radius: 16px 16px 0 0; display: none; flex-direction: column; z-index: 21; }
@@ -22,30 +22,30 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 .sheet-head { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); gap: 8px; }
 .sheet-head b { flex: 1; } .sheet-head button { background: none; border: 0; font-size: 20px; cursor: pointer; }
 .msgs { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
-.msg { max-width: 85%; padding: 10px 12px; border-radius: 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+.msg { max-width: 85%; padding: 10px 12px; border-radius: 12px; font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
 .msg.ai { background: var(--bg); align-self: flex-start; }
 .msg.me { background: var(--brand); color: #fff; align-self: flex-end; }
 .msg.card { align-self: stretch; max-width: none; padding: 0; white-space: normal; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px; align-self: stretch; } /* 会話の文章の最後に置く（画面の下には固定しない） */
-.chips button { border: 1px solid var(--brand); color: var(--brand); background: #fff; border-radius: 16px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+.chips button { border: 1px solid var(--brand); color: var(--brand); background: #fff; border-radius: 16px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
 .composer { display: flex; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid var(--line); }
-.composer input { flex: 1; padding: 10px; font-size: 16px; border: 1px solid var(--line); border-radius: 8px; }
+.composer input { flex: 1; padding: 10px; font-size: 18px; border: 1px solid var(--line); border-radius: 8px; }
 .composer button { border: 0; background: var(--brand); color: #fff; border-radius: 22px; padding: 0 16px; cursor: pointer; }
 
 /* consent card */
 .consent { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: #fff; }
-.consent p { font-size: 12px; color: var(--sub); margin: 6px 0 10px; }
-.consent label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.consent p { font-size: 14px; color: var(--sub); margin: 6px 0 10px; }
+.consent label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); font-size: 15px; }
 .consent label span { display: flex; flex-direction: column; }
-.consent em { font-style: normal; font-size: 11px; color: var(--brand); }
+.consent em { font-style: normal; font-size: 13px; color: var(--brand); }
 .consent small { color: var(--sub); }
 .consent .row { display: flex; gap: 8px; margin-top: 10px; }
-.consent .row button { flex: 1; padding: 10px; border-radius: 20px; font-size: 14px; cursor: pointer; border: 1px solid var(--line); background: #fff; }
+.consent .row button { flex: 1; padding: 10px; border-radius: 20px; font-size: 16px; cursor: pointer; border: 1px solid var(--line); background: #fff; }
 .consent .row .yes { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 700; }
 .consent button:disabled { opacity: .5; cursor: default; }
-.authing { padding: 10px 12px; border-radius: 12px; background: #eef3ff; font-size: 13px; }
+.authing { padding: 10px 12px; border-radius: 12px; background: #eef3ff; font-size: 15px; }
 .authing.ok { background: #e8f6ee; color: var(--ok); }
-.data { border: 1px solid var(--line); border-radius: 12px; background: #fff; font-size: 13px; overflow: hidden; }
+.data { border: 1px solid var(--line); border-radius: 12px; background: #fff; font-size: 15px; overflow: hidden; }
 .data div { display: flex; justify-content: space-between; padding: 8px 12px; border-top: 1px solid var(--line); }
 .data div:first-child { border-top: 0; }
 .data .h { background: var(--bg); font-weight: 700; }
@@ -58,60 +58,60 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 .composer .mic:hover { background: var(--bg); }
 .composer .mic.on { background: var(--brand); color: #fff; animation: pulse 1.2s infinite; }
 @keyframes pulse { 50% { opacity: .6; } }
-.launch { padding: 12px; border-radius: 12px; background: #eef3ff; font-size: 13px; }
-.typing { padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: 13px; color: var(--sub); width: fit-content; }
+.launch { padding: 12px; border-radius: 12px; background: #eef3ff; font-size: 15px; }
+.typing { padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: 15px; color: var(--sub); width: fit-content; }
 .links { display: flex; flex-direction: column; gap: 6px; }
-.links a { display: block; padding: 10px 12px; border: 1px solid var(--brand); border-radius: 10px; color: var(--brand); background: #fff; font-size: 13px; font-weight: 700; text-decoration: none; line-height: 1.5; }
+.links a { display: block; padding: 10px 12px; border: 1px solid var(--brand); border-radius: 10px; color: var(--brand); background: #fff; font-size: 15px; font-weight: 700; text-decoration: none; line-height: 1.5; }
 
 /* AIエージェント（デモ） */
-.agent-steps { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 8px 12px; font-size: 13px; }
+.agent-steps { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 8px 12px; font-size: 15px; }
 .agent-steps div { padding: 4px 0; color: var(--sub); }
 .agent-steps div::before { content: '○ '; }
 .agent-steps div.run { color: var(--text); font-weight: 700; } .agent-steps div.run::before { content: '◔ '; color: var(--brand); }
 .agent-steps div.done { color: var(--ok); } .agent-steps div.done::before { content: '✓ '; }
-.profile { border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; font-size: 13px; }
+.profile { border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; font-size: 15px; }
 .profile .head { padding: 12px; background: var(--brand-weak); line-height: 1.6; }
-.profile .head b { display: block; font-size: 16px; }
+.profile .head b { display: block; font-size: 18px; }
 .profile .body { padding: 10px 12px; }
 .profile .body p { margin: 8px 0 0; }
 .profile ul { margin: 6px 0; padding-left: 1.2em; line-height: 1.7; }
 .tagrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
-.tagrow span { background: var(--bg); border-radius: 12px; padding: 3px 10px; font-size: 12px; }
-.demo-note { font-size: 11px; color: #b26a00; }
+.tagrow span { background: var(--bg); border-radius: 12px; padding: 3px 10px; font-size: 14px; }
+.demo-note { font-size: 13px; color: #b26a00; }
 
 /* 連携する項目が1つのとき */
 .consent label.one { align-items: center; background: var(--bg); border-radius: 10px; padding: 10px; border-top: 0; margin-top: 8px; }
-.consent .ck { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
+.consent .ck { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; font-size: 15px; font-weight: 800; }
 /* プロファイル（詳しい版） */
-.profile .lead-sum { margin: 8px 0 10px; line-height: 1.8; font-size: 13px; }
+.profile .lead-sum { margin: 8px 0 10px; line-height: 1.8; font-size: 15px; }
 .profile details.sec { border-top: 1px solid var(--line); padding: 8px 0; }
-.profile details.sec > summary { cursor: pointer; font-weight: 700; font-size: 13px; border-left: 3px solid var(--brand); padding-left: 8px; }
-.profile .bars .r { display: grid; grid-template-columns: 7.6em 1fr 5.8em; gap: 6px; align-items: center; font-size: 12px; margin: 4px 0; }
+.profile details.sec > summary { cursor: pointer; font-weight: 700; font-size: 15px; border-left: 3px solid var(--brand); padding-left: 8px; }
+.profile .bars .r { display: grid; grid-template-columns: 7.6em 1fr 5.8em; gap: 6px; align-items: center; font-size: 14px; margin: 4px 0; }
 .profile .bars .r > span:last-child { text-align: right; color: var(--sub); }
 .profile .bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
 .profile .bar i { display: block; height: 100%; background: var(--brand); border-radius: 4px; }
 .profile .rec { border-top: 1px dashed var(--line); padding: 8px 0; }
 .profile .rec:first-of-type { border-top: 0; }
 .profile .rec small { display: block; color: var(--sub); margin-top: 2px; line-height: 1.6; }
-.pri { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 8px; font-size: 11px; font-weight: 700; color: #fff; }
+.pri { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #fff; }
 .pri.high { background: var(--err); } .pri.mid { background: #e37400; } .pri.low { background: #888; }
 .profile .two { display: grid; grid-template-columns: 1fr; gap: 10px; }
-.profile .two h5 { margin: 0 0 4px; font-size: 12px; }
-.profile .two ul { margin: 0; padding-left: 1.1em; font-size: 12px; }
+.profile .two h5 { margin: 0 0 4px; font-size: 14px; }
+.profile .two ul { margin: 0; padding-left: 1.1em; font-size: 14px; }
 
 /* AIエージェントと連携中：AIアイコンに ✓ のバッジ */
-.ai-fab.linked::after { content: '✓'; position: absolute; top: -3px; right: -3px; width: 20px; height: 20px; border-radius: 50%; background: #2e9e5b; color: #fff; font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; border: 2px solid #fff; box-sizing: content-box; }
+.ai-fab.linked::after { content: '✓'; position: absolute; top: -3px; right: -3px; width: 20px; height: 20px; border-radius: 50%; background: #2e9e5b; color: #fff; font-size: 14px; font-weight: 700; line-height: 20px; text-align: center; border: 2px solid #fff; box-sizing: content-box; }
 
 /* 選択肢が多い質問：ラジオボタンの一覧＋「回答する」 */
 .qform { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
-.qform .q { display: block; font-size: 15px; margin-bottom: 6px; }
-.qform .opt { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 14.5px; cursor: pointer; }
+.qform .q { display: block; font-size: 17px; margin-bottom: 6px; }
+.qform .opt { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 16.5px; cursor: pointer; }
 .qform .opt input { position: absolute; opacity: 0; pointer-events: none; }
 .qform .dot { flex: 0 0 22px; height: 22px; border-radius: 50%; border: 2px solid #d0d0d5; box-sizing: border-box; display: grid; place-items: center; }
 .qform .opt input:checked + .dot { border-color: #111; }
 .qform .opt input:checked + .dot::after { content: ''; width: 10px; height: 10px; border-radius: 50%; background: #111; }
 .qform .opt input:focus-visible + .dot { outline: 2px solid var(--brand); outline-offset: 2px; }
-.qform .go { display: block; width: 100%; margin-top: 8px; padding: 12px; border: 0; border-radius: 24px; background: #111; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+.qform .go { display: block; width: 100%; margin-top: 8px; padding: 12px; border: 0; border-radius: 24px; background: #111; color: #fff; font-size: 17px; font-weight: 700; cursor: pointer; }
 .qform .go:disabled { background: #cfcfd4; cursor: default; }
 .qform.done .opt { cursor: default; opacity: .75; }
 
@@ -122,3 +122,26 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 .ai-fab .icon { width: 42px; height: 42px; display: block; margin: auto; vertical-align: baseline; }
 .sheet-head .hic { display: grid; color: var(--brand); } .sheet-head .hic .icon { width: 26px; height: 26px; }
 .oval .icon { width: 56px; height: 56px; } .oval-card .icon { width: 40px; height: 40px; }
+
+/* 手続きの入力フォーム */
+.qform .fld { margin: 12px 0; }
+.qform .fld .lb { display: block; font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.qform .fld input[type=text], .qform .fld select { width: 100%; box-sizing: border-box; padding: 12px; font-size: 18px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.qform .fld small { display: block; margin-top: 4px; color: var(--sub); font-size: 13px; }
+.qform .fld.chk label { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; line-height: 1.6; }
+.qform .fld.chk input { width: 22px; height: 22px; flex: none; margin-top: 2px; }
+.qform .ferr { color: var(--brand); font-size: 14px; font-weight: 700; }
+.qform .ferr:empty { display: none; }
+.qform.done .fld { opacity: .75; }
+
+/* 「AIエージェントを使う」：特別なデザイン（濃い色・横いっぱい） */
+.chips .agent-chip { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; text-align: left; background: #1d1d2b; color: #fff; border: 0; border-radius: 14px; padding: 12px 16px; cursor: pointer; }
+.chips .agent-chip .icon { width: 28px; height: 28px; color: #ffd36b; fill: #ffd36b; }
+.chips .agent-chip span { display: flex; flex-direction: column; gap: 2px; }
+.chips .agent-chip b { font-size: 17px; }
+.chips .agent-chip small { font-size: 13px; color: #c9cbf5; }
+.consent.agent { border: 2px solid #1d1d2b; padding-top: 0; overflow: hidden; }
+.consent.agent > b { display: flex; align-items: center; gap: 8px; background: #1d1d2b; color: #fff; margin: 0 -14px 10px; padding: 12px 14px; }
+.consent.agent > b .icon { color: #ffd36b; fill: #ffd36b; }
+.profile .head { background: #1d1d2b; color: #fff; }
+.profile .head b { color: #ffd36b; }

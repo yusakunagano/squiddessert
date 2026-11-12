@@ -4,24 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>よくある質問（カード）</title>
-<link rel="stylesheet" href="app.css?v=20261121">
+<link rel="stylesheet" href="app.css?v=20261122">
 <style>
   .qa { margin: 12px 16px 0; background: #fff; border-radius: 14px; padding: 14px 16px; }
   .qa:target { outline: 2px solid var(--brand); }
-  .qa h2 { font-size: 15px; margin: 0 0 8px; }
-  .qa p { margin: 0; font-size: 13.5px; line-height: 1.8; white-space: pre-wrap; }
-  .back { display: block; margin: 18px 16px; text-align: center; color: var(--brand); font-size: 14px; }
+  .qa h2 { font-size: 17px; margin: 0 0 8px; }
+  .qa p { margin: 0; font-size: 15.5px; line-height: 1.8; white-space: pre-wrap; }
+  .back { display: block; margin: 18px 16px; text-align: center; color: var(--brand); font-size: 16px; }
 </style>
 <script src="../ga.js?v=20261105"></script>
 </head>
 <body>
 <script src="gate.js?v=20261029"></script>
 <div class="app">
-  <h1 style="font-size:18px;margin:16px 16px 0">よくある質問（カード）</h1>
+  <h1 style="font-size:20px;margin:16px 16px 0">よくある質問（カード）</h1>
   <div id="list"></div>
   <a class="back" href="index.html">← ホームに戻る</a>
 </div>
-<script src="card.js?v=20261121"></script>
+<script src="card.js?v=20261122"></script>
 <script>
 // 問い合わせ項目の答えを、QAとして一覧にする（AIの会話の最後に、ここへ案内する）
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);

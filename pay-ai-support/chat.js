@@ -89,7 +89,15 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
       dropChips();
       if (!list.length) return;
       const c = document.createElement('div'); c.className = 'chips';
-      list.forEach(t => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.onclick = () => onPick(t); c.appendChild(b); });
+      list.forEach(t => {
+        const b = document.createElement('button'); b.type = 'button'; b.onclick = () => onPick(t);
+        if (/^AIエージェント/.test(t)) { // 特別なデザイン：横いっぱいの濃い色のボタン
+          b.className = 'agent-chip';
+          b.innerHTML = ic('spark') + '<span><b></b><small>利用を分析して、おすすめを提案</span>';
+          b.querySelector('b').textContent = t;
+        } else b.textContent = t;
+        c.appendChild(b);
+      });
       msgs.appendChild(c); msgs.scrollTop = 1e9; // 会話の最後に置く（下に固定しない）
     },
     // Show a reply after a short "typing" delay so the exchange reads naturally.
@@ -223,8 +231,8 @@ function withConsent(chat, needed, onGranted, opts = {}) {
   if (needed.every(s => Link.granted(s))) return onGranted();
   if (opts.intro !== null) chat.ai(opts.intro || 'このご質問にはお客さまのアカウント情報が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。', false);
   const el = chat.card(`
-    <div class="consent">
-      <b>${single ? single.title : 'アカウント連携とAIへの情報提供'}</b>
+    <div class="consent${single ? ' agent' : ''}">
+      <b>${single ? ic('spark') + ' ' + single.title : 'アカウント連携とAIへの情報提供'}</b>
       <p>${single ? single.note : '選んだ情報だけをAIに渡します。情報は回答の作成にのみ使います。連携はホームの「AI連携を解除」からいつでも解除できます。'}</p>
       ${single ? `<label class="one"><span class="ck">✓</span><span><b>${single.label}</b><small>${single.desc}</small></span></label>` : Object.entries(SCOPES).map(([k, s]) => `
         <label><input type="checkbox" value="${k}" ${needed.includes(k) || Link.granted(k) ? 'checked' : ''}>

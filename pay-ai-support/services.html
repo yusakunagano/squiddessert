@@ -4,42 +4,42 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>利用サービス（プロトタイプ）</title>
-<link rel="stylesheet" href="app.css?v=20261121">
+<link rel="stylesheet" href="app.css?v=20261122">
 <style>
   :root { --page: #efedeb; --mint: #e8f6ee; --check: #2bb36a; --red: #c80000; }
   body { background: var(--page); }
   .app { background: var(--page); padding: 0 16px 120px; }
   .close-x { display: block; margin-left: auto; padding: 24px 0 8px; width: 32px; font-size: 28px; color: #444; text-decoration: none; text-align: right; }
   .tabs { display: flex; gap: 6px; margin: 16px 0 28px; }
-  .tabs button { flex: 1; padding: 14px; border-radius: 28px; border: 0; font-size: 16px; font-weight: 700; background: #fafafa; color: #777; cursor: pointer; }
+  .tabs button { flex: 1; padding: 14px; border-radius: 28px; border: 0; font-size: 18px; font-weight: 700; background: #fafafa; color: #777; cursor: pointer; }
   .tabs button.on { background: var(--red); color: #fff; }
   .sec { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 12px; }
   .sec h2 { font-size: 26px; margin: 0; }
-  .sec .max { font-size: 13px; font-weight: 700; color: #444; }
+  .sec .max { font-size: 15px; font-weight: 700; color: #444; }
   .sec .max b { font-size: 30px; }
   .rows { border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
-  .row { display: flex; align-items: center; gap: 8px; padding: 16px; background: #fff; border: 0; width: 100%; text-align: left; font-size: 15px; font-weight: 700; color: #333; cursor: pointer; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 16px; background: #fff; border: 0; width: 100%; text-align: left; font-size: 17px; font-weight: 700; color: #333; cursor: pointer; }
   .row.on { background: var(--mint); }
   .row .ic { width: 20px; text-align: center; color: var(--check); }
-  .row .ic.n { width: 18px; height: 18px; border-radius: 50%; background: var(--red); color: #fff; font-size: 10px; line-height: 18px; }
+  .row .ic.n { width: 18px; height: 18px; border-radius: 50%; background: var(--red); color: #fff; font-size: 12px; line-height: 18px; }
   .row .nm { flex: 1; }
   .row .rt { font-size: 20px; }
-  .row .rt small { font-size: 11px; }
+  .row .rt small { font-size: 13px; }
   .row.off .rt { color: #ccc; }
   .row .chev { color: #555; }
   .box { background: #fff; border-radius: 14px; margin-top: 14px; }
   .box .line { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px; font-weight: 700; color: #333; }
   .box .line + .line { border-top: 1px solid #eee; }
   .box .v { font-size: 26px; text-align: right; }
-  .box .v small { font-size: 13px; }
-  .box .v .up { display: block; font-size: 14px; color: var(--check); }
-  .up-ai { display: block; width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--red); background: #fff; color: var(--red); font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
-  .hist .line { font-weight: 400; font-size: 14px; }
+  .box .v small { font-size: 15px; }
+  .box .v .up { display: block; font-size: 16px; color: var(--check); }
+  .up-ai { display: block; width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--red); background: #fff; color: var(--red); font-size: 15px; font-weight: 700; text-align: left; cursor: pointer; }
+  .hist .line { font-weight: 400; font-size: 16px; }
   /* detail sheet */
   .detail { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 15; }
   .detail.open { display: block; }
   .detail .panel { position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 420px; background: #fff; border-radius: 16px 16px 0 0; padding: 20px 16px 28px; max-height: 80vh; overflow-y: auto; }
-  .detail h3 { margin: 0 0 4px; } .detail .fine { font-size: 12px; color: #666; line-height: 1.8; }
+  .detail h3 { margin: 0 0 4px; } .detail .fine { font-size: 14px; color: #666; line-height: 1.8; }
   .detail .ask { width: 100%; margin-top: 12px; padding: 12px; border-radius: 22px; border: 1px solid var(--brand); background: #fff; color: var(--brand); font-weight: 700; cursor: pointer; }
 </style>
 <script src="../ga.js?v=20261105"></script>
@@ -67,7 +67,7 @@
 <div class="detail" id="detail"><div class="panel" id="panel"></div></div>
 
 <script src="icons.js?v=20261121"></script>
-<script src="chat.js?v=20261121"></script>
+<script src="chat.js?v=20261122"></script>
 <script>
 const MONTH_TOTAL = 47140;
 
@@ -122,7 +122,7 @@ detail.onclick = e => { if (e.target === detail) detail.classList.remove('open')
 document.querySelectorAll('.row').forEach(r => r.onclick = () => {
   const b = BENEFITS.find(x => x.id === r.dataset.id);
   document.getElementById('panel').innerHTML = `<h3>${b.name}</h3>
-    <div style="font-size:13px;margin-bottom:8px">${b.on ? ic('checkc') + ' 適用中' : ic('circle') + ' 未適用'}・${b.max ? '最大' : ''}${fmt(b.rate)}${b.rate2 ? '/' + b.rate2 : ''}%${b.cap ? `（上限 月${b.cap.toLocaleString()}pt）` : ''}</div>
+    <div style="font-size:15px;margin-bottom:8px">${b.on ? ic('checkc') + ' 適用中' : ic('circle') + ' 未適用'}・${b.max ? '最大' : ''}${fmt(b.rate)}${b.rate2 ? '/' + b.rate2 : ''}%${b.cap ? `（上限 月${b.cap.toLocaleString()}pt）` : ''}</div>
     <p class="fine">${b.fine}</p>
     <button class="ask">${ic('ai')} ${b.on ? 'AIでかんたん解説' : 'この特典で倍率を上げる方法をAIに聞く'}</button>`;
   detail.classList.add('open');

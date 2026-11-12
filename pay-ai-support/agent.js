@@ -180,11 +180,11 @@ function profileHtml(p) {
       <p class="lead-sum">${agentEsc(p.summary)}</p>
       <div class="tagrow">${p.tags.map((t) => `<span>${agentEsc(t)}</span>`).join('')}</div>
       ${sec('数字で見る利用', `<div class="data">${p.stats.map(([k, v]) => `<div><span>${agentEsc(k)}</span><b>${agentEsc(v)}</b></div>`).join('')}</div>`)}
-      ${sec('支払い方法と金額の大きさ', `<b style="font-size:12px">支払い方法（金額）</b>${barRows(p.methods.map((m) => ({ label: m.label, pct: m.share, text: `${m.share}%・${m.count}件` })))}
-        <b style="font-size:12px">1回の金額（件数）</b>${barRows(p.bands.map((b) => ({ label: b.label, pct: b.share, text: `${b.share}%・${b.count}件` })))}`)}
+      ${sec('支払い方法と金額の大きさ', `<b style="font-size:14px">支払い方法（金額）</b>${barRows(p.methods.map((m) => ({ label: m.label, pct: m.share, text: `${m.share}%・${m.count}件` })))}
+        <b style="font-size:14px">1回の金額（件数）</b>${barRows(p.bands.map((b) => ({ label: b.label, pct: b.share, text: `${b.share}%・${b.count}件` })))}`)}
       ${sec('どこで使っている？（金額の多い順）', barRows(p.kinds.map((k) => ({ label: k.label, pct: k.share, text: `${money(k.amount)}` }))))}
-      ${sec('いつ使っている？', `<b style="font-size:12px">曜日</b>${barRows(p.weekdays.map((d) => ({ label: `${d.label}曜日`, pct: (d.count / maxWd) * 100, text: `${d.count}件` })))}
-        ${p.times.some((t) => t.count) ? `<b style="font-size:12px">時間帯</b>${barRows(p.times.map((t) => ({ label: t.label.split('（')[0], pct: (t.count / maxTime) * 100, text: `${t.count}件` })))}` : ''}`)}
+      ${sec('いつ使っている？', `<b style="font-size:14px">曜日</b>${barRows(p.weekdays.map((d) => ({ label: `${d.label}曜日`, pct: (d.count / maxWd) * 100, text: `${d.count}件` })))}
+        ${p.times.some((t) => t.count) ? `<b style="font-size:14px">時間帯</b>${barRows(p.times.map((t) => ({ label: t.label.split('（')[0], pct: (t.count / maxTime) * 100, text: `${t.count}件` })))}` : ''}`)}
       ${sec('月ごとの推移と、来月の見通し', `${barRows(p.months.map((m) => ({ label: m.label, pct: (m.total / maxMonth) * 100, text: money(m.total) })))}
         <p>来月の利用は、<b>${man(p.forecast.low)}〜${man(p.forecast.high)}</b>くらいが目安です（直近${p.months.length}か月の平均 ${man(p.forecast.avg)} をもとにした、おおまかな見通しです）。</p>`)}
       ${sec('あなたの強みと、気をつけたい点', `<div class="two"><div><h5>${ic('check')} 強み</h5><ul>${p.strengths.map((s) => `<li>${agentEsc(s)}</li>`).join('')}</ul></div><div><h5>${ic('warn')} 気をつけたい点</h5><ul>${p.cautions.map((s) => `<li>${agentEsc(s)}</li>`).join('')}</ul></div></div>`)}
@@ -254,9 +254,9 @@ function runAgentDemo(chat, { home }) {
   withConsent(chat, Object.keys(SCOPE_LABEL), () => {
     Link.agentOn(); // 「AIエージェントを使う」を始めたので、AIアイコンにバッジを付ける
     const el = chat.card(`
-      <div class="consent">
-        <b>プロファイリングの実行（確認）</b>
-        <ul style="margin:6px 0;padding-left:1.2em;font-size:12px;line-height:1.7">
+      <div class="consent agent">
+        <b>${ic('spark')} プロファイリングの実行（確認）</b>
+        <ul style="margin:6px 0;padding-left:1.2em;font-size:14px;line-height:1.7">
           <li><b>使うデータ：</b>連携した「アカウント情報」（利用明細・残高とポイント・カード請求）</li>
           <li><b>わかること：</b>よく使う支払い方法、利用の頻度・金額、よく使う場所の種類、曜日・時間帯、月ごとの推移、特典の使い方</li>
           <li><b>推定しないこと：</b>健康・信条・家族構成など、センシティブな情報</li>

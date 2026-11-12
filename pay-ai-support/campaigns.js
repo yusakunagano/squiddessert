@@ -37,7 +37,7 @@ async function load() {
 
 function itemHtml(c) {
   const kind = ['d払い', 'dポイント'].includes(c.kind) ? c.kind : 'その他';
-  const entry = c.entry === '必要' ? '<span class="tag need">⚠ エントリー必要</span>' : c.entry === '不要' ? '<span class="tag free">エントリー不要</span>' : '<span class="tag">エントリー：不明</span>';
+  const entry = c.entry === '必要' ? '<span class="tag need">' + ic('warn') + ' エントリー必要</span>' : c.entry === '不要' ? '<span class="tag free">エントリー不要</span>' : '<span class="tag">エントリー：不明</span>';
   const d = c.detail && typeof c.detail === 'object' ? c.detail : null;
   const rows = d ? DETAIL_LABEL.filter(([k]) => d[k] && d[k] !== '不明').map(([k, label]) => `<dt>${label}</dt><dd>${esc(d[k])}</dd>`).join('') : '';
   const href = safeUrl(c.url);

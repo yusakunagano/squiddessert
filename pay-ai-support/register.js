@@ -290,7 +290,7 @@ S['kyc-ic'] = { p: 2, title: 'マイナンバーカードの読み取り', rende
     <label>署名用電子証明書のパスワード（英数字6〜16文字）</label>
     <input id="icpw" type="password" maxlength="16" autocomplete="off" value="${esc(state.icpwTmp)}">
     <div class="err" id="e-icpw"></div>${demo('英数字6〜16文字なら何でもOK。1回目はわざと読み取りに失敗します')}
-    <div class="oval-card ${k.icDone ? 'ok' : ''}">${k.icDone ? '✓' : '📱 ＋ 💳'}</div>
+    <div class="oval-card ${k.icDone ? 'ok' : ''}">${k.icDone ? '✓' : ic('phone') + ' ＋ ' + ic('card')}</div>
     <div class="err" id="e-ic">${esc(state.errors.ic || '')}</div>
     ${k.icDone ? `<div class="okline">✓ 読み取りが完了しました</div>${nav()}` : `<button class="primary" id="scan">読み取りを開始</button>${later}`}`;
   if ($('scan')) $('scan').onclick = () => {
@@ -307,7 +307,7 @@ S['kyc-shoot'] = { p: 2, title: '書類の撮影', render(v) {
   const k = state.kyc, shots = DOCS[k.doc].shots;
   v.innerHTML = `<h2>${esc(k.doc)}を撮影します</h2>
     <p class="lead">${k.doc === 'マイナンバーカード' ? '表面と厚みを撮影します。<b>裏面（個人番号）は撮影しないでください。</b>' : '枠に収まるように、順番に撮影してください。'}</p>
-    ${shots.map((id) => `<label>${SHOT_NAMES[id]}</label><button class="shot ${k.shots[id] ? 'ok' : ''}" data-shot="${id}">${k.shots[id] ? '✓ 撮影済み' : '📷 撮影する'}</button>`).join('')}
+    ${shots.map((id) => `<label>${SHOT_NAMES[id]}</label><button class="shot ${k.shots[id] ? 'ok' : ''}" data-shot="${id}">${k.shots[id] ? '✓ 撮影済み' : ic('camera') + ' 撮影する'}</button>`).join('')}
     <div class="err" id="e-kyc">${esc(state.errors.kyc || '')}</div>${demo('表面の1回目は、わざと失敗します')}
     ${nav('次へ', !shots.every((id) => k.shots[id]))}`;
   v.querySelectorAll('[data-shot]').forEach((b) => { b.onclick = () => {
@@ -322,7 +322,7 @@ S['kyc-face'] = { p: 2, title: '顔の撮影', render(v) {
   const k = state.kyc;
   v.innerHTML = `<h2>顔を撮影します</h2>
     <p class="lead">画面の枠に顔を合わせ、案内に従って、ゆっくり首を左右に振ってください。明るい場所で、帽子・マスク・サングラスは外します。</p>
-    <div class="oval ${k.face ? 'ok' : ''}">${k.face ? '✓' : '🙂'}</div>
+    <div class="oval ${k.face ? 'ok' : ''}">${k.face ? '✓' : ic('face')}</div>
     <div class="err center" id="e-face">${esc(state.errors.face || '')}</div>${demo('1回目は、わざと失敗します')}
     ${k.face ? `<div class="okline">✓ 撮影が完了しました</div>${nav()}` : `<button class="primary" id="faceBtn">撮影を開始</button>${later}`}`;
   if ($('faceBtn')) $('faceBtn').onclick = () => {
@@ -356,8 +356,8 @@ S['kyc-wait'] = { p: 2, title: '本人確認の審査', render(v) {
   }
 } };
 
-const bankFrame = (inner, title) => `<div class="leave">🔒 ここから先は <b>${esc(state.bank)}</b> のサイト（画面）です。アプリを離れて、${esc(state.bank)}の画面で認証します。</div>
-  <div class="bankframe"><div class="bar">🏦 ${esc(state.bank)} ｜ ${title}</div><div class="inner">${inner}</div></div>`;
+const bankFrame = (inner, title) => `<div class="leave">${ic('lock')} ここから先は <b>${esc(state.bank)}</b> のサイト（画面）です。アプリを離れて、${esc(state.bank)}の画面で認証します。</div>
+  <div class="bankframe"><div class="bar">${ic('bank')} ${esc(state.bank)} ｜ ${title}</div><div class="inner">${inner}</div></div>`;
 
 S['bank-login'] = { p: 3, title: `金融機関のサイトにログイン`, render(v) {
   if (state.lock.bank) {

@@ -32,7 +32,7 @@ function toQA(chat, id, lead) {
 function doAct(chat, { ask, yes = 'はい', run, done }) {
   hear(chat, ask, [yes, 'やめる'], (a) => {
     if (a !== yes) { chat.ai('手続きは行いませんでした。ほかにお困りのことがあれば、選んでください。'); return chat.chips(DEFAULT_CHIPS); }
-    const el = chat.card('<div class="authing">🔐 手続き中…（デモ）</div>');
+    const el = chat.card('<div class="authing">' + ic('lock') + ' 手続き中…（デモ）</div>');
     setTimeout(() => {
       el.innerHTML = '<div class="authing ok">✓ 受け付けました</div>';
       if (run) run();

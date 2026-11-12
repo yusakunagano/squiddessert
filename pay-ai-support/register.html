@@ -37,8 +37,11 @@
 
   /* AI icon */
   .ai-fab { position: fixed; right: max(16px, calc(50vw - 194px)); bottom: 24px; width: 60px; height: 60px; border-radius: 50%;
-    border: 0; cursor: pointer; background: linear-gradient(135deg, #ff4d6d, var(--brand)); color: #fff; font-weight: 800; font-size: 18px;
-    box-shadow: 0 6px 16px rgba(230,0,51,.35); z-index: 10; }
+    border: 0; cursor: pointer; background: var(--brand); color: #fff; font-weight: 800; font-size: 18px; z-index: 10; }
+  .icon { width: 1.15em; height: 1.15em; vertical-align: -.22em; flex: none; }
+  .ai-fab .icon { width: 42px; height: 42px; display: block; margin: auto; vertical-align: baseline; }
+  .sheet-head.hic, .sheet-head .hic { display: grid; color: var(--brand); } .sheet-head .hic .icon { width: 26px; height: 26px; }
+  .oval .icon { width: 56px; height: 56px; } .oval-card .icon { width: 40px; height: 40px; }
   .ai-fab .badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; border-radius: 50%; background: #ffb300; font-size: 11px; line-height: 18px; display: none; }
   .ai-fab.nudge .badge { display: block; }
   .ai-fab.nudge { animation: pulse 1.6s infinite; }
@@ -139,18 +142,19 @@
   <main id="view"></main>
 </div>
 
-<button class="ai-fab" id="fab" aria-label="AIサポートを開く"><svg class="ai-ic" viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M28 9H16a7 7 0 0 0-7 7v16a7 7 0 0 0 7 7h16a7 7 0 0 0 7-7v-3"/><path d="M14.5 32 21 16.5 27.5 32M16.8 26.5h8.4"/><path d="M32.5 16.5v15.5"/><g fill="currentColor" stroke="none"><path d="M34 3q0 6 6 6-6 0-6 6 0-6-6-6 6 0 6-6z"/><path d="M43 8q0 3 3 3-3 0-3 3 0-3-3-3 3 0 3-3z"/><path d="M41 19q0 3.4 3.4 3.4-3.4 0-3.4 3.4 0-3.4-3.4-3.4 3.4 0 3.4-3.4z"/></g></svg><span class="badge">!</span></button>
+<button class="ai-fab" id="fab" aria-label="AIサポートを開く"><span data-ic="ai" style="display:grid;place-items:center"></span><span class="badge">!</span></button>
 <div class="ai-hint" id="hint"></div>
 <div id="sheetRoot">
   <div class="sheet-bg" id="sheetBg"></div>
   <div class="sheet" role="dialog" aria-label="AIサポート">
-    <div class="sheet-head"><span>🤖</span><b>AIサポート</b><button id="close" aria-label="閉じる">×</button></div>
+    <div class="sheet-head"><span class="hic" data-ic="ai"></span><b>AIサポート</b><button id="close" aria-label="閉じる">×</button></div>
     <div class="msgs" id="msgs"></div>
     <div class="chips" id="chips"></div>
     <form class="composer" id="composer"><input id="q" placeholder="困っていることを入力" autocomplete="off"><button>送信</button></form>
   </div>
 </div>
 
-<script src="register.js?v=20261030"></script>
+<script src="icons.js?v=20261121"></script>
+<script src="register.js?v=20261121"></script>
 </body>
 </html>

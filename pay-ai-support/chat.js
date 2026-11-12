@@ -249,7 +249,26 @@ function withConsent(chat, needed, onGranted, opts = {}) {
 }
 
 // Ask the user a follow-up question (the AI "hearing"), then continue with their choice.
+// 選択肢が3つ以上のときは、ラジオボタンの一覧＋「回答する」（フォーム形式）で出す。「はい／やめる」のような2択は、ボタンのまま。
+let formSeq = 0;
 function hear(chat, question, options, onAnswer) {
-  chat.ai(question);
-  chat.chips(options, a => { chat.me(a); chat.later(() => onAnswer(a)); });
+  if (options.length < 3) {
+    chat.ai(question);
+    return chat.chips(options, a => { chat.me(a); chat.later(() => onAnswer(a)); });
+  }
+  chat.chips([]); // 下の質問候補は、いったん消す（フォームで答える）
+  chat.history.push({ role: 'assistant', text: question });
+  const name = 'q' + (++formSeq);
+  const el = chat.card(`<div class="qform"><b class="q"></b>${options.map((o, i) => `<label class="opt"><input type="radio" name="${name}" value="${i}"><span class="dot"></span><span class="t"></span></label>`).join('')}<button type="button" class="go" disabled>回答する</button></div>`);
+  el.querySelector('.q').textContent = question;
+  el.querySelectorAll('.t').forEach((t, i) => { t.textContent = options[i]; });
+  const go = el.querySelector('.go');
+  el.querySelectorAll('input').forEach(r => { r.onchange = () => { go.disabled = false; }; });
+  go.onclick = () => {
+    const picked = el.querySelector('input:checked'); if (!picked) return;
+    const a = options[+picked.value];
+    el.querySelectorAll('input').forEach(r => { r.disabled = true; });
+    go.hidden = true; el.classList.add('done');
+    chat.me(a); chat.later(() => onAnswer(a));
+  };
 }

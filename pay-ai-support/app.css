@@ -14,8 +14,7 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 
 /* AI icon + chat sheet */
 .ai-fab { position: fixed; right: max(16px, calc(50vw - 194px)); bottom: 24px; width: 60px; height: 60px; border-radius: 50%;
-  border: 0; cursor: pointer; background: linear-gradient(135deg, #ff4d6d, var(--brand)); color: #fff; font-weight: 800; font-size: 18px;
-  box-shadow: 0 6px 16px rgba(230,0,51,.35); z-index: 10; }
+  border: 0; cursor: pointer; background: var(--brand); color: #fff; font-weight: 800; font-size: 18px; z-index: 10; }
 .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 20; }
 .sheet { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 420px; height: 92vh; height: 92dvh; background: #fff;
   border-radius: 16px 16px 0 0; display: none; flex-direction: column; z-index: 21; }
@@ -117,3 +116,9 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 .qform.done .opt { cursor: default; opacity: .75; }
 
 .ai-fab .ai-ic { display: block; margin: auto; }
+
+/* アイコン：平面（線だけ・影なし） */
+.icon { width: 1.15em; height: 1.15em; vertical-align: -.22em; flex: none; }
+.ai-fab .icon { width: 42px; height: 42px; display: block; margin: auto; vertical-align: baseline; }
+.sheet-head .hic { display: grid; color: var(--brand); } .sheet-head .hic .icon { width: 26px; height: 26px; }
+.oval .icon { width: 56px; height: 56px; } .oval-card .icon { width: 40px; height: 40px; }

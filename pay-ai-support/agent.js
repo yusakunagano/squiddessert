@@ -187,7 +187,7 @@ function profileHtml(p) {
         ${p.times.some((t) => t.count) ? `<b style="font-size:12px">時間帯</b>${barRows(p.times.map((t) => ({ label: t.label.split('（')[0], pct: (t.count / maxTime) * 100, text: `${t.count}件` })))}` : ''}`)}
       ${sec('月ごとの推移と、来月の見通し', `${barRows(p.months.map((m) => ({ label: m.label, pct: (m.total / maxMonth) * 100, text: money(m.total) })))}
         <p>来月の利用は、<b>${man(p.forecast.low)}〜${man(p.forecast.high)}</b>くらいが目安です（直近${p.months.length}か月の平均 ${man(p.forecast.avg)} をもとにした、おおまかな見通しです）。</p>`)}
-      ${sec('あなたの強みと、気をつけたい点', `<div class="two"><div><h5>👍 強み</h5><ul>${p.strengths.map((s) => `<li>${agentEsc(s)}</li>`).join('')}</ul></div><div><h5>⚠️ 気をつけたい点</h5><ul>${p.cautions.map((s) => `<li>${agentEsc(s)}</li>`).join('')}</ul></div></div>`)}
+      ${sec('あなたの強みと、気をつけたい点', `<div class="two"><div><h5>${ic('check')} 強み</h5><ul>${p.strengths.map((s) => `<li>${agentEsc(s)}</li>`).join('')}</ul></div><div><h5>${ic('warn')} 気をつけたい点</h5><ul>${p.cautions.map((s) => `<li>${agentEsc(s)}</li>`).join('')}</ul></div></div>`)}
       ${sec('特典の活用度（目安）', `<ul>${p.benefits.map((b) => `<li><b>${agentEsc(b.label)}</b><br>${agentEsc(b.detail)}</li>`).join('')}</ul>`)}
       ${sec('おすすめのアクション', p.recs.length ? p.recs.map(recHtml).join('') : '<p>いまは、おすすめはありません。</p>')}
       ${sec('このプロファイルについて', `<p><b>推定の確からしさ：</b>${agentEsc(p.confidence)}</p>

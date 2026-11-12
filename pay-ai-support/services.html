@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>利用サービス（プロトタイプ）</title>
-<link rel="stylesheet" href="app.css?v=20261120">
+<link rel="stylesheet" href="app.css?v=20261121">
 <style>
   :root { --page: #efedeb; --mint: #e8f6ee; --check: #2bb36a; --red: #c80000; }
   body { background: var(--page); }
@@ -55,7 +55,7 @@
     <div class="sec"><h2>Pay</h2><span class="max">最大<b id="now"></b> / <span id="pot"></span>%還元</span></div>
     <div class="rows" id="rows"></div>
     <div class="box"><div class="line"><span>今月の利用総額</span><span class="v" id="total"></span></div></div>
-    <button class="up-ai" id="upAi">🤖 あと <b id="gap"></b> 倍率を上げられます。AIに上げ方を聞く ›</button>
+    <button class="up-ai" id="upAi"><span data-ic="ai"></span> あと <b id="gap"></b> 倍率を上げられます。AIに上げ方を聞く ›</button>
     <div class="sec" style="margin-top:32px"><h2>ポイント</h2></div>
     <div class="box">
       <div class="line"><span>保有ポイント</span><span class="v">8<small>P</small></span></div>
@@ -66,7 +66,8 @@
 </div>
 <div class="detail" id="detail"><div class="panel" id="panel"></div></div>
 
-<script src="chat.js?v=20261120"></script>
+<script src="icons.js?v=20261121"></script>
+<script src="chat.js?v=20261121"></script>
 <script>
 const MONTH_TOTAL = 47140;
 
@@ -121,9 +122,9 @@ detail.onclick = e => { if (e.target === detail) detail.classList.remove('open')
 document.querySelectorAll('.row').forEach(r => r.onclick = () => {
   const b = BENEFITS.find(x => x.id === r.dataset.id);
   document.getElementById('panel').innerHTML = `<h3>${b.name}</h3>
-    <div style="font-size:13px;margin-bottom:8px">${b.on ? '✅ 適用中' : '⚪ 未適用'}・${b.max ? '最大' : ''}${fmt(b.rate)}${b.rate2 ? '/' + b.rate2 : ''}%${b.cap ? `（上限 月${b.cap.toLocaleString()}pt）` : ''}</div>
+    <div style="font-size:13px;margin-bottom:8px">${b.on ? ic('checkc') + ' 適用中' : ic('circle') + ' 未適用'}・${b.max ? '最大' : ''}${fmt(b.rate)}${b.rate2 ? '/' + b.rate2 : ''}%${b.cap ? `（上限 月${b.cap.toLocaleString()}pt）` : ''}</div>
     <p class="fine">${b.fine}</p>
-    <button class="ask">🤖 ${b.on ? 'AIでかんたん解説' : 'この特典で倍率を上げる方法をAIに聞く'}</button>`;
+    <button class="ask">${ic('ai')} ${b.on ? 'AIでかんたん解説' : 'この特典で倍率を上げる方法をAIに聞く'}</button>`;
   detail.classList.add('open');
   document.querySelector('#panel .ask').onclick = () => {
     detail.classList.remove('open'); chat.open();
@@ -137,7 +138,7 @@ const DEFAULT_CHIPS = ['倍率を上げるには？', 'いちばん簡単に上�
 document.getElementById('gap').textContent = `+${fmt(potMax - nowMax)}%`;
 
 function explain(b, chat) {
-  chat.ai(`「${b.name}」をかんたんに言うと：\n\n${b.plain.map(s => '・' + s).join('\n')}${b.on ? '\n\n✅ あなたはすでに適用中です。' : '\n\n⚪ まだ適用されていません。'}${b.unverified ? '\n\n※ この特典の条件はプロトタイプ用の目安です。' : ''}`);
+  chat.ai(`「${b.name}」をかんたんに言うと：\n\n${b.plain.map(s => '・' + s).join('\n')}${b.on ? '\n\nあなたはすでに適用中です。' : '\n\nまだ適用されていません。'}${b.unverified ? '\n\n※ この特典の条件はプロトタイプ用の目安です。' : ''}`);
   chat.chips(DEFAULT_CHIPS);
 }
 
@@ -197,7 +198,7 @@ const chat = createChat({
       return withConsent(chat, ['card'], () => rateUpPlan(chat, b && b.id));
     }
     if (/15\.5|最大/.test(q)) {
-      chat.ai(`15.5%にするには、次の2つが必要です。\n\n1. 「Payカード×提携銀行」を適用（＋2%）\n2. ポイ活プランを対象のお店・期間で使う（5%→10%、＋5%）\n\n⚠️ ただし特典ごとに月の上限があるので、15.5%はあくまで「表示上の最大」です。実際に何%になるかは「倍率を上げるには？」で計算できます。`);
+      chat.ai(`15.5%にするには、次の2つが必要です。\n\n1. 「Payカード×提携銀行」を適用（＋2%）\n2. ポイ活プランを対象のお店・期間で使う（5%→10%、＋5%）\n\n注意：ただし特典ごとに月の上限があるので、15.5%はあくまで「表示上の最大」です。実際に何%になるかは「倍率を上げるには？」で計算できます。`);
     } else if (/頭打ち|上限/.test(q)) {
       chat.ai(`月の上限がある特典：\n${BENEFITS.filter(b => b.cap).map(b => `・${b.name}：月${b.cap.toLocaleString()}pt（月${Math.round(b.cap / b.rate * 100).toLocaleString()}円で到達）`).join('\n')}\n\n今月のご利用（${yen(MONTH_TOTAL)}）では「ランク特典」が上限に届いています。これ以上使っても、ランク特典のポイントは増えません。`);
     } else if (/手続き|始める/.test(q)) {

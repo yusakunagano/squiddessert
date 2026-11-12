@@ -65,10 +65,10 @@ const ACTION_NAME = { open_send: '送金', open_history: '利用履歴', open_re
 function createChat({ title, greet, handle, ai, jumps = [] }) {
   const root = document.createElement('div');
   root.innerHTML = `
-    <button class="ai-fab" aria-label="${title}を開く"><svg class="ai-ic" viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M28 9H16a7 7 0 0 0-7 7v16a7 7 0 0 0 7 7h16a7 7 0 0 0 7-7v-3"/><path d="M14.5 32 21 16.5 27.5 32M16.8 26.5h8.4"/><path d="M32.5 16.5v15.5"/><g fill="currentColor" stroke="none"><path d="M34 3q0 6 6 6-6 0-6 6 0-6-6-6 6 0 6-6z"/><path d="M43 8q0 3 3 3-3 0-3 3 0-3-3-3 3 0 3-3z"/><path d="M41 19q0 3.4 3.4 3.4-3.4 0-3.4 3.4 0-3.4-3.4-3.4 3.4 0 3.4-3.4z"/></g></svg></button>
+    <button class="ai-fab" aria-label="${title}を開く">${ic('ai')}</button>
     <div class="sheet-bg"></div>
     <div class="sheet" role="dialog" aria-label="${title}">
-      <div class="sheet-head"><span>🤖</span><b>${title}</b><button class="close" aria-label="閉じる">×</button></div>
+      <div class="sheet-head"><span class="hic">${ic('ai')}</span><b>${title}</b><button class="close" aria-label="閉じる">×</button></div>
       <div class="msgs"></div>
       <form class="composer"><div class="field"><input placeholder="質問を入力" autocomplete="off"><button type="button" class="mic" aria-label="音声で入力" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/></svg></button></div><button>送信</button></form>
     </div>`;
@@ -122,15 +122,17 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
       ok.forEach(l => {
         const a = document.createElement('a');
         a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        a.textContent = `🔗 ${l.title || 'くわしく見る'}`;
+        a.innerHTML = ic('link'); a.append(' ' + (l.title || 'くわしく見る'));
         el.firstChild.appendChild(a);
       });
     },
     launch(action, params) {
-      chat.card(`<div class="launch">🚀 「${ACTION_NAME[action]}」を開きます…</div>`);
+      chat.card(`<div class="launch">${ic('open')} 「${ACTION_NAME[action]}」を開きます…</div>`);
       setTimeout(() => location.href = ACTION_URL[action](params), 900);
     },
     open() {
+      // 開くたびに、これまでの会話は消して、新しく始める
+      if (!root.classList.contains('open')) { msgs.innerHTML = ''; chat.history = []; chat.aiMode = false; }
       root.classList.add('open');
       // Let the server start reading the campaign list now, so the first answer isn't slow.
       if (ai?.page === 'deals' && !chat.warmed) {
@@ -143,7 +145,7 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
     // まだ利用者が話しかけていなければ、あいさつとメニューを消して、次に開いたときに作り直す
     resetGreeting() { if (!chat.history.some(m => m.role === 'user')) { msgs.innerHTML = ''; chat.history = []; } },
     // 同じサイト内の画面へのリンクボタン
-    launchLink(title, href) { const el = chat.card('<div class="links"></div>'); const a = document.createElement('a'); a.href = href; a.textContent = `🔗 ${title}`; el.firstChild.appendChild(a); },
+    launchLink(title, href) { const el = chat.card('<div class="links"></div>'); const a = document.createElement('a'); a.href = href; a.innerHTML = ic('link'); a.append(' ' + title); el.firstChild.appendChild(a); },
   };
   // Ask the AI; if the relay can't be reached, answer with the built-in rules instead.
   let offlineNoted = false;
@@ -238,7 +240,7 @@ function withConsent(chat, needed, onGranted, opts = {}) {
     const scopes = single ? Object.keys(SCOPES) : [...el.querySelectorAll('input:checked')].map(i => i.value);
     done(); chat.me(`連携して許可（${single ? single.label : scopes.map(s => SCOPES[s].label).join('・') || 'なし'}）`, false);
     // Mock of the account-linking step (biometric / password confirmation in the real app).
-    const auth = chat.card('<div class="authing">🔐 本人確認中…（デモ）</div>');
+    const auth = chat.card('<div class="authing">' + ic('lock') + ' 本人確認中…（デモ）</div>');
     setTimeout(() => {
       auth.innerHTML = '<div class="authing ok">✓ アカウントを連携しました</div>';
       // Add to what was granted earlier rather than replacing it.

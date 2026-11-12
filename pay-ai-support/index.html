@@ -21,6 +21,8 @@
   .dcard.gold { background: linear-gradient(135deg, #f6e08e 0%, #d9a93b 45%, #a97a16 100%); color: #3d2a05; }
   .dcard.gold .brandname, .dcard.gold .num { text-shadow: 0 1px 1px rgba(255,255,255,.35); }
   .dcard.gold .kind { font-weight: 700; letter-spacing: .08em; }
+  .dcard.stopped { filter: grayscale(1); opacity: .75; }
+  .dcard.stopped .kind { font-weight: 700; }
   .dcard::before { content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%; right: -90px; top: -110px; background: rgba(255,255,255,.12); }
   .dcard::after { content: ''; position: absolute; width: 220px; height: 220px; border-radius: 50%; left: -80px; bottom: -130px; background: rgba(255,255,255,.08); }
   .dcard > * { position: relative; z-index: 1; }
@@ -80,8 +82,9 @@
   <div class="banner"><span style="font-size:28px">🤖</span><div><b>AIアシスタントに聞いてみよう</b>アプリやカードの使い方、残高・ご利用額・請求のことまで答えます。</div></div>
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
-<script src="chat.js?v=20261114"></script>
+<script src="chat.js?v=20261116"></script>
 <script src="agent.js?v=20261111"></script>
+<script src="card.js?v=20261116"></script>
 <script>
 document.getElementById('bal').textContent = yen(USER.balance);
 document.getElementById('pt').textContent = `ポイント ${USER.points.total.toLocaleString()}pt`;
@@ -117,30 +120,16 @@ document.getElementById('pt').textContent = `ポイント ${USER.points.total.to
 document.getElementById('revoke').onclick = () => { Link.revoke(); alert('AIとのアカウント連携を解除しました'); };
 
 const BASE_CHIPS = ['🧠 AIエージェントを使う', '🎁 お得な情報を知りたい', '送金したい', '履歴を見たい', 'ポイントの期限は？', 'カードをなくした'];
-// カードの券面にスワイプしたときの、問い合わせ項目（コールリーズンをもとにした一覧）
-const CARD_REASONS = [
-  { q: '手元にあるカードを解約したい', a: 'カードの解約は、アプリの「カード」→「カードの解約」から手続きできます。\n解約すると、ポイントの引き継ぎや、カードに紐づくお支払い設定（公共料金など）が使えなくなります。先にご確認ください。\n手元のカードは、解約の手続きのあと、ハサミで切って処分してください（ICチップと磁気帯に切り込みを入れます）。' },
-  { q: 'カードを利用できない原因を確認したい', a: '次のような原因が考えられます。\n・利用限度額に達している\n・お支払いの遅れや、引き落とし口座の残高不足\n・暗証番号を連続して間違えて、ロックされている\n・不正利用の疑いで、一時的に止められている\n・カードの有効期限が切れている\n心当たりのあるものを選んでください。分からないときは、アプリの「カード」→「ご利用状況」で、止まっている理由を確認できます。' },
-  { q: '身に覚えのないカード請求への対応を確認したい', a: '身に覚えのない請求を見つけたときは、次の順で対応してください。\n① すぐに、アプリの「カード」→「カードの一時停止」で、カードを止めます。\n② 利用明細で、日付・店舗・金額を確認します。家族の利用や、定期払いの引き落としではないかも、確認してください。\n③ 心当たりがなければ、カード会社に連絡して、調査を依頼します。\n不正利用だと確認できた場合は、補償の対象になることがあります（届け出の期限があります）。' },
-  { q: '郵送で上位カードから下位カードへの切替手続きをしたい', a: '上位のカード（例：ゴールド）から、下位のカード（例：一般）への切り替えは、郵送の書類でも手続きできます。\n① 「カード」→「カードの切り替え」で、切り替えの申込書を請求します（数日で届きます）。\n② 申込書に記入して、返信用封筒で返送します。\n③ 手続き完了後、新しいカードが届きます。\n切り替えると、特典の内容や年会費が変わります。ポイントは引き継がれます。' },
-  { q: '預かり中のカードの発送を依頼したい', a: '不在などで、カード会社が預かっているカードは、発送を依頼できます。\n「カード」→「預かり中のカード」から、受け取りたい日時と、送り先の住所を選んでください。\n送り先は、ご本人の住所のみです。依頼から数日でお届けします（本人限定の受け取りです）。' },
-  { q: 'Apple Payでカードを利用するため電話認証を完了したい', a: 'Apple Payにカードを登録したあと、ご本人確認として、電話での認証が必要です。\n① Apple Payのカードの画面に出ている、認証の電話番号に発信してください。\n② 音声ガイダンスに沿って、カードの暗証番号や、生年月日を入力します。\n③ 認証が完了すると、Apple Payで使えるようになります。\nなお、認証の電話は、ご登録の電話番号からおかけください。' },
-  { q: '用件不明のため問い合わせ内容を確認したい', a: '問い合わせの内容が、はっきりしないときは、次のうち近いものを選んでください。\n・カードが使えない\n・請求の内容が分からない\n・手続き（解約・住所変更など）をしたい\n・紛失・盗難にあった\n・ポイントについて知りたい\n入力で、困っていることを書いていただいても大丈夫です。' },
-  { q: '更新カードの発送', a: '有効期限が近いカードは、期限の前に、新しい更新カードが自動で届きます（期限の1〜2か月前に発送）。\n届いていないときは、「カード」→「更新カードの発送状況」で、発送の状況を確認できます。住所に不備があると、届かずに戻ってしまうため、ご住所もご確認ください。\n新しいカードが届いたら、古いカードは、ハサミで切って処分してください。' },
-  { q: 'カードの申込', a: 'カードの新規のお申し込みは、アプリの「カード」→「カードを申し込む」から、最短5分ほどで手続きできます。\n必要なもの：本人確認書類（マイナンバーカードや運転免許証）、引き落とし口座（銀行口座）。\n審査のあと、カードは、約1週間で届きます。一部のお店では、届く前でもアプリで使えます。' },
-  { q: 'ポイ活 MAXが現在の料金プランより得か比較したい', a: '「ポイ活 MAX」が、いまのプランより得かどうかは、毎月のご利用額で変わります。\n目安：毎月のカードのご利用額が多いほど、ポイントで得になりやすいです。\n正確な比較は、「利用サービス」の画面で、いまの倍率と、ポイ活 MAXにしたときの倍率を並べて確認できます。開いて、比べてみましょう。' },
-  { q: '住所不備', a: 'ご登録の住所に不備があると、カードや書類が届かず、戻ってきてしまうことがあります。\n「カード」→「登録情報の変更」→「住所」から、都道府県・番地・建物名・部屋番号まで、正しく入力し直してください。\n変更後、戻ってきているカードや書類は、あらためて発送されます（発送の依頼が必要な場合があります）。' },
-  { q: 'カードの暗証番号ロックを解除したい', a: '暗証番号を連続して間違えると、カードがロックされます。\n解除の方法：「カード」→「暗証番号のロックの解除」で、本人確認（認証）をしてください。解除後に、新しい暗証番号を設定できます。\nお急ぎのときや、アプリで解除できないときは、カード会社のサポートへお問い合わせください。' },
-  { q: '不正利用のおそれがあるカードを停止したい', a: '不正利用のおそれがあるときは、すぐにカードを止めてください。\n「カード」→「カードの一時停止」で、今すぐ止められます（24時間いつでも）。止めても、再開は、いつでもできます。\n紛失・盗難や、不正利用が確認できたときは、カードの再発行も手続きしてください。身に覚えのない請求がある場合は、調査も依頼してください。' },
-];
 // ステータス（カードの種類）：一般 ⇄ ゴールド。AIが利用状況を見て、ゴールドの券面にする（デモ）
 const GOLD_NEED = 50000; // 直近2か月のカード利用額の目安（デモ用）
 const cardRank = () => { try { return sessionStorage.getItem('payCardRank') === 'gold' ? 'gold' : 'normal'; } catch (e) { return 'normal'; } };
+const cardStopped = () => { try { return sessionStorage.getItem('payCardStop') === '1'; } catch (e) { return false; } };
 function applyCardRank() {
-  const gold = cardRank() === 'gold', c = document.querySelector('.dcard'), k = document.getElementById('ckind');
-  if (c) c.classList.toggle('gold', gold);
-  if (k) k.textContent = gold ? 'ゴールド' : 'クレジットカード';
+  const gold = cardRank() === 'gold', stop = cardStopped(), c = document.querySelector('.dcard'), k = document.getElementById('ckind');
+  if (c) { c.classList.toggle('gold', gold); c.classList.toggle('stopped', stop); }
+  if (k) k.textContent = stop ? '一時停止中' : gold ? 'ゴールド' : 'クレジットカード';
 }
+function setCardStopped(on) { try { sessionStorage.setItem('payCardStop', on ? '1' : '0'); } catch (e) {} applyCardRank(); }
 function setCardRank(r) { try { sessionStorage.setItem('payCardRank', r); } catch (e) {} applyCardRank(); }
 applyCardRank();
 const CARD_MORE = '▼ ほかの項目を見る';
@@ -279,12 +268,7 @@ const chat = createChat({
     if (q === CARD_MORE) { chat.ai('カードのお問い合わせ項目です。当てはまるものを選んでください。'); chat.chips(cardAll()); return; }
     // カードの問い合わせ項目（ボタン）は、決まった答えで返す
     const cr = CARD_REASONS.find(r => r.q === q);
-    if (cr) {
-      chat.ai(cr.a);
-      if (q.startsWith('ポイ活 MAX')) chat.launchLink?.('利用サービスで比べる', 'services.html');
-      chat.chips(DEFAULT_CHIPS);
-      return;
-    }
+    if (cr) return flowOf(cr.id)(chat); // 会話を続けて、最後は QA か 手続き・設定へ
     if (/ゴールド/.test(q)) return withConsent(chat, ['history'], () => goldFlow(chat), { intro: 'ステータス（ご利用状況）の確認に、カードの利用明細が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。' });
     if (/一般に戻/.test(q)) { setCardRank('normal'); chat.ai('カードを、一般の券面に戻しました。'); chat.chips(DEFAULT_CHIPS); return; }
     if (quick(q, chat)) return;

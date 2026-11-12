@@ -80,7 +80,7 @@
   <div class="banner"><span style="font-size:28px">🤖</span><div><b>AIアシスタントに聞いてみよう</b>アプリやカードの使い方、残高・ご利用額・請求のことまで答えます。</div></div>
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
-<script src="chat.js?v=20261113"></script>
+<script src="chat.js?v=20261114"></script>
 <script src="agent.js?v=20261111"></script>
 <script>
 document.getElementById('bal').textContent = yen(USER.balance);
@@ -143,10 +143,12 @@ function applyCardRank() {
 }
 function setCardRank(r) { try { sessionStorage.setItem('payCardRank', r); } catch (e) {} applyCardRank(); }
 applyCardRank();
+const CARD_MORE = '▼ ほかの項目を見る';
+const cardAll = () => [...CARD_REASONS.map(r => r.q), 'カードの請求額', '✨ カードをゴールドにしたい']; // 全部の項目
 const DEFAULT_CHIPS = [...BASE_CHIPS];
 // カードの券面を表示している間は、AIのメニューをカードの問い合わせにする（配列の中身を入れ替える）
 document.addEventListener('cardarea', (e) => {
-  DEFAULT_CHIPS.splice(0, DEFAULT_CHIPS.length, ...(e.detail ? [...CARD_REASONS.map(r => r.q), 'カードの請求額', '✨ カードをゴールドにしたい'] : BASE_CHIPS));
+  DEFAULT_CHIPS.splice(0, DEFAULT_CHIPS.length, ...(e.detail ? [...CARD_REASONS.slice(0, 3).map(r => r.q), CARD_MORE] : BASE_CHIPS));
   chat.resetGreeting(); // まだ会話していなければ、次に開いたときに、メニューを作り直す
 });
 
@@ -273,6 +275,8 @@ const chat = createChat({
     free: { page: 'home', facts: () => FAQ.map(f => f.a).join('\n'), quick: (q, chat) => quick(q, chat) } },
   greet: () => DEFAULT_CHIPS[0] !== BASE_CHIPS[0] ? ({ text: 'カードについてのお問い合わせですね。当てはまるものを選んでください。\n入力して聞くこともできます。', chips: DEFAULT_CHIPS }) : ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n質問を入力すると、AIがお答えします。「AIエージェントを使う」を選ぶと、あなたの利用の傾向を分析して、おすすめを提案します。残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),
   handle(q, chat) {
+    // カードの問い合わせ項目：最初は3つだけ。「ほかの項目を見る」で、全部を開く
+    if (q === CARD_MORE) { chat.ai('カードのお問い合わせ項目です。当てはまるものを選んでください。'); chat.chips(cardAll()); return; }
     // カードの問い合わせ項目（ボタン）は、決まった答えで返す
     const cr = CARD_REASONS.find(r => r.q === q);
     if (cr) {

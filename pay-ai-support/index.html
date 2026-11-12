@@ -8,11 +8,33 @@
 <style>
   .top { background: linear-gradient(135deg, #ff4d6d, var(--brand)); color: #fff; padding: 16px 16px 56px; }
   .top .brand { font-weight: 800; font-size: 18px; }
-  .wallet { background: #fff; color: var(--text); margin: -44px 16px 0; border-radius: 14px; padding: 16px; box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+  /* 券面：横にスワイプして切り替える（Pay の残高 ⇄ dカードの券面） */
+  .cards { display: flex; gap: 12px; margin-top: -44px; padding: 0 16px 6px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; cursor: grab; touch-action: pan-x pan-y; }
+  .cards::-webkit-scrollbar { display: none; }
+  .cards.drag { cursor: grabbing; scroll-snap-type: none; user-select: none; }
+  .slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+  .dots { display: flex; justify-content: center; gap: 8px; margin: 8px 0 -4px; }
+  .dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%; background: #c9c9ce; cursor: pointer; transition: width .2s, background .2s; }
+  .dots button.on { width: 20px; border-radius: 4px; background: var(--brand); }
+  .dcard { aspect-ratio: 1.586; border-radius: 14px; padding: 16px 18px; color: #fff; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 14px rgba(0,0,0,.14); background: linear-gradient(135deg, #f0284f 0%, #e60033 45%, #b3002a 100%); }
+  .dcard::before { content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%; right: -90px; top: -110px; background: rgba(255,255,255,.12); }
+  .dcard::after { content: ''; position: absolute; width: 220px; height: 220px; border-radius: 50%; left: -80px; bottom: -130px; background: rgba(255,255,255,.08); }
+  .dcard > * { position: relative; z-index: 1; }
+  .dcard .row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .dcard .brandname { font-size: 24px; font-weight: 800; letter-spacing: .02em; line-height: 1.1; }
+  .dcard .kind { font-size: 11px; opacity: .9; margin-top: 2px; }
+  .dcard .chip { width: 40px; height: 30px; border-radius: 6px; background: linear-gradient(135deg, #f7e3a3, #d8b45a); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); position: relative; }
+  .dcard .chip::before { content: ''; position: absolute; inset: 6px 0; border-top: 1px solid rgba(0,0,0,.18); border-bottom: 1px solid rgba(0,0,0,.18); }
+  .dcard .chip::after { content: ''; position: absolute; inset: 0 13px; border-left: 1px solid rgba(0,0,0,.18); border-right: 1px solid rgba(0,0,0,.18); }
+  .dcard .num { font-size: 17px; letter-spacing: .14em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .dcard .bottom { display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; }
+  .dcard .bottom small { display: block; font-size: 9px; opacity: .85; }
+  .wallet { background: #fff; color: var(--text); border-radius: 14px; padding: 16px; box-shadow: 0 4px 14px rgba(0,0,0,.08); }
   .wallet small { color: var(--sub); font-size: 12px; }
   .wallet .amt { font-size: 28px; font-weight: 800; margin: 2px 0 8px; }
   .wallet .pt { font-size: 13px; color: var(--sub); }
-  .pay { display: flex; gap: 8px; margin-top: 12px; }
+  .wallet.slide { display: flex; flex-direction: column; } /* dカードの高さに合わせて伸びても、ボタンは下に寄せる */
+  .pay { display: flex; gap: 8px; margin-top: auto; padding-top: 12px; }
   .pay button { flex: 1; padding: 12px; border-radius: 22px; border: 0; background: var(--brand); color: #fff; font-weight: 700; font-size: 15px; }
   .pay button.sub { background: var(--brand-weak); color: var(--brand); }
   .menu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #fff; margin: 14px 16px 0; padding: 14px 8px; border-radius: 14px; }
@@ -31,12 +53,20 @@
 <div class="app">
   <div class="proto">※ UIプロトタイプです。実在のサービスとは接続していません</div>
   <div class="top"><span class="brand">Pay</span></div>
-  <div class="wallet">
-    <small>残高</small>
-    <div class="amt" id="bal"></div>
-    <div class="pt" id="pt"></div>
-    <div class="pay"><button>支払う</button><button class="sub">チャージ</button></div>
+  <div class="cards" id="cards" role="region" aria-label="券面（左にスワイプするとdカードの券面）" tabindex="0">
+    <section class="wallet slide" aria-label="Pay の残高">
+      <small>残高</small>
+      <div class="amt" id="bal"></div>
+      <div class="pt" id="pt"></div>
+      <div class="pay"><button>支払う</button><button class="sub">チャージ</button></div>
+    </section>
+    <section class="dcard slide" aria-label="dカードの券面（サンプル）">
+      <div class="row"><div><div class="brandname">dカード</div><div class="kind">クレジットカード</div></div><div class="chip" aria-hidden="true"></div></div>
+      <div class="num" id="dnum">••••  ••••  ••••  1234</div>
+      <div class="bottom"><div><small>カード会員名</small><span id="dname">TARO YAMADA</span></div><div style="text-align:right"><small>有効期限</small>12/29</div></div>
+    </section>
   </div>
+  <div class="dots" id="dots" role="group" aria-label="券面の切り替え"><button class="on" type="button" aria-label="Pay の残高を表示"></button><button type="button" aria-label="dカードの券面を表示"></button></div>
   <nav class="menu">
     <a href="register.html"><span>🏦</span>銀行口座<br>登録</a>
     <a href="services.html" class="new"><span>🎁</span>利用<br>サービス</a>
@@ -51,6 +81,31 @@
 <script>
 document.getElementById('bal').textContent = yen(USER.balance);
 document.getElementById('pt').textContent = `ポイント ${USER.points.total.toLocaleString()}pt`;
+// 券面：スクロール位置に合わせて点を切り替え、点のクリックや、マウスのドラッグでも切り替えられる
+(() => {
+  const box = document.getElementById('cards'), dots = [...document.querySelectorAll('#dots button')];
+  const step = () => box.querySelector('.slide').offsetWidth + 12; // 1 枚ぶんの幅（すきま込み）
+  const show = (i, smooth = true) => box.scrollTo({ left: i * step(), behavior: smooth ? 'smooth' : 'auto' });
+  const current = () => Math.max(0, Math.min(dots.length - 1, Math.round(box.scrollLeft / step())));
+  box.addEventListener('scroll', () => dots.forEach((d, i) => d.classList.toggle('on', i === current())), { passive: true });
+  dots.forEach((d, i) => { d.onclick = () => show(i); });
+  box.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') show(current() - 1); if (e.key === 'ArrowRight') show(current() + 1); });
+  let startX = 0, startLeft = 0, startIndex = 0, moved = false, dragging = false;
+  box.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') return; dragging = true; moved = false; startX = e.clientX; startLeft = box.scrollLeft; startIndex = current(); });
+  window.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    if (!moved && Math.abs(e.clientX - startX) > 5) { moved = true; box.classList.add('drag'); }
+    if (moved) box.scrollLeft = startLeft - (e.clientX - startX);
+  });
+  window.addEventListener('pointerup', (e) => {
+    if (!dragging) return; dragging = false;
+    if (!moved) return;
+    box.classList.remove('drag');
+    const dx = e.clientX - startX; // 40px 以上動かしたら、動かした向きの隣へ（左に動かすと次の券面）
+    show(Math.max(0, Math.min(dots.length - 1, startIndex + (dx < -40 ? 1 : dx > 40 ? -1 : 0))));
+  });
+  box.addEventListener('click', (e) => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true); // ドラッグのあとは、ボタンを押したことにしない
+})();
 document.getElementById('revoke').onclick = () => { Link.revoke(); alert('AIとのアカウント連携を解除しました'); };
 
 const DEFAULT_CHIPS = ['🧠 AIエージェントを使う', '🎁 お得な情報を知りたい', '送金したい', '履歴を見たい', 'ポイントの期限は？', 'カードをなくした'];

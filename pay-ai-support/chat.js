@@ -71,7 +71,7 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
       <div class="sheet-head"><span>🤖</span><b>${title}</b><button class="close" aria-label="閉じる">×</button></div>
       <div class="msgs"></div>
       <div class="chips"></div>
-      <form class="composer"><button type="button" class="mic" aria-label="音声で入力" hidden>🎤</button><input placeholder="質問を入力" autocomplete="off"><button>送信</button></form>
+      <form class="composer"><div class="field"><input placeholder="質問を入力" autocomplete="off"><button type="button" class="mic" aria-label="音声で入力" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/></svg></button></div><button>送信</button></form>
     </div>`;
   document.body.appendChild(root);
   const $ = s => root.querySelector(s);

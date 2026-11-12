@@ -135,6 +135,10 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
       if (!msgs.children.length) { const g = greet(); chat.ai(g.text); chat.chips(g.chips); }
     },
     close() { root.classList.remove('open'); },
+    // まだ利用者が話しかけていなければ、あいさつとメニューを消して、次に開いたときに作り直す
+    resetGreeting() { if (!chat.history.some(m => m.role === 'user')) { msgs.innerHTML = ''; $('.chips').innerHTML = ''; chat.history = []; } },
+    // 同じサイト内の画面へのリンクボタン
+    launchLink(title, href) { const el = chat.card('<div class="links"></div>'); const a = document.createElement('a'); a.href = href; a.textContent = `🔗 ${title}`; el.firstChild.appendChild(a); },
   };
   // Ask the AI; if the relay can't be reached, answer with the built-in rules instead.
   let offlineNoted = false;

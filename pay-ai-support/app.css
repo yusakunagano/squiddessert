@@ -31,7 +31,7 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 .chips button { border: 1px solid var(--brand); color: var(--brand); background: #fff; border-radius: 16px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
 .composer { display: flex; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid var(--line); }
 .composer input { flex: 1; padding: 10px; font-size: 16px; border: 1px solid var(--line); border-radius: 8px; }
-.composer button { border: 0; background: var(--brand); color: #fff; border-radius: 8px; padding: 0 14px; cursor: pointer; }
+.composer button { border: 0; background: var(--brand); color: #fff; border-radius: 22px; padding: 0 16px; cursor: pointer; }
 
 /* consent card */
 .consent { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: #fff; }
@@ -50,7 +50,13 @@ header h1 { font-size: 16px; margin: 0; flex: 1; text-align: center; }
 .data div { display: flex; justify-content: space-between; padding: 8px 12px; border-top: 1px solid var(--line); }
 .data div:first-child { border-top: 0; }
 .data .h { background: var(--bg); font-weight: 700; }
-.composer .mic { background: var(--bg); color: var(--text); font-size: 18px; padding: 0 10px; }
+/* 入力欄：角の丸い枠の中に、マイク（線のアイコン）を右に置く */
+.composer .field { flex: 1; display: flex; align-items: center; border: 1px solid var(--line); border-radius: 22px; background: #fff; padding: 0 6px 0 14px; min-width: 0; }
+.composer .field:focus-within { border-color: #9aa0a6; }
+.composer .field input { flex: 1; border: 0; outline: 0; padding: 10px 0; background: transparent; min-width: 0; }
+.composer .mic { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; background: transparent; color: #111; }
+.composer .mic[hidden] { display: none; }
+.composer .mic:hover { background: var(--bg); }
 .composer .mic.on { background: var(--brand); color: #fff; animation: pulse 1.2s infinite; }
 @keyframes pulse { 50% { opacity: .6; } }
 .launch { padding: 12px; border-radius: 12px; background: #eef3ff; font-size: 13px; }

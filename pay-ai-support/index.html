@@ -88,7 +88,7 @@
 <script src="icons.js?v=20261121"></script>
 <script src="chat.js?v=20261126"></script>
 <script src="agent.js?v=20261122"></script>
-<script src="card.js?v=20261122"></script>
+<script src="card.js?v=20261128"></script>
 <script>
 // サンプルのバーコード：決まった並びで、太い線・細い線・すきまを並べる（読み取りはできません）
 (() => {
@@ -281,6 +281,7 @@ const chat = createChat({
     // カードの問い合わせ項目（ボタン）は、決まった答えで返す
     const cr = CARD_REASONS.find(r => r.q === q);
     if (cr) return flowOf(cr.id)(chat); // 会話を続けて、最後は QA か 手続き・設定へ
+    if (/なくし|紛失|盗まれ|落とし/.test(q)) return CARD_FLOWS.lost(chat); // 支払い側も、カード側と同じ体験にする
     if (/ゴールド/.test(q)) return withConsent(chat, ['history'], () => goldFlow(chat), { intro: 'ステータス（ご利用状況）の確認に、カードの利用明細が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。' });
     if (/一般に戻/.test(q)) { setCardRank('normal'); chat.ai('カードを、一般の券面に戻しました。'); chat.chips(DEFAULT_CHIPS); return; }
     if (quick(q, chat)) return;

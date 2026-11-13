@@ -86,7 +86,7 @@
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
 <script src="icons.js?v=20261121"></script>
-<script src="chat.js?v=20261133"></script>
+<script src="chat.js?v=20261134"></script>
 <script src="agent.js?v=20261122"></script>
 <script src="card.js?v=20261131"></script>
 <script>
@@ -262,6 +262,12 @@ const chat = createChat({
   ai: { page: 'deals', facts: () => CAMPAIGNS.join('\n'), exitChip: 'ほかのことを聞く', listChip: '他の特集を見る', rateChip: 'お得な特典を知りたい',
     // 「お店でよく使う」：お店で使える特集を、必ず3つ、リンク付きで紹介する（リンクは仮）
     shopRe: /お店|店(舗)?で|店頭/,
+    // 入口：どちらに興味があるかを聞く（言い方は、この2つに統一）
+    startRe: /^お得な情報を知りたい$/,
+    start: chat => {
+      chat.ai('お得な情報ですね！どちらに興味がありますか？');
+      chat.chips(['お得な特典を知りたい', 'お店でよく使う', 'ポイントを貯めたい', '他の特集を見る', 'ほかのことを聞く']);
+    },
     shop: chat => {
       const T = 'https://service.smt.docomo.ne.jp/keitai_payment/campaign/';
       chat.ai('お店でお得に使える特集を3つご紹介します。\n\n'

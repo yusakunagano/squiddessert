@@ -176,6 +176,8 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
   async function askAI(q, cfg = ai) {
     // 「お店でよく使う」は、AIを使わず、特集を必ず3つ（リンク付き）で答える
     if (cfg === ai && ai.shop && ai.shopRe.test(q)) return ai.shop(chat);
+    // 「お得な情報を知りたい」の入口は、決まった文面と選択肢（AIの言い方のぶれを防ぐ）
+    if (cfg === ai && ai.start && ai.startRe.test(q)) return ai.start(chat);
     const typing = chat.card('<div class="typing">考え中…</div>');
     let r;
     try {
@@ -200,7 +202,9 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
     chat.links(r.links);
     if (ACTION_URL[r.action]) return chat.launch(r.action, r.params);
     // 画面を開く質問候補は、AIが出したものは外し、こちらで 1 つだけ付ける（重複を防ぐ）
-    const next = (r.chips || []).filter(c => !jumps.some(j => j.re.test(c))).slice(0, 3);
+    // 「d払い」「dポイント」の選択肢は、「お店でよく使う」「ポイントを貯めたい」にそろえる（重複は除く）
+    const canon = c => (/d払い|ｄ払い/.test(c) ? 'お店でよく使う' : /dポイント|ｄポイント/.test(c) ? 'ポイントを貯めたい' : c);
+    const next = [...new Set((r.chips || []).map(canon))].filter(c => !jumps.some(j => j.re.test(c))).slice(0, 3);
     chat.chips(cfg === ai ? [...(ai.rateChip ? [ai.rateChip] : []), ...next, ...(ai.listChip ? [ai.listChip] : []), ai.exitChip] : next.length ? next : greet().chips);
   }
 

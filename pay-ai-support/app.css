@@ -178,3 +178,6 @@ header h1 { font-size: 18px; margin: 0; flex: 1; text-align: center; }
 .launch { font-size: 17px; } .launch .go-btn { font-size: 17px; padding: 14px; }
 .data { font-size: 16px; } .data div { padding: 8px 12px; } .links a { font-size: 16px; padding: 12px 14px; }
 .composer input { font-size: 18px; } .consent label, .consent p { font-size: 15px; } .consent .row button { font-size: 16px; padding: 12px; }
+
+/* AIエージェントを使っている間：AIアシスタントの見出しにも ✓ */
+.sheet-head.linked b::after { content: '✓'; display: inline-block; vertical-align: 2px; margin-left: 8px; width: 22px; height: 22px; border-radius: 50%; background: #2e9e5b; color: #fff; font-size: 14px; line-height: 22px; text-align: center; }

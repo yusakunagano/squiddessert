@@ -203,15 +203,6 @@ function deleteProfile() { try { sessionStorage.removeItem(PROFILE_KEY); } catch
 function agentAfter(chat, p, home) {
   const pick = (t) => {
     chat.me(t, false);
-    if (t === '根拠を見る') {
-      chat.card(`<div class="profile"><div class="body"><b>この傾向の根拠</b><ul>${p.evidence.map((e) => `<li>${agentEsc(e)}</li>`).join('')}</ul>
-        <p class="demo-note">支払いの方法・金額・日付・時刻・場所の種類だけから決めています。健康・信条・家族構成などは推定していません。</p></div></div>`);
-      return agentAfter(chat, p, home);
-    }
-    if (t === 'おすすめを見る') {
-      chat.card(`<div class="profile"><div class="body"><b>あなたへのおすすめ（${p.recs.length}件）</b>${p.recs.map(recHtml).join('')}</div></div>`);
-      return chat.chips(['利用サービスを開く', '根拠を見る', 'プロファイルを削除', 'ほかのことを聞く'], pick);
-    }
     if (t === '利用サービスを開く') return chat.launch('open_services');
     if (t === 'プロファイルを削除') {
       deleteProfile();
@@ -222,7 +213,7 @@ function agentAfter(chat, p, home) {
     else chat.ai('ほかのことも聞いてください。');
     chat.chips(home);
   };
-  chat.chips(['おすすめを見る', '根拠を見る', 'プロファイルを削除', 'ほかのことを聞く'], pick);
+  chat.chips(['プロファイルを削除', 'ほかのことを聞く'], pick);
 }
 
 function agentRun(chat, p, home) {
@@ -239,7 +230,7 @@ function agentRun(chat, p, home) {
     if (i === steps.length) {
       storeProfile(p);
       chat.card(profileHtml(p));
-      chat.ai(`プロファイルができました。「${p.type}」タイプです。\n各項目は、タップで開け閉めできます。下のボタンで、おすすめや、そう判断した根拠を確認できます。`);
+      chat.ai(`プロファイルができました。「${p.type}」タイプです。\n各項目は、タップで開け閉めできます。`);
       return agentAfter(chat, p, home);
     }
     box.children[i].className = 'run'; i++;

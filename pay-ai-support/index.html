@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アプリホーム（プロトタイプ）</title>
-<link rel="stylesheet" href="app.css?v=20261127">
+<link rel="stylesheet" href="app.css?v=20261129">
 <style>
   .top { background: linear-gradient(135deg, #ff4d6d, var(--brand)); color: #fff; padding: 16px 16px 56px; }
   .top .brand { font-weight: 800; font-size: 20px; }
@@ -131,7 +131,7 @@ document.getElementById('pt').textContent = `ポイント ${USER.points.total.to
 })();
 document.getElementById('revoke').onclick = () => { Link.revoke(); alert('AIとのアカウント連携を解除しました'); };
 
-const BASE_CHIPS = ['AIエージェントを使う', 'お得な情報を知りたい', '送金したい', '履歴を見たい', 'ポイントの期限は？', 'カードをなくした'];
+const BASE_CHIPS = ['お得な情報を知りたい', '送金したい', '履歴を見たい', 'ポイントの期限は？', 'カードをなくした', 'AIエージェントを使う'];
 // ステータス（カードの種類）：一般 ⇄ ゴールド。AIが利用状況を見て、ゴールドの券面にする（デモ）
 const GOLD_NEED = 50000; // 直近2か月のカード利用額の目安（デモ用）
 const cardRank = () => { try { return sessionStorage.getItem('payCardRank') === 'gold' ? 'gold' : 'normal'; } catch (e) { return 'normal'; } };

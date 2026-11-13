@@ -135,6 +135,12 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
       });
     },
     launch(action, params) {
+      // 銀行口座の登録は、急に画面を切り替えず、ボタンを押したら進む
+      if (action === 'open_register') {
+        const el = chat.card(`<div class="launch">${ic('open')} 「${ACTION_NAME[action]}」の画面へ進みます。準備ができたら、下のボタンを押してください。<button type="button" class="go-btn">${ACTION_NAME[action]}を開く</button></div>`);
+        el.querySelector('.go-btn').onclick = () => { location.href = ACTION_URL[action](params); };
+        return;
+      }
       chat.card(`<div class="launch">${ic('open')} 「${ACTION_NAME[action]}」を開きます…</div>`);
       setTimeout(() => location.href = ACTION_URL[action](params), 900);
     },

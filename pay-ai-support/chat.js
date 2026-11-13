@@ -36,7 +36,12 @@ const Link = {
   agentActive() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} return a && !!(this.get() || this._mem); },
   agentOn() { try { sessionStorage.setItem('payAgentOn', '1'); } catch (e) {} this._agent = true; this.badge(); },
   // 「AIエージェントを使う」を始めて連携中のときだけ、AIアイコンに ✓ のバッジを付ける（AIを開いただけ・ほかの質問で連携しただけでは付かない。解除すると外れる）
-  badge() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} const on = a && !!(this.get() || this._mem); document.querySelectorAll('.sheet-head').forEach(h => h.classList.toggle('linked', on)); // AIアシスタントの見出しにも ✓
+  badge() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} const on = a && !!(this.get() || this._mem); document.querySelectorAll('.sheet-head').forEach(h => {
+      h.classList.toggle('linked', on); // AIアシスタントの見出しにも ✓
+      const t = h.querySelector('b'); if (!t) return;
+      if (!t.dataset.orig) t.dataset.orig = t.textContent;
+      if (t.dataset.orig === 'AIアシスタント') t.textContent = on ? 'AIエージェントモード' : t.dataset.orig; // エージェントモード中は、見出しの文字も変える
+    });
     document.querySelectorAll('.ai-fab').forEach(b => { b.classList.toggle('linked', on); b.setAttribute('data-linked', on ? '連携中' : ''); }); },
 };
 

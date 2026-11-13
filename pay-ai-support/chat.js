@@ -61,6 +61,7 @@ const ACTION_URL = {
 };
 const ACTION_NAME = { open_send: '送金', open_history: '利用履歴', open_register: '銀行口座登録', open_services: '利用サービス', open_services_ai: '利用サービス', open_campaigns: '特集一覧' };
 
+const MORE_Q = '他の質問を見る';
 // jumps: [{ re, action }]。ボタンや入力が re に合うときは、AIや決まった答えを使わず、その画面を直接開く
 function createChat({ title, greet, handle, ai, jumps = [] }) {
   const root = document.createElement('div');
@@ -85,7 +86,11 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
     ai(text, record = true) { const d = document.createElement('div'); d.className = 'msg ai'; d.textContent = text; msgs.appendChild(d); keepChipsLast(); msgs.scrollTop = 1e9; if (record) chat.history.push({ role: 'assistant', text }); },
     me(text, record = true) { dropChips(); const d = document.createElement('div'); d.className = 'msg me'; d.textContent = text; msgs.appendChild(d); msgs.scrollTop = 1e9; if (record) chat.history.push({ role: 'user', text }); },
     card(html) { const d = document.createElement('div'); d.className = 'msg card'; d.innerHTML = html; msgs.appendChild(d); keepChipsLast(); msgs.scrollTop = 1e9; return d; },
-    chips(list, onPick = q => chat.ask(q)) {
+    chips(list, onPick = q => chat.ask(q), opts) {
+      // 一度、質問が終わったあとは、いつもの質問一覧を「他の質問を見る」1つにして、押したら一覧を開く
+      if (!(opts && opts.full) && list.length > 1 && chat.history.some(m => m.role === 'user') && list === greet().chips) {
+        return chat.chips([MORE_Q], () => { chat.me(MORE_Q, false); chat.ai('知りたいことを選んでください。', false); chat.chips(list, onPick, { full: true }); });
+      }
       dropChips();
       if (!list.length) return;
       const c = document.createElement('div'); c.className = 'chips';
@@ -93,7 +98,7 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
         const b = document.createElement('button'); b.type = 'button'; b.onclick = () => onPick(t);
         if (/^AIエージェント/.test(t)) { // 特別なデザイン：横いっぱいの濃い色のボタン
           b.className = 'agent-chip';
-          b.innerHTML = ic('spark') + '<span><b></b><small>利用を分析して、おすすめを提案</span>';
+          b.innerHTML = ic('spark') + '<span><b></b><small>利用を分析して、おすすめを提案</small></span>';
           b.querySelector('b').textContent = t;
         } else b.textContent = t;
         c.appendChild(b);

@@ -88,7 +88,7 @@
 <script src="icons.js?v=20261121"></script>
 <script src="chat.js?v=20261130"></script>
 <script src="agent.js?v=20261122"></script>
-<script src="card.js?v=20261128"></script>
+<script src="card.js?v=20261131"></script>
 <script>
 // サンプルのバーコード：決まった並びで、太い線・細い線・すきまを並べる（読み取りはできません）
 (() => {
@@ -145,11 +145,16 @@ function setCardStopped(on) { try { sessionStorage.setItem('payCardStop', on ? '
 function setCardRank(r) { try { sessionStorage.setItem('payCardRank', r); } catch (e) {} applyCardRank(); }
 applyCardRank();
 const CARD_MORE = '▼ ほかの項目を見る';
-const cardAll = () => [...CARD_REASONS.map(r => r.q), 'カードの請求額', 'カードをゴールドにしたい']; // 全部の項目
+// 全部の項目：上から「カードの請求額」「カードをなくした」「カードをゴールドにしたい」、そのあとに、ほかの項目、いちばん下に「解約」
+// （menu: false の項目は、一覧には出さない。会話の途中や、QAには、そのまま使う）
+const cardAll = () => {
+  const rest = CARD_REASONS.filter(r => r.menu !== false && r.id !== 'lost' && r.id !== 'cancel').map(r => r.q);
+  return ['カードの請求額', 'カードをなくした', 'カードをゴールドにしたい', ...rest, CARD_REASONS.find(r => r.id === 'cancel').q];
+};
 const DEFAULT_CHIPS = [...BASE_CHIPS];
 // カードの券面を表示している間は、AIのメニューをカードの問い合わせにする（配列の中身を入れ替える）
 document.addEventListener('cardarea', (e) => {
-  DEFAULT_CHIPS.splice(0, DEFAULT_CHIPS.length, ...(e.detail ? [...CARD_REASONS.slice(0, 3).map(r => r.q), CARD_MORE] : BASE_CHIPS));
+  DEFAULT_CHIPS.splice(0, DEFAULT_CHIPS.length, ...(e.detail ? [...cardAll().slice(0, 3), CARD_MORE] : BASE_CHIPS));
   chat.resetGreeting(); // まだ会話していなければ、次に開いたときに、メニューを作り直す
 });
 

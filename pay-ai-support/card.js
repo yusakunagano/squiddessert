@@ -92,13 +92,16 @@ function doAct(chat, { ask, yes = 'はい', run, done, fields, formTitle }) {
   }
   hear(chat, ask, [yes, 'やめる'], (a) => {
     if (a !== yes) { chat.ai('手続きは行いませんでした。ほかにお困りのことがあれば、選んでください。'); return chat.chips(DEFAULT_CHIPS); }
-    const el = chat.card('<div class="authing">' + ic('lock') + ' 手続き中…（デモ）</div>');
-    setTimeout(() => {
-      el.innerHTML = '<div class="authing ok">✓ 受け付けました</div>';
-      if (run) run();
-      chat.ai(done);
-      chat.chips(DEFAULT_CHIPS);
-    }, 900);
+    // 手続きの実行の前に、生体認証（顔・指紋）でご本人確認
+    biometric(chat, () => {
+      const el = chat.card('<div class="authing">' + ic('lock') + ' 手続き中…（デモ）</div>');
+      setTimeout(() => {
+        el.innerHTML = '<div class="authing ok">✓ 受け付けました</div>';
+        if (run) run();
+        chat.ai(done);
+        chat.chips(DEFAULT_CHIPS);
+      }, 900);
+    }, { purpose: 'お手続きを行う前に、ご本人確認をします。顔または指紋で認証してください。', cancelMsg: '認証をやめたので、手続きは行いませんでした。' });
   });
 }
 

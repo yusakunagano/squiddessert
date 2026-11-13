@@ -291,9 +291,9 @@ function withConsent(chat, needed, onGranted, opts = {}) {
 }
 
 // 生体認証（デモ）：お客さまの情報（残高・明細・請求・利用の傾向など）を取り出す前に、顔・指紋で本人確認する
-function biometric(chat, onOk) {
+function biometric(chat, onOk, opts = {}) {
   chat.chips([]);
-  const el = chat.card(`<div class="bio"><div class="bio-ic">${ic('finger')}</div><b>生体認証</b><p>お客さまの情報を取り出す前に、ご本人確認をします。顔または指紋で認証してください。</p><button type="button" class="go">顔・指紋で認証する</button><button type="button" class="cancel">やめる</button></div>`);
+  const el = chat.card(`<div class="bio"><div class="bio-ic">${ic('finger')}</div><b>生体認証</b><p>${opts.purpose || 'お客さまの情報を取り出す前に、ご本人確認をします。顔または指紋で認証してください。'}</p><button type="button" class="go">顔・指紋で認証する</button><button type="button" class="cancel">やめる</button></div>`);
   const go = el.querySelector('.go'), cancel = el.querySelector('.cancel');
   go.onclick = () => {
     go.disabled = cancel.disabled = true; go.textContent = '認証中…'; el.classList.add('scan');
@@ -305,7 +305,7 @@ function biometric(chat, onOk) {
   };
   cancel.onclick = () => {
     go.disabled = cancel.disabled = true; chat.me('やめる', false);
-    chat.later(() => { chat.ai('認証をやめたので、お客さまの情報は使いません。'); chat.chips((chat.homeChips && chat.homeChips()) || []); });
+    chat.later(() => { chat.ai(opts.cancelMsg || '認証をやめたので、お客さまの情報は使いません。'); chat.chips((chat.homeChips && chat.homeChips()) || []); });
   };
 }
 

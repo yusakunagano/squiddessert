@@ -197,7 +197,7 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
     if (ACTION_URL[r.action]) return chat.launch(r.action, r.params);
     // 画面を開く質問候補は、AIが出したものは外し、こちらで 1 つだけ付ける（重複を防ぐ）
     const next = (r.chips || []).filter(c => !jumps.some(j => j.re.test(c))).slice(0, 3);
-    chat.chips(cfg === ai ? [...next, ...(ai.listChip ? [ai.listChip] : []), ...(ai.rateChip ? [ai.rateChip] : []), ai.exitChip] : next.length ? next : greet().chips);
+    chat.chips(cfg === ai ? [...(ai.rateChip ? [ai.rateChip] : []), ...next, ...(ai.listChip ? [ai.listChip] : []), ai.exitChip] : next.length ? next : greet().chips);
   }
 
   chat.askAI = (q, cfg) => askAI(q, cfg);

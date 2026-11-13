@@ -86,7 +86,7 @@
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
 <script src="icons.js?v=20261121"></script>
-<script src="chat.js?v=20261126"></script>
+<script src="chat.js?v=20261130"></script>
 <script src="agent.js?v=20261122"></script>
 <script src="card.js?v=20261128"></script>
 <script>
@@ -265,13 +265,13 @@ const chat = createChat({
         + '③ ネットショッピング 抽選で最大20%還元\n対象のネットショップでアプリ払いすると、抽選で最大20%還元。エントリーが必要な場合があります。\n\n'
         + '※ くわしい条件は、各ページで確認してください。');
       chat.links([{ title: 'エリアキャンペーン', url: T }, { title: '自治体キャンペーン', url: T }, { title: 'ネットショッピング', url: T + 'app_netshopping/' }]);
-      chat.chips(['他の特集を見る', 'お得な特典を知りたい', 'ほかのことを聞く']);
+      chat.chips(['お得な特典を知りたい', '他の特集を見る', 'ほかのことを聞く']);
     },
     // Without the AI, list the campaigns as they are.
     offline: chat => {
       chat.ai('いま開催中のお得な情報です。\n\n' + CAMPAIGNS.slice(0, 4).map(c => '・' + c).join('\n\n'));
       chat.links([{ title: 'キャンペーン一覧を見る', url: 'https://service.smt.docomo.ne.jp/keitai_payment/campaign/' }]);
-      chat.chips(['他の特集を見る', 'お得な特典を知りたい', ...DEFAULT_CHIPS]);
+      chat.chips(['お得な特典を知りたい', '他の特集を見る', ...DEFAULT_CHIPS]);
     },
     free: { page: 'home', facts: () => FAQ.map(f => f.a).join('\n'), quick: (q, chat) => quick(q, chat) } },
   greet: () => DEFAULT_CHIPS[0] !== BASE_CHIPS[0] ? ({ text: 'カードについてのお問い合わせですね。当てはまるものを選んでください。\n入力して聞くこともできます。', chips: DEFAULT_CHIPS }) : ({ text: 'こんにちは！アプリやカードのことなら、何でも聞いてください。\n下の項目から選ぶか、入力して聞くこともできます。', chips: DEFAULT_CHIPS }),

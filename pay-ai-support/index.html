@@ -231,7 +231,7 @@ function goldFlow(chat) {
   if (total >= GOLD_NEED) {
     setCardRank('gold');
     chat.ai('直近2か月のカードのご利用額が、ゴールドの目安を超えています。\nステータスに合わせて、カードをゴールドにしました。ホームのカードの券面が、ゴールドになっています。');
-    chat.chips(['カードを一般に戻す', ...DEFAULT_CHIPS]);
+    chat.chips([CARD_MORE]); // このあとの項目は、「ほかの項目を見る」だけ
   } else {
     chat.ai(`直近2か月のカードのご利用額が、ゴールドの目安（${yen(GOLD_NEED)}）にあと ${yen(GOLD_NEED - total)} 届きません。ご利用が増えたら、もう一度お試しください。`);
     chat.chips(DEFAULT_CHIPS);

@@ -159,19 +159,22 @@ header h1 { font-size: 18px; margin: 0; flex: 1; text-align: center; }
 .typing { font-size: 15px; }
 .launch .go-btn { display: block; width: 100%; margin-top: 10px; padding: 14px; border: 0; border-radius: 24px; background: var(--brand); color: #fff; font-size: 17px; font-weight: 700; cursor: pointer; }
 
-/* AIの会話：文字を大きく、吹き出しを横いっぱいに、選択肢は大きな項目で */
-.msgs { padding: 14px 12px; gap: 12px; }
-.msg { font-size: 20px; line-height: 1.75; padding: 14px 16px; border-radius: 16px; }
+/* AIの会話：吹き出しは横いっぱい。選択肢は、細い線でコンパクトに */
+.msgs { padding: 14px 12px; gap: 10px; }
+.msg { font-size: 18px; line-height: 1.7; padding: 12px 15px; border-radius: 16px; }
 .msg.ai { align-self: stretch; max-width: 100%; background: #f1f2f6; }
-.msg.me { max-width: 92%; }
-.chips { flex-direction: column; flex-wrap: nowrap; gap: 10px; }
-.chips button { width: 100%; text-align: left; font-size: 19px; line-height: 1.5; padding: 16px 18px; border-radius: 16px; border-width: 1.5px; }
-.chips .agent-chip { padding: 16px 18px; }
-.chips .agent-chip b { font-size: 20px; } .chips .agent-chip small { font-size: 15px; }
-.qform .opt { font-size: 19px; padding: 14px 0; } .qform .q { font-size: 19px; line-height: 1.6; }
-.qform .dot { flex-basis: 26px; height: 26px; }
-.qform .go { font-size: 18px; padding: 15px; }
-.qform .fld .lb { font-size: 18px; } .qform .fld input[type=text], .qform .fld select { font-size: 20px; padding: 14px; }
-.launch { font-size: 19px; } .launch .go-btn { font-size: 19px; padding: 16px; }
-.data { font-size: 18px; } .links a { font-size: 18px; padding: 14px 16px; }
-.composer input { font-size: 20px; } .consent label, .consent p { font-size: 17px; } .consent .row button { font-size: 18px; padding: 14px; }
+/* 自分の発言：薄い色の背景に、濃い色の文字 */
+.msg.me { max-width: 92%; background: var(--brand-weak); color: #8a1230; }
+.chips { flex-direction: column; flex-wrap: nowrap; gap: 6px; padding: 2px 0 6px; }
+.chips button { width: 100%; text-align: left; font-size: 17px; line-height: 1.4; padding: 11px 14px; border-radius: 12px; border: 1px solid #e4e5ea; background: #fff; color: var(--text); }
+.chips button:active { background: var(--bg); }
+.chips .agent-chip { padding: 12px 14px; border: 0; color: #fff; }
+.chips .agent-chip b { font-size: 18px; } .chips .agent-chip small { font-size: 14px; }
+.qform { padding: 12px 14px; }
+.qform .opt { font-size: 17px; padding: 9px 0; } .qform .q { font-size: 18px; line-height: 1.6; }
+.qform .dot { flex-basis: 24px; height: 24px; }
+.qform .go { font-size: 17px; padding: 13px; }
+.qform .fld .lb { font-size: 16px; } .qform .fld input[type=text], .qform .fld select { font-size: 18px; padding: 12px; }
+.launch { font-size: 17px; } .launch .go-btn { font-size: 17px; padding: 14px; }
+.data { font-size: 16px; } .data div { padding: 8px 12px; } .links a { font-size: 16px; padding: 12px 14px; }
+.composer input { font-size: 18px; } .consent label, .consent p { font-size: 15px; } .consent .row button { font-size: 16px; padding: 12px; }

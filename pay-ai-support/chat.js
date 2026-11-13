@@ -36,8 +36,7 @@ const Link = {
   agentActive() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} return a && !!(this.get() || this._mem); },
   agentOn() { try { sessionStorage.setItem('payAgentOn', '1'); } catch (e) {} this._agent = true; this.badge(); },
   // 「AIエージェントを使う」を始めて連携中のときだけ、AIアイコンに ✓ のバッジを付ける（AIを開いただけ・ほかの質問で連携しただけでは付かない。解除すると外れる）
-  badge() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} const on = a && !!(this.get() || this._mem); const rv = document.getElementById('revoke'); if (rv) rv.hidden = !(this.get() || this._mem);
-    document.querySelectorAll('.ai-fab').forEach(b => { b.classList.toggle('linked', on); b.setAttribute('data-linked', on ? '連携中' : ''); }); },
+  badge() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} const on = a && !!(this.get() || this._mem); document.querySelectorAll('.ai-fab').forEach(b => { b.classList.toggle('linked', on); b.setAttribute('data-linked', on ? '連携中' : ''); }); },
 };
 
 // ---------- Chat widget ----------

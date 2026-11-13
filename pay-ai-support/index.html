@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アプリホーム（プロトタイプ）</title>
-<link rel="stylesheet" href="app.css?v=20261124">
+<link rel="stylesheet" href="app.css?v=20261125">
 <style>
   .top { background: linear-gradient(135deg, #ff4d6d, var(--brand)); color: #fff; padding: 16px 16px 56px; }
   .top .brand { font-weight: 800; font-size: 20px; }
@@ -86,7 +86,7 @@
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
 <script src="icons.js?v=20261121"></script>
-<script src="chat.js?v=20261124"></script>
+<script src="chat.js?v=20261125"></script>
 <script src="agent.js?v=20261122"></script>
 <script src="card.js?v=20261122"></script>
 <script>
@@ -274,7 +274,7 @@ const chat = createChat({
       chat.chips(['他の特集を見る', 'お得な特典を知りたい', ...DEFAULT_CHIPS]);
     },
     free: { page: 'home', facts: () => FAQ.map(f => f.a).join('\n'), quick: (q, chat) => quick(q, chat) } },
-  greet: () => DEFAULT_CHIPS[0] !== BASE_CHIPS[0] ? ({ text: 'カードについてのお問い合わせですね。当てはまるものを選んでください。\n入力して聞くこともできます。', chips: DEFAULT_CHIPS }) : ({ text: 'こんにちは！アプリやカードのことなら何でも聞いてください。\n質問を入力すると、AIがお答えします。「AIエージェントを使う」を選ぶと、あなたの利用の傾向を分析して、おすすめを提案します。残高・ご利用額・請求など、お客さまご自身の情報は、許可をいただいてからお答えします。', chips: DEFAULT_CHIPS }),
+  greet: () => DEFAULT_CHIPS[0] !== BASE_CHIPS[0] ? ({ text: 'カードについてのお問い合わせですね。当てはまるものを選んでください。\n入力して聞くこともできます。', chips: DEFAULT_CHIPS }) : ({ text: 'こんにちは！アプリやカードのことなら、何でも聞いてください。\n下の項目から選ぶか、入力して聞くこともできます。', chips: DEFAULT_CHIPS }),
   handle(q, chat) {
     // カードの問い合わせ項目：最初は3つだけ。「ほかの項目を見る」で、全部を開く
     if (q === CARD_MORE) { chat.ai('カードのお問い合わせ項目です。当てはまるものを選んでください。'); chat.chips(cardAll()); return; }

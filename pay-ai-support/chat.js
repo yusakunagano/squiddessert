@@ -32,9 +32,12 @@ const Link = {
   set(v) { try { sessionStorage.setItem('payLink', JSON.stringify(v)); } catch (e) {} this._mem = v; this.badge(); },
   granted(scope) { const v = this.get() || this._mem; return !!(v && v.scopes.includes(scope)); },
   revoke() { try { sessionStorage.removeItem('payLink'); sessionStorage.removeItem('payAgentOn'); } catch (e) {} this._mem = null; this._agent = false; this.badge(); },
+  // AIエージェントを使っていて、連携が残っているか
+  agentActive() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} return a && !!(this.get() || this._mem); },
   agentOn() { try { sessionStorage.setItem('payAgentOn', '1'); } catch (e) {} this._agent = true; this.badge(); },
   // 「AIエージェントを使う」を始めて連携中のときだけ、AIアイコンに ✓ のバッジを付ける（AIを開いただけ・ほかの質問で連携しただけでは付かない。解除すると外れる）
-  badge() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} const on = a && !!(this.get() || this._mem); document.querySelectorAll('.ai-fab').forEach(b => { b.classList.toggle('linked', on); b.setAttribute('data-linked', on ? '連携中' : ''); }); },
+  badge() { let a = !!this._agent; try { a = a || sessionStorage.getItem('payAgentOn') === '1'; } catch (e) {} const on = a && !!(this.get() || this._mem); const rv = document.getElementById('revoke'); if (rv) rv.hidden = !(this.get() || this._mem);
+    document.querySelectorAll('.ai-fab').forEach(b => { b.classList.toggle('linked', on); b.setAttribute('data-linked', on ? '連携中' : ''); }); },
 };
 
 // ---------- Chat widget ----------
@@ -92,6 +95,7 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
         return chat.chips([MORE_Q], () => { chat.me(MORE_Q, false); chat.ai('知りたいことを選んでください。', false); chat.chips(list, onPick, { full: true }); });
       }
       dropChips();
+      list = list.filter(t => !(/^AIエージェント/.test(t) && Link.agentActive())); // 使っている間は、出さない
       if (!list.length) return;
       const c = document.createElement('div'); c.className = 'chips';
       list.forEach(t => {

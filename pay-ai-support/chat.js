@@ -84,6 +84,8 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
   document.body.appendChild(root);
   const $ = s => root.querySelector(s);
   const msgs = $('.msgs');
+  // 「やめる」のあとなどに出す、いつもの質問一覧
+  const homeChipsFn = () => greet().chips;
   const dropChips = () => msgs.querySelectorAll('.chips').forEach(c => c.remove());
   // あとから文章が増えても、質問候補は、いちばん最後に置く
   const keepChipsLast = () => { const c = msgs.querySelector('.chips'); if (c && c !== msgs.lastElementChild) msgs.appendChild(c); };
@@ -116,6 +118,7 @@ function createChat({ title, greet, handle, ai, jumps = [] }) {
     },
     // Show a reply after a short "typing" delay so the exchange reads naturally.
     later(fn, ms = 450) { setTimeout(fn, ms); },
+    homeChips: () => homeChipsFn(),
     aiMode: false,
     ask(q) {
       const jump = jumps.find(j => j.re.test(q));
@@ -252,7 +255,7 @@ function setupVoice(btn, input, onDone) {
 // opts.single: { label, desc, note } のとき、連携する項目を 1 つにまとめる（許可すると、すべての項目を一度に連携する）
 function withConsent(chat, needed, onGranted, opts = {}) {
   const single = opts.single;
-  if (needed.every(s => Link.granted(s))) return onGranted();
+  if (needed.every(s => Link.granted(s))) return biometric(chat, onGranted); // すでに連携していても、取り出す前に生体認証
   if (opts.intro !== null) chat.ai(opts.intro || 'このご質問にはお客さまのアカウント情報が必要です。\nアカウントを連携し、AIに渡す情報を選んでください。', false);
   const el = chat.card(`
     <div class="consent${single ? ' agent' : ''}">
@@ -272,7 +275,7 @@ function withConsent(chat, needed, onGranted, opts = {}) {
     const scopes = single ? Object.keys(SCOPES) : [...el.querySelectorAll('input:checked')].map(i => i.value);
     done(); chat.me(`連携して許可（${single ? single.label : scopes.map(s => SCOPES[s].label).join('・') || 'なし'}）`, false);
     // Mock of the account-linking step (biometric / password confirmation in the real app).
-    const auth = chat.card('<div class="authing">' + ic('lock') + ' 本人確認中…（デモ）</div>');
+    const auth = chat.card('<div class="authing">' + ic('lock') + ' アカウントを連携中…（デモ）</div>');
     setTimeout(() => {
       auth.innerHTML = '<div class="authing ok">✓ アカウントを連携しました</div>';
       // Add to what was granted earlier rather than replacing it.
@@ -282,8 +285,27 @@ function withConsent(chat, needed, onGranted, opts = {}) {
         chat.ai(`「${needed.filter(s => !scopes.includes(s)).map(s => SCOPES[s].label).join('・')}」が許可されていないため、このご質問にはお答えできません。必要になったら、もう一度聞いてください。`);
         return;
       }
-      chat.later(onGranted, 300);
+      chat.later(() => biometric(chat, onGranted), 300); // 連携のあと、情報を取り出す前に生体認証
     }, 1100);
+  };
+}
+
+// 生体認証（デモ）：お客さまの情報（残高・明細・請求・利用の傾向など）を取り出す前に、顔・指紋で本人確認する
+function biometric(chat, onOk) {
+  chat.chips([]);
+  const el = chat.card(`<div class="bio"><div class="bio-ic">${ic('finger')}</div><b>生体認証</b><p>お客さまの情報を取り出す前に、ご本人確認をします。顔または指紋で認証してください。</p><button type="button" class="go">顔・指紋で認証する</button><button type="button" class="cancel">やめる</button></div>`);
+  const go = el.querySelector('.go'), cancel = el.querySelector('.cancel');
+  go.onclick = () => {
+    go.disabled = cancel.disabled = true; go.textContent = '認証中…'; el.classList.add('scan');
+    setTimeout(() => {
+      el.classList.remove('scan');
+      el.innerHTML = '<div class="authing ok">' + ic('finger') + ' 生体認証が完了しました</div>';
+      chat.later(onOk, 300);
+    }, 1400);
+  };
+  cancel.onclick = () => {
+    go.disabled = cancel.disabled = true; chat.me('やめる', false);
+    chat.later(() => { chat.ai('認証をやめたので、お客さまの情報は使いません。'); chat.chips((chat.homeChips && chat.homeChips()) || []); });
   };
 }
 

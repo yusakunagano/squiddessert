@@ -181,3 +181,14 @@ header h1 { font-size: 18px; margin: 0; flex: 1; text-align: center; }
 
 /* AIエージェントを使っている間：AIアシスタントの見出しにも ✓ */
 .sheet-head.linked b::after { content: '✓'; display: inline-block; vertical-align: 2px; margin-left: 8px; width: 22px; height: 22px; border-radius: 50%; background: #2e9e5b; color: #fff; font-size: 14px; line-height: 22px; text-align: center; }
+
+/* 生体認証（デモ） */
+.bio { border: 1px solid var(--line); border-radius: 16px; background: #fff; padding: 18px 16px 12px; text-align: center; }
+.bio .bio-ic { width: 64px; height: 64px; margin: 0 auto 8px; border-radius: 50%; background: #e8f0ff; color: #2f6fed; display: grid; place-items: center; }
+.bio .bio-ic .icon { width: 36px; height: 36px; }
+.bio b { display: block; font-size: 18px; }
+.bio p { margin: 6px 0 12px; font-size: 15px; line-height: 1.6; color: var(--sub); }
+.bio .go { display: block; width: 100%; padding: 14px; border: 0; border-radius: 24px; background: #2f6fed; color: #fff; font-size: 17px; font-weight: 700; cursor: pointer; }
+.bio .go:disabled { opacity: .7; cursor: default; }
+.bio .cancel { display: block; width: 100%; margin-top: 4px; padding: 10px; border: 0; background: none; color: var(--sub); font-size: 15px; cursor: pointer; }
+.bio.scan .bio-ic { animation: pulse 1s infinite; }

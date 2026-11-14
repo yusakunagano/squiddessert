@@ -57,6 +57,7 @@ function askForm(chat, { title, fields, submit = '入力内容の確認へ' }, o
         if (f.value) input.value = f.value;
       } else {
         input = document.createElement('input'); input.id = id; input.type = f.type === 'password' ? 'password' : 'text';
+        if (f.cls) input.className = f.cls;
         input.autocomplete = 'off'; if (f.type === 'tel' || f.type === 'password') input.inputMode = 'numeric';
         if (f.placeholder) input.placeholder = f.placeholder; if (f.max) input.maxLength = f.max;
       }
@@ -81,7 +82,7 @@ function askForm(chat, { title, fields, submit = '入力内容の確認へ' }, o
     chat.me('入力しました'); chat.later(() => onSubmit(vals, lines));
   };
 }
-const PIN_FIELD = { key: 'pin', label: 'カードの暗証番号（4桁）', type: 'password', max: 4, pattern: /^\d{4}$/, msg: '数字4桁', hint: '本人確認に使います。保存はされません（デモ）。' };
+const PIN_FIELD = { key: 'pin', cls: 'pin', label: 'カードの暗証番号（4桁）', type: 'password', max: 4, pattern: /^\d{4}$/, msg: '数字4桁', hint: '本人確認に使います。保存はされません（デモ）。' };
 const TEL_FIELD = { key: 'tel', label: 'ご連絡先の電話番号', type: 'tel', max: 11, pattern: /^0\d{9,10}$/, msg: 'ハイフンなしの10〜11桁の数字', placeholder: '09012345678' };
 
 // 最後：手続き・設定（入力 → 確認 → 実行（デモ）→ 完了のお知らせ）
@@ -217,7 +218,7 @@ const CARD_FLOWS = {
     formTitle: '暗証番号のロック解除（本人確認）',
     fields: [
       { key: 'birth', label: '生年月日（8桁）', type: 'tel', max: 8, pattern: /^\d{8}$/, msg: '西暦8桁の数字', placeholder: '19900101' },
-      { key: 'pin', label: '新しい暗証番号（4桁）', type: 'password', max: 4, pattern: /^\d{4}$/, msg: '数字4桁', hint: '推測されやすい番号（1234など）は避けてください。' },
+      { key: 'pin', cls: 'pin', label: '新しい暗証番号（4桁）', type: 'password', max: 4, pattern: /^\d{4}$/, msg: '数字4桁', hint: '推測されやすい番号（1234など）は避けてください。' },
     ],
     ask: '本人確認のうえ、暗証番号のロックを解除します。よろしいですか？', yes: '解除する',
     done: 'ロックを解除し、新しい暗証番号を設定しました（デモ）。',

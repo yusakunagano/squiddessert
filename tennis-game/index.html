@@ -28,9 +28,11 @@
   #pad{position:absolute;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));width:190px;height:150px;touch-action:none;user-select:none;-webkit-user-select:none}
   .pbtn{position:absolute;width:68px;height:68px;border-radius:50%;border:2px solid rgba(255,255,255,.7);color:#fff;font:bold 14px sans-serif;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 2px #000;box-shadow:0 2px 8px rgba(0,0,0,.35);touch-action:none}
   .pbtn.on{transform:scale(.92);filter:brightness(1.3)}
-  #bServe{right:0;bottom:40px;width:80px;height:80px;background:rgba(242,212,61,.75);color:#222;text-shadow:none;font-size:15px}
-  #bPower{right:92px;bottom:0;background:rgba(255,120,40,.7)}
-  #bLob{right:92px;bottom:80px;background:rgba(60,150,255,.7)}
+  #bPower{right:0;bottom:40px;width:78px;height:78px;background:rgba(255,110,40,.75);font-size:20px}
+  #bLob{right:92px;bottom:80px;background:rgba(60,150,255,.72);font-size:20px}
+  #bDrop{right:92px;bottom:0;background:rgba(120,200,120,.72);font-size:20px}
+  #bFlat{right:0;bottom:40px;width:78px;height:78px;background:rgba(242,212,61,.8);color:#222;text-shadow:none}
+  #bSlice{right:92px;bottom:40px;width:78px;height:78px;background:rgba(190,120,255,.78)}
 </style>
 </head>
 <body>
@@ -40,9 +42,11 @@
   <div id="msg"></div>
   <div id="joy"><div id="knob"></div></div>
   <div id="pad">
-    <div class="pbtn" id="bServe">サーブ</div>
-    <div class="pbtn" id="bPower">強打</div>
-    <div class="pbtn" id="bLob">ロブ</div>
+    <div class="pbtn" id="bPower">強</div>
+    <div class="pbtn" id="bLob">上</div>
+    <div class="pbtn" id="bDrop">弱</div>
+    <div class="pbtn" id="bFlat">フラット</div>
+    <div class="pbtn" id="bSlice">スライス</div>
   </div>
   <div class="menu" id="menu">
     <h1>🎾 テニス</h1>
@@ -72,7 +76,7 @@
       ボールを体の少し右か左でとらえると力が伝わる（正面だと弱い球）。<br>
       Shift を押しながら打つとロブ。<br>
       サーブ：スペース（スマホはタップ）<br>
-      画面の左下のスティックで移動、右下のボタンでサーブ・強打・ロブもできます。<br>
+      画面の左下のスティックで移動。右下のボタンは、サーブの時は「フラット／スライス」、ラリー中は「強（強打）／上（ロブ）／弱（ドロップ）」。何も押さなければ普通に返します（キーボードは X でドロップ）。<br>
       1セットマッチ（6ゲーム先取・2ゲーム差）
     </div>
   </div>
@@ -100,8 +104,8 @@ document.getElementById('start').onclick = startMatch;
 
 // ---- input ----
 const keys = {};
-addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key === ' ') { e.preventDefault(); serveRequest = true; } });
-addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key.toLowerCase() === 'x') keys['drop'] = true; if (e.key === ' ') { e.preventDefault(); serveRequest = true; } });
+addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; if (e.key.toLowerCase() === 'x') keys['drop'] = false; });
 let touch = null, serveRequest = false;
 const raycaster = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 function toCourt(t){
@@ -138,9 +142,11 @@ const joy = { active: false, x: 0, y: 0, id: null };
     b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); b.setPointerCapture(e.pointerId); b.classList.add('on'); if (key) keys[key] = true; if (onDown) onDown(); });
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
   };
-  hold('bServe', null, () => { serveRequest = true; });
   hold('bPower', 'power');
   hold('bLob', 'shift');
+  hold('bDrop', 'drop');
+  hold('bFlat', null, () => { serveKind = 'flat'; serveRequest = true; });
+  hold('bSlice', null, () => { serveKind = 'slice'; serveRequest = true; });
   for (const id of ['joy', 'pad']) document.getElementById(id).addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
 }
 
@@ -211,7 +217,7 @@ function launch(fromX, fromY, fromZ, tx, ty, t){
 }
 function hit(p){
   const s = sideSign(p.team); // opponent court is y with sign -s
-  let tx, ty, t, lob = false, power = false;
+  let tx, ty, t, lob = false, power = false, drop = false;
   const contact = Math.hypot(ball.x - p.x, ball.y - p.y);
   let jam = Math.max(0, (0.6 - contact) / 0.6); // 近すぎて詰まった度合い
   const vsSmash = !!ball.smash;
@@ -232,6 +238,8 @@ function hit(p){
     lob = keys['shift'];
     power = !lob && (keys['arrowup'] || keys['w'] || keys['power']);
     if (power) { tx += (Math.random() - .5) * 1.6; ty -= s * (Math.random() - .3) * 2.2; }
+    drop = !lob && !power && keys['drop'];
+    if (drop) { ty = -s * (1.3 + Math.random() * 2.2); tx *= 0.7; }
   } else {
     const W = mode === 'doubles' ? DW : SW;
     // aim away from opponents
@@ -298,6 +306,7 @@ function hit(p){
   if (lat >= 0.55 && lat <= 1.2) pf = 1.08;
   if (!lob && !isSmash) spd *= pf;
   if (isVolley && !lob) spd *= 0.85;
+  if (drop && !isSmash && !mishit) spd = 8.5;
   const weak = pf < 0.8 && !isSmash;
   if (isSmash) spd = (p.isHuman ? 32 : [25, 28, 31][level]) * (mishit ? 0.6 : 1);
   t = dist / spd;
@@ -308,7 +317,7 @@ function hit(p){
   if (netMiss) ball.vz *= 0.35;
   ball.smash = isSmash && !mishit; ball.curve = 0;
   ball.volley = isVolley;
-  p.tag = close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
+  p.tag = drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
   lastHitter = p; bounces = 0; isServe = false; rallyHits++;
   hitFrom = { x: ball.x, y: ball.y };
   p.prepType = p.prepType && p.prepType === p.shot ? p.prepType : p.shot;
@@ -327,21 +336,25 @@ function serve(p){
   let ty = -s * (SL - 0.7 - Math.random() * 2.2);
   if (!p.isHuman && Math.random() < [0.3, 0.2, 0.12][level]) ty -= s * 1.0; // fault chance
   // サーブは内側（センター方向）へ曲がる。内側の矢印を押すと大きく曲がる
-  let curveAmt = 2.2;
+  let curveAmt = 2.2, sv = 30;
+  const kind = p.isHuman ? serveKind : (Math.random() < 0.5 ? 'flat' : 'slice');
+  if (kind === 'flat') { curveAmt = 0.5; sv = 35; }        // フラット：速く、ほぼまっすぐ
+  else if (kind === 'slice') { curveAmt = 6; sv = 27; }    // スライス：遅めで大きく内側に曲がる
+  serveKind = null;
   if (p.isHuman) {
     const L = keys['arrowleft'] || keys['a'], Rk = keys['arrowright'] || keys['d'];
     const inward = (boxX > 0 && L) || (boxX < 0 && Rk);
     const outward = (boxX > 0 && Rk) || (boxX < 0 && L);
-    if (inward) { curveAmt = 6; tx = boxX * (W * 0.55); }
+    if (inward) { curveAmt = Math.max(curveAmt, 6); tx = boxX * (W * 0.55); }
     else if (outward) tx = boxX * (W - 0.5);
     if (Math.random() < 0.12) ty -= s * 0.9;
   }
   const ax = -Math.sign(boxX) * curveAmt;
   ball.z = Math.max(ball.z, 2.4);
   const dist = Math.hypot(tx - ball.x, ty - ball.y);
-  let v = launch(ball.x, ball.y, ball.z, tx, ty, dist / 30);
+  let v = launch(ball.x, ball.y, ball.z, tx, ty, dist / sv);
   { const tf = (v.vz + Math.sqrt(v.vz * v.vz + 2 * G * ball.z)) / G; // 着地までの時間
-    v = launch(ball.x, ball.y, ball.z, tx - 0.5 * ax * tf * tf, ty, dist / 30); }
+    v = launch(ball.x, ball.y, ball.z, tx - 0.5 * ax * tf * tf, ty, dist / sv); }
   Object.assign(ball, v);
   ball.curve = ax;
   ball.live = true; lastHitter = p; hitFrom = { x: p.x, y: p.y }; bounces = 0; isServe = true;
@@ -375,7 +388,7 @@ function fault(reason){
   showMsg('フォルト（' + reason + '）', 1.2);
   pendingSecondServe = true;
 }
-let pendingSecondServe = false, hitFrom = null, tossing = false, serveQueued = false;
+let pendingSecondServe = false, hitFrom = null, tossing = false, serveQueued = false, serveKind = null;
 const DRIB = 1.5; // ボールつきの時間（0.5秒×3回）
 function dribbleQ(t){ const f = (t % 0.5) / 0.5; return (2 * f - 1) * (2 * f - 1); } // 1=手元, 0=地面
 
@@ -484,7 +497,7 @@ function update(dt){
       if (sp.isHuman && serveRequest) serveQueued = true;
       if (timer < DRIB) {
         const q = dribbleQ(timer);
-        ball.x = sp.x - 0.25 * sg; ball.y = sp.y - sg * 0.35; ball.z = 0.82 * q;
+        ball.x = sp.x + 0.12 * sg; ball.y = sp.y - sg * 0.41; ball.z = 0.82 * q; // 横向きの左手の下
       } else { ball.x = sp.x - 0.2 * sg; ball.y = sp.y - sg * 0.35; ball.z = 1.0; }
       ball.vx = ball.vy = ball.vz = 0;
       if (timer >= DRIB + 0.35 && (sp.isHuman ? serveQueued : timer > DRIB + 0.9)) {
@@ -802,7 +815,7 @@ function buildRig(p){
 function computePose(p){
   const ph = p.walk || 0, mv = p.mv || 0;
   let yaw = Math.max(-1, Math.min(1, (p.vxs || 0) * sideSign(p.team) / 5)) * 0.6;
-  if (state === 'serve' && p === servingPlayer()) yaw = (!tossing && timer < DRIB) ? 0 : 0.9 * Math.min(1, tossing ? 1 : (timer - DRIB) / 0.3);
+  if (state === 'serve' && p === servingPlayer()) yaw = 0.9;
   else if (p.prepType === 'sm' && (p.prep || 0) > 0.03 && (p.st ?? 9) > 0.7) yaw = 0.9 * p.prep; // スマッシュの構えも横向き
   else if (p.shot === 'sm' && (p.st ?? 9) < 0.5) { const st = p.st ?? 9; yaw = 0.9 * Math.max(0, 1 - st / 0.3) - 0.25 * Math.min(1, st / 0.3) * Math.max(0, 1 - (st - 0.3) / 0.2); }
   let pose;
@@ -895,6 +908,7 @@ function labelFor(R){
   return R.label;
 }
 const tmpV = new V3();
+let lastPadServe = null;
 function render3d(){
   // 選手リグの同期
   for (let i = rigs.length - 1; i >= 0; i--) if (!players.includes(rigs[i].p)) { scene.remove(rigs[i].g); rigs[i].label && rigs[i].label.remove(); rigs.splice(i, 1); }
@@ -918,6 +932,10 @@ function render3d(){
     ballBlob.material.opacity = Math.max(0.08, 0.35 - ball.z * 0.05);
   }
   placeCamera(human && human.team === 0 ? human.x * 0.45 : 0);
+  { const sv = state === 'serve' && human && servingPlayer() === human;
+    if (sv !== lastPadServe) { lastPadServe = sv;
+      for (const id of ['bPower', 'bLob', 'bDrop']) document.getElementById(id).classList.toggle('hidden', sv);
+      for (const id of ['bFlat', 'bSlice']) document.getElementById(id).classList.toggle('hidden', !sv); } }
   renderer.render(scene, camera);
   // HUD
   if (score) {

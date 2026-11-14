@@ -62,6 +62,30 @@ service cloud.firestore {
       allow create: if day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && validPlay();
     }
 
+    // センター街ゾンビナイトの2人プレイ用の部屋（hub/zombie/）
+    // - 部屋番号は4桁。作った人（host）が接続情報（offer）を書き、入る人が1回だけ answer を書き足す
+    // - つながったら作った人が消す。30分以上前の部屋は、別の人が同じ番号で作り直せる
+    function validRoom() {
+      let d = request.resource.data;
+      return request.auth != null
+        && d.keys().hasOnly(['offer', 'seed', 'host', 'createdAt'])
+        && d.host == request.auth.uid
+        && d.offer is string && d.offer.size() < 20000
+        && d.seed is int
+        && d.createdAt == request.time;
+    }
+    match /zombieRooms/{code} {
+      allow read: if request.auth != null;
+      allow create: if code.matches('^[0-9]{4}$') && validRoom();
+      allow update: if request.auth != null && (
+        (validRoom() && resource.data.createdAt < request.time - duration.value(30, 'm'))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer'])
+            && !('answer' in resource.data)
+            && request.resource.data.answer is string && request.resource.data.answer.size() < 20000)
+      );
+      allow delete: if request.auth != null && resource.data.host == request.auth.uid;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -205,7 +205,7 @@ const joy = { active: false, x: 0, y: 0, id: null };
 // team 0 = player side (bottom, y>0), team 1 = CPU (top, y<0)
 let players = [], ball, state = 'menu', timer = 0;
 let score, server, serveSide, faults, lastHitter, bounces, isServe, rallyHits, human;
-const SPEED = [3.0, 3.4, 3.9];
+const SPEED = [2.8, 3.1, 3.6];
 
 function mkPlayer(team, role, isHuman, color){
   return { team, role, isHuman, color, x: 0, y: 0, hx: 0, hy: 0, cool: 0, swing: 0 };
@@ -497,7 +497,7 @@ const R3 = v => Math.round(v * 1000) / 1000;
 function hostSendState(now){
   if (net.role !== 'host' || !online || now - net.lastSend < 33) return;
   net.lastSend = now;
-  const P = players.map(p => [R3(p.x), R3(p.y), R3(p.vxs || 0), R3(p.walk || 0), R3(p.mv || 0), R3(Math.min(p.st ?? 9, 9)), p.shot || '', R3(p.prep || 0), p.prepType || '', R3(Math.max(-1, p.label || 0)), p.tag || '', R3(Math.min(p.jumpT ?? 9, 9)), p.serveSwing ? 1 : 0, p.isHuman ? 1 : 0]);
+  const P = players.map(p => [R3(p.x), R3(p.y), R3(p.vxs || 0), R3(p.walk || 0), R3(p.mv || 0), R3(Math.min(p.st ?? 9, 9)), p.shot || '', R3(p.prep || 0), p.prepType || '', R3(Math.max(-1, p.label || 0)), p.tag || '', R3(Math.min(p.jumpT ?? 9, 9)), p.serveSwing ? 1 : 0, p.isHuman ? 1 : 0, R3(Math.min(p.lungeT ?? 9, 9)), p.lungeDir || 1]);
   broadcast('u', { t: 's', st: state, tm: R3(timer), to: tossing ? 1 : 0, tt: R3(tossT), sv: server, ss: serveSide, f: faults, sc: [score.pts[0], score.pts[1], score.games[0], score.games[1]], b: ball ? [R3(ball.x), R3(ball.y), R3(ball.z)] : null, m: msgEl.textContent, P });
 }
 function applySnapshot(m){
@@ -512,6 +512,7 @@ function applySnapshot(m){
     p.tx = a[0]; p.ty = a[1]; if (p.x === 0 && p.y === 0) { p.x = a[0]; p.y = a[1]; }
     p.vxs = a[2]; p.walk = a[3]; p.mv = a[4]; p.st = a[5]; p.shot = a[6]; p.prep = a[7]; p.prepType = a[8]; p.label = a[9]; p.tag = a[10]; p.jumpT = a[11]; p.serveSwing = !!a[12];
     if (p !== human) p.isHuman = !!a[13];
+    p.lungeT = a[14]; p.lungeDir = a[15];
   });
 }
 // ゲスト：毎フレーム、届いた位置へなめらかに寄せ、アニメーションの時間を進め、操作を送る
@@ -519,7 +520,7 @@ function guestFrame(dt, now){
   const k = 1 - Math.exp(-dt * 18);
   for (const p of players) {
     if (p.tx !== undefined) { p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; }
-    p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; p.label = (p.label || 0) - dt;
+    p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; p.lungeT = (p.lungeT ?? 9) + dt; p.label = (p.label || 0) - dt;
   }
   if (ball && ball.tx !== undefined) { const kb = 1 - Math.exp(-dt * 30); ball.x += (ball.tx - ball.x) * kb; ball.y += (ball.ty - ball.y) * kb; ball.z += (ball.tz - ball.z) * kb; }
   if (state === 'serve' || state === 'rally' || state === 'dead') {
@@ -568,7 +569,7 @@ function launch(fromX, fromY, fromZ, tx, ty, t){
   const vx = (tx - fromX) / t, vy = (ty - fromY) / t, vz = (0.0 - fromZ + 0.5 * G * t * t) / t;
   return { vx, vy, vz };
 }
-function hit(p){
+function hit(p, reach = 1.5){
   const s = sideSign(p.team); // opponent court is y with sign -s
   let tx, ty, t, lob = false, power = false, drop = false;
   const contact = Math.hypot(ball.x - p.x, ball.y - p.y);
@@ -670,7 +671,7 @@ function hit(p){
     ty *= 0.45 + Math.random() * 0.95;
     netMiss = close === 'net' || (close !== 'wild' && Math.random() < 0.35);
   }
-  const dist = Math.hypot(tx - ball.x, ty - ball.y);
+  let dist = Math.hypot(tx - ball.x, ty - ball.y);
   if (close === 'float') { lob = true; power = false; ty = -s * (4 + Math.random() * 6); tx *= 0.6; }
   let spd = lob ? 11 : (p.isHuman ? (power ? 44 : 26) : [20, 23, 27][level]);
   if (close === 'float') spd = 8;
@@ -684,16 +685,28 @@ function hit(p){
   if (drop && !isSmash && !mishit) spd = 8.5;
   const weak = pf < 0.8 && !isSmash;
   if (isSmash) spd = (p.isHuman ? 32 : [25, 28, 31][level]) * (mishit ? 0.6 : 1);
+  // ギリギリで届いた球：体勢を崩して、ゆるい球で返す
+  const stretch = Math.max(0, Math.min(1, (contact / reach - 0.72) / 0.28));
+  const lunge = stretch > 0.15 && !isSmash && !isAirK;
+  if (lunge) {
+    lob = true; power = false; drop = false;
+    const W2 = mode === 'doubles' ? DW : SW;
+    tx = Math.max(-W2 + 0.8, Math.min(W2 - 0.8, tx * 0.5 + (Math.random() - .5) * 2.5));
+    ty = -s * (5 + Math.random() * 5.5);
+    dist = Math.hypot(tx - ball.x, ty - ball.y);
+    p.lungeT = 0; p.lungeDir = Math.sign((ball.x - p.x) * s) || 1; // 体を傾ける向き（その人の右=+1）
+  }
   if (isAirK && !lob && !drop && !mishit) { spd *= 1.3; ty = -s * (HL - 1.2 - Math.random() * 2); }
   t = dist / spd;
-  if (lob) t = Math.max(t, close === 'float' ? 1.4 : p.isHuman ? 1.7 : 1.9);
+  if (lob) t = Math.max(t, close === 'float' ? 1.4 : lunge ? 1.3 : p.isHuman ? 1.7 : 1.9);
+  if (lunge) t = Math.max(t, dist / (8 + Math.random() * 3));
   const z = Math.max(ball.z, 0.4);
   const v = launch(ball.x, ball.y, z, tx, ty, t);
   Object.assign(ball, v); ball.z = z;
   if (netMiss) ball.vz *= 0.35;
   ball.smash = isSmash && !mishit; ball.curve = 0;
   ball.volley = isVolley;
-  p.tag = close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
+  p.tag = lunge ? 'ギリギリ…' : close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
   lastHitter = p; bounces = 0; isServe = false; rallyHits++;
   hitFrom = { x: ball.x, y: ball.y };
   p.prepType = p.prepType && p.prepType === p.shot ? p.prepType : p.shot;
@@ -824,7 +837,7 @@ function update(dt){
 
   // 人が操作する選手（この端末の自分＋オンラインの仲間・相手）
   if (human) { human.inp = toWorldInput(localInput(), human.team, touch); if (serveRequest) human.serveReq = true; }
-  const hs = 3.6;
+  const hs = 3.3;
   for (const hp of players) {
     if (!hp.isHuman) continue;
     const I = hp.inp || NOINP, mx = I.mx, my = I.my, sg = sideSign(hp.team);
@@ -847,7 +860,7 @@ function update(dt){
     if (d < 0.5) { p.walk = (p.walk || 0) + d * 3.8; p.mv = (p.mv || 0) * 0.9 + (d / dt > 0.5 ? 1 : 0) * 0.1; }
   }
   for (const p of players) {
-    p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; if (p.jumpT > 0.8) p.akPlanned = false;
+    p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; p.lungeT = (p.lungeT ?? 9) + dt; if (p.jumpT > 0.8) p.akPlanned = false;
     // 打つ前の準備動作（テイクバック）
     let target = 0;
     if (state === 'serve' && p === servingPlayer()) { target = tossing ? 1 : 0; p.prepType = 'sm'; }
@@ -919,9 +932,11 @@ function update(dt){
     if (lastHitter.team === p.team) continue;
     if (isServe && bounces === 0) continue; // must let serve bounce
     if (sideSign(p.team) * ball.y < 0) continue;
-    const reach = p.isHuman ? 1.5 : [1.0, 1.25, 1.45][level];
+    let reach = p.isHuman ? 1.5 : [1.0, 1.25, 1.45][level];
+    // ノーバウンドのボレー・スマッシュは届く範囲を狭く
+    if (bounces === 0) reach *= ball.z > 2.9 ? 0.65 : 0.75;
     const d = Math.hypot(ball.x - p.x, ball.y - p.y);
-    if (d < reach * (ball.smash ? 0.85 : 1) && ball.z < 3.3) { hit(p); break; }
+    if (d < reach * (ball.smash ? 0.85 : 1) && ball.z < 3.3) { hit(p, reach); break; }
   }
 }
 
@@ -1249,7 +1264,9 @@ function updateRig(R){
   const crouch = 0.035 * idle;
   const bob = Math.abs(Math.sin(ph)) * 0.04 * mv + Math.abs(Math.sin(fw)) * 0.03 * idle * (st0 > 0.85 ? 1 : 0) - crouch - (pose.cr || 0) - (receiving ? 0.07 : 0);
   const jt = p.jumpT ?? 9, jumpH = jt < 0.6 ? Math.sin(Math.PI * jt / 0.6) * 0.5 : 0; // エアKのジャンプ
-  const W = (a, f, u, noBob) => { const a2 = a * yc + f * ys, f2 = -a * ys + f * yc; return new V3(p.x + rx * a2, u + (noBob ? 0 : bob) + jumpH, p.y + fz * f2); };
+  // 体勢を崩したとき：ボールの方へ上半身を大きく傾け、腰を落とす
+  const lt = p.lungeT ?? 9, lean = lt < 0.8 ? Math.sin(Math.PI * Math.min(1, lt / 0.8)) * (p.lungeDir || 1) : 0;
+  const W = (a, f, u, noBob) => { if (!noBob && lean) { a += lean * 0.32 * Math.max(0, u - 0.3); u -= Math.abs(lean) * 0.14 * Math.min(1, u); } const a2 = a * yc + f * ys, f2 = -a * ys + f * yc; return new V3(p.x + rx * a2, u + (noBob ? 0 : bob) + jumpH, p.y + fz * f2); };
   const heading = (T) => { const a2 = Math.cos(T + yaw), f2 = -Math.sin(T + yaw); return Math.atan2(-(fz * f2), rx * a2); }; // ローカル右軸の向き
   const twist = pose.tw || 0, twc = Math.cos(twist), tws = Math.sin(twist);
   // 胴体・腰・頭
@@ -1297,7 +1314,8 @@ function updateRig(R){
     const tap = Math.max(0, Math.sin(fw * 0.5 + i * Math.PI)) * 0.045 * idle;
     const ff = stride * k + (i === 0 ? (pose.sl || 0) : (pose.sr || 0)), fu = Math.max(0, Math.sin(ph) * k) * lift + tap + (i === 1 ? (pose.kr || 0) : 0);
     const wide = 1.15 + 0.5 * idle + (receiving ? 0.9 : 0);
-    const foot = W(la * wide, ff, 0.05 + fu, true);
+    const lstep = lean && Math.sign(la) === Math.sign(lean) ? Math.abs(lean) * 0.45 : 0; // 傾けた側の足を大きく踏み出す
+    const foot = W(la * wide + Math.sign(la) * lstep, ff + lstep * 0.3, 0.05 + fu, true);
     const knee = W(la * (1.1 + 0.45 * idle), ff * 0.5 + 0.09 + 0.06 * idle + (pose.cr || 0) * 0.6 - (i === 1 ? (pose.kr || 0) * 0.8 : 0), 0.36 + fu * 0.5 + bob * 0.5, true);
     setLimb(R.th[i], hip, knee); setLimb(R.sh[i], knee, foot);
     R.knees[i].position.copy(knee);

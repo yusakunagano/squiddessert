@@ -154,7 +154,7 @@ const joy = { active: false, x: 0, y: 0, id: null };
 // team 0 = player side (bottom, y>0), team 1 = CPU (top, y<0)
 let players = [], ball, state = 'menu', timer = 0;
 let score, server, serveSide, faults, lastHitter, bounces, isServe, rallyHits, human;
-const SPEED = [4.1, 4.7, 5.3];
+const SPEED = [3.3, 3.8, 4.3];
 
 function mkPlayer(team, role, isHuman, color){
   return { team, role, isHuman, color, x: 0, y: 0, hx: 0, hy: 0, cool: 0, swing: 0 };
@@ -221,7 +221,7 @@ function hit(p){
   const contact = Math.hypot(ball.x - p.x, ball.y - p.y);
   let jam = Math.max(0, (0.6 - contact) / 0.6); // 近すぎて詰まった度合い
   const vsSmash = !!ball.smash;
-  const isSmash = ball.z > 2.5; // 2.5m未満の高めの球はハイボレーにする
+  const isSmash = ball.z > 2.9; // 2.5m未満の高めの球はハイボレーにする
   const isVolley = !isSmash && bounces === 0 && Math.abs(p.y) < 8;
   const side = (ball.x - p.x) * s >= 0 ? 'f' : 'b';
   p.shot = isSmash ? 'sm' : side + (isVolley ? 'v' : 's');
@@ -407,7 +407,7 @@ function fault(reason){
   showMsg('フォルト（' + reason + '）', 1.2);
   pendingSecondServe = true;
 }
-let pendingSecondServe = false, hitFrom = null, tossing = false, serveQueued = false, serveKind = null;
+let pendingSecondServe = false, hitFrom = null, tossing = false, serveQueued = false, serveKind = null, tossT = 0;
 const DRIB = 1.5; // ボールつきの時間（0.5秒×3回）
 function dribbleQ(t){ const f = (t % 0.5) / 0.5; return (2 * f - 1) * (2 * f - 1); } // 1=手元, 0=地面
 
@@ -472,7 +472,7 @@ function update(dt){
   if (keys['arrowup'] || keys['w']) my -= 1;
   if (keys['arrowdown'] || keys['s']) my += 1;
   if (joy.active) { mx = joy.x; my = joy.y; }
-  const hs = 5.0;
+  const hs = 4.0;
   if (state === 'serve' && servingPlayer() === human) {
     human.x += mx * hs * dt * 0.5;
     const lim = serveSide > 0 ? [0.3, SW] : [-SW, -0.3];
@@ -501,10 +501,12 @@ function update(dt){
       if (coming && d < 8) {
         target = Math.max(0, Math.min(1, 1 - (d - 1.6) / 4.5));
         const sd = (ball.x - p.x) * sideSign(p.team) >= 0 ? 'f' : 'b';
-        p.prepType = ball.z > 2.4 && ball.vz < 3 && bounces === 0 ? 'sm' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
+        p.prepType = ball.z > 2.8 && ball.vz < 3 && bounces === 0 ? 'sm' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
       }
     }
     p.prep = (p.prep || 0) + (target - (p.prep || 0)) * Math.min(1, dt * 10);
+    // サーブ：トスの間はトロフィーポーズ（左手を上に伸ばし、ラケットを立てて構える）を保ち、打つ直前にラケットを背中に落とす
+    if (state === 'serve' && p === servingPlayer() && tossing) p.prep = tossT < 0.45 ? Math.min(0.65, tossT / 0.25 * 0.65) : Math.min(1, 0.65 + (tossT - 0.45) / 0.18 * 0.35);
   }
 
   if (state === 'serve') {
@@ -522,10 +524,10 @@ function update(dt){
       if (timer >= DRIB + 0.35 && (sp.isHuman ? serveQueued : timer > DRIB + 0.9)) {
         serveQueued = false;
         // トス：右肩の少し前へ真上に投げ上げる
-        tossing = true; showMsg('', 0); ball.vz = 5.6; ball.vx = (0.25 * sg) / 0.57; ball.vy = 0;
+        tossing = true; tossT = 0; showMsg('', 0); ball.vz = 6.2; ball.vx = (0.25 * sg) / 0.63; ball.vy = 0;
       }
     } else {
-      ball.x += ball.vx * dt; ball.vz -= G * dt; ball.z += ball.vz * dt;
+      tossT += dt; ball.x += ball.vx * dt; ball.vz -= G * dt; ball.z += ball.vz * dt;
       if (ball.vz <= 0) { tossing = false; serve(sp); }
     }
     serveRequest = false;
@@ -858,7 +860,20 @@ function computePose(p){
 }
 
 function updateRig(R){
-  const p = R.p, { pose, yaw, ph, mv } = computePose(p);
+  const p = R.p, cp = computePose(p), { ph, mv } = cp;
+  // ポーズを毎フレームなめらかに追いかける（急な切り替わりでカクつかないように）
+  const tgt = cp.pose, inSwing = (p.st ?? 9) < 0.5;
+  const kk = 1 - Math.exp(-frameDt * (inSwing ? 30 : 16));
+  const tl = tgt.l === 'grip' ? null : tgt.l;
+  if (!R.sm) R.sm = { h: tgt.h.slice(), r: tgt.r.slice(), l: (tl || [tgt.h[0] - 0.02, tgt.h[1] - 0.04, tgt.h[2] - 0.1]).slice(), tw: 0, cr: 0, sl: 0, sr: 0, kr: 0, yaw: cp.yaw };
+  const sm = R.sm, ap = (a, b) => { for (let i = 0; i < 3; i++) a[i] += (b[i] - a[i]) * kk; };
+  ap(sm.h, tgt.h); ap(sm.r, tgt.r);
+  ap(sm.l, tl || [sm.h[0] - 0.02, sm.h[1] - 0.04, sm.h[2] - 0.1]);
+  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr']) sm[k] += ((tgt[k] || 0) - sm[k]) * kk;
+  sm.yaw += (cp.yaw - sm.yaw) * (1 - Math.exp(-frameDt * 12));
+  const pose = { h: sm.h, r: sm.r, l: tl ? sm.l : 'grip', tw: sm.tw, cr: sm.cr, sl: sm.sl, sr: sm.sr, kr: sm.kr };
+  if (!tl) sm.l = [sm.h[0] - 0.02, sm.h[1] - 0.04, sm.h[2] - 0.1];
+  const yaw = sm.yaw;
   const st0 = p.st ?? 9;
   const receiving = state === 'serve' && p.team !== server;
   const sg = sideSign(p.team);
@@ -882,16 +897,28 @@ function updateRig(R){
   R.hair.rotateX(-0.35 * (1)); // 後頭部側を厚く
   // 腕
   const lh = pose.l === 'grip' ? [pose.h[0] - 0.02, pose.h[1] - 0.04, pose.h[2] - 0.1] : pose.l;
+  // 肩→肘→手首を2本の骨として解く（IK）。肘は外側・下・後ろ寄りに自然に曲がる
+  const L1 = 0.31, L2 = 0.3;
+  const handsW = [];
   [[0.24, pose.h], [-0.24, lh]].forEach(([sa, hand], i) => {
     const s = [sa * twc, -sa * tws, 1.25];
-    const e = [(s[0] + hand[0]) / 2 + Math.sign(sa) * 0.1, (s[1] + hand[1]) / 2 - 0.05, (s[2] + hand[2]) / 2 - 0.1];
-    const S0 = W(...s), E = W(...e), H = W(...hand);
+    const S0 = W(...s), Ht = W(...hand);
+    const dir = new V3().subVectors(Ht, S0); let d = dir.length(); dir.normalize();
+    d = Math.min(d, L1 + L2 - 0.002); d = Math.max(d, 0.12);
+    const H = S0.clone().addScaledVector(dir, d);
+    const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+    const pole = new V3().subVectors(W(sa * 2.2, -0.35, 0.2), W(0, 0, 1.25)); // 外・後ろ・下
+    pole.addScaledVector(dir, -pole.dot(dir)); if (pole.lengthSq() < 1e-6) pole.set(0, -1, 0); pole.normalize();
+    const E = S0.clone().addScaledVector(dir, a).addScaledVector(pole, hh);
     R.shoulders[i].position.copy(S0); R.elbows[i].position.copy(E); R.hands[i].position.copy(H);
     setLimb(R.ua[i], S0, E); setLimb(R.fa[i], E, H);
+    handsW.push(H);
   });
-  // ラケット
+  // ラケット（手首から先。向きはポーズの r に従うので、前腕とは別に手首が曲がる）
   const h = pose.h, rv = pose.r;
-  const Hp = W(...h), Np = W(h[0] + rv[0] * 0.42, h[1] + rv[1] * 0.42, h[2] + rv[2] * 0.42), Cp = W(h[0] + rv[0] * 0.75, h[1] + rv[1] * 0.75, h[2] + rv[2] * 0.75);
+  const base = W(...h), Hp = handsW[0];
+  const off = (k) => new V3().subVectors(W(h[0] + rv[0] * k, h[1] + rv[1] * k, h[2] + rv[2] * k), base).add(Hp);
+  const Np = off(0.42), Cp = off(0.75);
   setLimb(R.handle, Hp, Np);
   const yAx = new V3().subVectors(Cp, Np).normalize();
   let hint = new V3(0, 0, fz); if (Math.abs(yAx.dot(hint)) > 0.9) hint = new V3(0, 1, 0);
@@ -927,7 +954,7 @@ function labelFor(R){
   return R.label;
 }
 const tmpV = new V3();
-let lastPadServe = null;
+let lastPadServe = null, frameDt = 1 / 60;
 function render3d(){
   // 選手リグの同期
   for (let i = rigs.length - 1; i >= 0; i--) if (!players.includes(rigs[i].p)) { scene.remove(rigs[i].g); rigs[i].label && rigs[i].label.remove(); rigs.splice(i, 1); }
@@ -1019,7 +1046,7 @@ resize();
 
 let last = performance.now();
 function loop(now){
-  let dt = Math.min(0.05, (now - last) / 1000); last = now;
+  let dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
   const steps = 4;
   if (!window.__freeze) for (let i = 0; i < steps; i++) update(dt / steps);
   render3d();

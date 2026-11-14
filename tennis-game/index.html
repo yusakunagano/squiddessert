@@ -245,7 +245,7 @@ function hit(p){
   }
   const dist = Math.hypot(tx - ball.x, ty - ball.y);
   if (close === 'float') { lob = true; power = false; ty = -s * (4 + Math.random() * 6); tx *= 0.6; }
-  let spd = lob ? 11 : (p.isHuman ? (power ? 40 : 22) : [17, 20, 24][level]);
+  let spd = lob ? 11 : (p.isHuman ? (power ? 44 : 26) : [20, 23, 27][level]);
   if (close === 'float') spd = 8;
   if (mishit) spd *= 0.6;
   // 体の正面より少し横（0.55〜1.2m）で打つと力が伝わる。正面だと弱い球になる
@@ -295,9 +295,9 @@ function serve(p){
   const ax = -Math.sign(boxX) * curveAmt;
   ball.z = Math.max(ball.z, 2.4);
   const dist = Math.hypot(tx - ball.x, ty - ball.y);
-  let v = launch(ball.x, ball.y, ball.z, tx, ty, dist / 26);
+  let v = launch(ball.x, ball.y, ball.z, tx, ty, dist / 30);
   { const tf = (v.vz + Math.sqrt(v.vz * v.vz + 2 * G * ball.z)) / G; // 着地までの時間
-    v = launch(ball.x, ball.y, ball.z, tx - 0.5 * ax * tf * tf, ty, dist / 26); }
+    v = launch(ball.x, ball.y, ball.z, tx - 0.5 * ax * tf * tf, ty, dist / 30); }
   Object.assign(ball, v);
   ball.curve = ax;
   ball.live = true; lastHitter = p; hitFrom = { x: p.x, y: p.y }; bounces = 0; isServe = true;
@@ -331,7 +331,9 @@ function fault(reason){
   showMsg('フォルト（' + reason + '）', 1.2);
   pendingSecondServe = true;
 }
-let pendingSecondServe = false, hitFrom = null, tossing = false;
+let pendingSecondServe = false, hitFrom = null, tossing = false, serveQueued = false;
+const DRIB = 1.5; // ボールつきの時間（0.5秒×3回）
+function dribbleQ(t){ const f = (t % 0.5) / 0.5; return (2 * f - 1) * (2 * f - 1); } // 1=手元, 0=地面
 
 function inCourt(x, y, team){ // does (x,y) lie in team's court half?
   const W = mode === 'doubles' ? DW : SW;
@@ -419,8 +421,8 @@ function update(dt){
     else if (state === 'rally' && lastHitter && lastHitter.team !== p.team && !(isServe && bounces === 0 && false) && p.st > 0.5) {
       const d = Math.hypot(ball.x - p.x, ball.y - p.y);
       const coming = (ball.y - p.y) * ball.vy < 0 || d < 1.6;
-      if (coming && d < 5) {
-        target = Math.max(0, Math.min(1, 1 - (d - 1.5) / 3));
+      if (coming && d < 8) {
+        target = Math.max(0, Math.min(1, 1 - (d - 1.6) / 4.5));
         const sd = (ball.x - p.x) * sideSign(p.team) >= 0 ? 'f' : 'b';
         p.prepType = ball.z > 1.9 && ball.vz < 3 && bounces === 0 ? 'sm' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
       }
@@ -433,9 +435,15 @@ function update(dt){
     timer += dt;
     aiMove(dt);
     if (!tossing) {
-      // 左手にボールを持って構える
-      ball.x = sp.x - 0.2 * sg; ball.y = sp.y - sg * 0.35; ball.z = 1.0; ball.vx = ball.vy = ball.vz = 0;
-      if (sp.isHuman ? serveRequest : timer > 1.1) {
+      // サーブ前に左手でボールを地面に3回つく。そのあと横向きに構える
+      if (sp.isHuman && serveRequest) serveQueued = true;
+      if (timer < DRIB) {
+        const q = dribbleQ(timer);
+        ball.x = sp.x - 0.25 * sg; ball.y = sp.y - sg * 0.35; ball.z = 0.82 * q;
+      } else { ball.x = sp.x - 0.2 * sg; ball.y = sp.y - sg * 0.35; ball.z = 1.0; }
+      ball.vx = ball.vy = ball.vz = 0;
+      if (timer >= DRIB + 0.35 && (sp.isHuman ? serveQueued : timer > DRIB + 0.9)) {
+        serveQueued = false;
         // トス：右肩の少し前へ真上に投げ上げる
         tossing = true; showMsg('', 0); ball.vz = 5.6; ball.vx = (0.25 * sg) / 0.57; ball.vy = 0;
       }
@@ -559,8 +567,23 @@ renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#9cc7ea');
-scene.fog = new THREE.Fog('#9cc7ea', 60, 120);
+{ // 空（グラデーションと雲）
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 512);
+  grd.addColorStop(0, '#2f7fd6'); grd.addColorStop(0.55, '#7db8ec'); grd.addColorStop(1, '#d9ecfa');
+  g.fillStyle = grd; g.fillRect(0, 0, 1024, 512);
+  for (let i = 0; i < 14; i++) {
+    const cx = Math.random() * 1024, cy = 40 + Math.random() * 220, w = 60 + Math.random() * 110;
+    for (let k = 0; k < 7; k++) {
+      const rg = g.createRadialGradient(cx + (k - 3) * w * 0.3, cy + Math.sin(k) * 10, 0, cx + (k - 3) * w * 0.3, cy + Math.sin(k) * 10, w * 0.45);
+      rg.addColorStop(0, 'rgba(255,255,255,.85)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = rg; g.fillRect(0, 0, 1024, 512);
+    }
+  }
+  scene.background = new THREE.CanvasTexture(c);
+}
+scene.fog = new THREE.Fog('#d9ecfa', 60, 120);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
 
 // 自分の後ろの目線に近いカメラ。自分の左右の動きに少しついていく
@@ -734,7 +757,7 @@ function buildRig(p){
 function computePose(p){
   const ph = p.walk || 0, mv = p.mv || 0;
   let yaw = Math.max(-1, Math.min(1, (p.vxs || 0) * sideSign(p.team) / 5)) * 0.6;
-  if (state === 'serve' && p === servingPlayer()) yaw = 0.9;
+  if (state === 'serve' && p === servingPlayer()) yaw = (!tossing && timer < DRIB) ? 0 : 0.9 * Math.min(1, tossing ? 1 : (timer - DRIB) / 0.3);
   else if (p.prepType === 'sm' && (p.prep || 0) > 0.03 && (p.st ?? 9) > 0.7) yaw = 0.9 * p.prep; // スマッシュの構えも横向き
   else if (p.shot === 'sm' && (p.st ?? 9) < 0.5) { const st = p.st ?? 9; yaw = 0.9 * Math.max(0, 1 - st / 0.3) - 0.25 * Math.min(1, st / 0.3) * Math.max(0, 1 - (st - 0.3) / 0.2); }
   let pose;
@@ -745,6 +768,9 @@ function computePose(p){
     pose = k < 0.12 ? lerpPose(from, P0.hit, k / 0.12) : k < 0.45 ? lerpPose(P0.hit, P0.mid, (k - 0.12) / 0.33) : lerpPose(P0.mid, P0.fol, (k - 0.45) / 0.55);
   } else if (st < D + 0.35 && POSES[p.shot]) {
     pose = lerpPose(POSES[p.shot].fol, READY, (st - D) / 0.35);
+  } else if (state === 'serve' && p === servingPlayer() && !tossing && timer < DRIB) {
+    const q = dribbleQ(timer);
+    pose = { h: [0.3, 0.25, 0.95], r: [0.05, 0.4, 0.3], l: [-0.25, 0.35, 0.8 + 0.12 * q], tw: 0, cr: 0.1 - 0.04 * q };
   } else if ((p.prep || 0) > 0.03 && POSES[p.prepType]) {
     pose = prepPose(p);
   } else if (mv > 0.35) {
@@ -874,13 +900,13 @@ const POSES = {
         hit:   { tw: -0.3, h: [-0.2, 0.5, 0.95], r: [-0.6, 0.25, 0.05], l: 'grip', cr: 0.08, sr: 0.35 },
         mid:   { tw: 0.45, h: [0.25, 0.45, 1.35], r: [0.35, 0.1, 0.5], l: 'grip', cr: 0.04, sr: 0.35 },
         fol:   { tw: 0.95, h: [0.32, 0.0, 1.6], r: [0.2, -0.45, -0.25], l: 'grip', cr: 0.02, sr: 0.35, sl: 0.08, kr: 0.05 } },
-  fv: { back1: { tw: 0.4, h: [0.55, 0.05, 1.2], r: [0.1, 0.0, 0.6], l: [-0.1, 0.45, 1.1], cr: 0.1 },
-        back2: { tw: 0.45, h: [0.55, 0.0, 1.2], r: [0.1, -0.05, 0.6], l: [-0.1, 0.45, 1.1], cr: 0.12, sl: 0.2 },
+  fv: { back1: { tw: 0.6, h: [0.62, -0.1, 1.25], r: [0.05, -0.1, 0.6], l: [-0.1, 0.45, 1.1], cr: 0.1 },
+        back2: { tw: 0.7, h: [0.65, -0.18, 1.25], r: [0.05, -0.2, 0.58], l: [-0.1, 0.45, 1.1], cr: 0.12, sl: 0.2 },
         hit:   { tw: 0.1, h: [0.5, 0.5, 1.15], r: [0.25, 0.35, 0.45], l: [-0.3, 0.3, 1.0], cr: 0.12, sl: 0.3 },
         mid:   { tw: 0.05, h: [0.45, 0.58, 1.1], r: [0.22, 0.4, 0.42], l: [-0.33, 0.25, 0.98], cr: 0.1, sl: 0.3 },
         fol:   { tw: 0.0, h: [0.42, 0.6, 1.05], r: [0.2, 0.4, 0.4], l: [-0.35, 0.2, 0.95], cr: 0.08, sl: 0.3 } },
-  bv: { back1: { tw: -0.5, h: [-0.5, 0.05, 1.2], r: [-0.1, 0.0, 0.6], l: [-0.35, 0.1, 1.25], cr: 0.1 },
-        back2: { tw: -0.55, h: [-0.5, 0.0, 1.2], r: [-0.1, -0.05, 0.6], l: [-0.35, 0.05, 1.25], cr: 0.12, sr: 0.2 },
+  bv: { back1: { tw: -0.7, h: [-0.58, -0.1, 1.25], r: [-0.05, -0.1, 0.6], l: [-0.35, 0.1, 1.25], cr: 0.1 },
+        back2: { tw: -0.8, h: [-0.62, -0.18, 1.25], r: [-0.05, -0.2, 0.58], l: [-0.35, 0.05, 1.25], cr: 0.12, sr: 0.2 },
         hit:   { tw: -0.1, h: [-0.45, 0.5, 1.15], r: [-0.25, 0.35, 0.45], l: [0.1, -0.1, 1.0], cr: 0.12, sr: 0.3 },
         mid:   { tw: -0.05, h: [-0.4, 0.58, 1.1], r: [-0.22, 0.4, 0.42], l: [0.25, -0.12, 0.98], cr: 0.1, sr: 0.3 },
         fol:   { tw: 0.0, h: [-0.35, 0.6, 1.05], r: [-0.2, 0.4, 0.4], l: [0.3, -0.15, 0.95], cr: 0.08, sr: 0.3 } },

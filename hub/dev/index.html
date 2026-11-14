@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IN DEVELOPMENT</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="stylesheet" href="../hub.css?v=20261114">
+</head>
+<body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="grain" aria-hidden="true"></div>
+<main>
+  <a class="back" href="../">← PRODUCT LIST</a><br>
+  <span class="eyebrow">Work in progress</span>
+  <h1>IN DEVELOPMENT</h1>
+  <p class="lead">開発中・実験中のアプリです。未完成の部分があります。</p>
+  <div class="grid">
+    <a class="card c-map" href="https://map-comments-30fab.web.app/">
+      <div class="top"><div class="icon">🗺️</div><span class="arrow">→</span></div>
+      <div class="body"><h2>マップSNS</h2><p>地図の上にコメントを残して共有できるSNS。</p><span class="tag">SNS</span></div>
+    </a>
+    <a class="card c-lab" href="../../model-compare/">
+      <div class="top"><div class="icon">⚖️</div><span class="arrow">→</span></div>
+      <div class="body"><h2>Gemma 4 × Gemini Flash 比較</h2><p>同じ質問を 2 つのモデルに投げて、答えと返答速度を並べて比べる。</p><span class="tag">実験</span></div>
+    </a>
+    <a class="card c-ai" href="../../pay-ai-support/">
+      <div class="top"><div class="icon">🤖</div><span class="arrow">→</span></div>
+      <div class="body"><h2>AIサポート</h2></div>
+    </a>
+    <a class="card c-tool" href="../../tennis/">
+      <div class="top"><div class="icon">🎾</div><span class="arrow">→</span></div>
+      <div class="body"><h2>テニス組み合わせ</h2><p>4〜20人のダブルス・シングルスを公平に組み合わせ。試合のチェックと割り勘計算つき。</p><span class="tag">ツール</span></div>
+    </a>
+  </div>
+  <footer><span>© yusakunagano</span><a href="../../">プライバシーポリシー</a></footer>
+</main>
+<script>
+  // カーソル位置にあわせてカードの光を動かし、マウスのときは傾ける
+  document.querySelectorAll('a.card').forEach(function (c) {
+    c.addEventListener('pointermove', function (e) {
+      var r = c.getBoundingClientRect();
+      c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+      c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+      if (e.pointerType === 'mouse') {
+        c.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * 10).toFixed(2) + 'deg');
+        c.style.setProperty('--rx', ((.5 - (e.clientY - r.top) / r.height) * 10).toFixed(2) + 'deg');
+      }
+    });
+    c.addEventListener('pointerleave', function () { c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg'); });
+  });
+</script>
+<!-- AIサポート・デザインチェッカーと同じログイン（ID＋パスワード）。ブラウザ内の簡易ゲートで、同じタブならどれか1つで通れば他も通る -->
+<script src="../../pay-ai-support/gate.js?v=20261029"></script>
+<script src="../analytics.js?v=20261104"></script>
+</body>
+</html>

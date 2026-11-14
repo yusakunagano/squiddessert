@@ -13,7 +13,7 @@
   canvas{display:block;position:absolute;inset:0}
   #hud{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);padding:6px 14px;border-radius:8px;font-size:15px;white-space:nowrap;text-align:center}
   #msg{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);font-size:26px;font-weight:bold;text-shadow:0 2px 6px #000;pointer-events:none;text-align:center}
-  .menu{position:absolute;inset:0;background:rgba(10,30,20,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px}
+  .menu{position:absolute;inset:0;background:rgba(10,30,20,.92);display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;padding:16px;overflow-y:auto;box-sizing:border-box;touch-action:pan-y}
   .menu h1{margin:0 0 8px;font-size:34px}
   .menu h2{margin:8px 0 0;font-size:18px;font-weight:normal;opacity:.85}
   .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
@@ -22,6 +22,15 @@
   button.sub{background:#cfd8d3}
   .help{font-size:14px;opacity:.85;max-width:420px;text-align:center;line-height:1.6}
   .hidden{display:none!important}
+  .online{margin-top:6px;padding:12px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:440px}
+  .online h2{margin:0}
+  .online input{font-size:20px;width:110px;text-align:center;padding:9px;border-radius:10px;border:none;letter-spacing:.2em}
+  #lobby{gap:12px}
+  #lbCode{font-size:46px;letter-spacing:.25em;font-weight:bold}
+  #lbSeats{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+  .lbTeam{padding:10px 14px;border-radius:10px;min-width:150px;line-height:1.7}
+  .lbTeam.t0{background:rgba(47,124,246,.35)} .lbTeam.t1{background:rgba(229,72,59,.35)}
+  #netst{min-height:1.4em;text-align:center;max-width:420px;font-size:15px}
   /* 画面のコントローラー（左下：スティック、右下：ボタン） */
   #joy{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:max(18px,env(safe-area-inset-bottom));width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.45);touch-action:none;user-select:none;-webkit-user-select:none}
   #knob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 2px 8px rgba(0,0,0,.35);pointer-events:none}
@@ -48,6 +57,15 @@
     <div class="pbtn" id="bFlat">フラット</div>
     <div class="pbtn" id="bSlice">スライス</div>
   </div>
+  <div class="menu hidden" id="lobby">
+    <h2>部屋番号</h2>
+    <div id="lbCode">----</div>
+    <div id="lbMode"></div>
+    <div id="lbSeats"></div>
+    <div id="lbFmt" class="row hidden"><button data-fmt="singles" class="sub">シングルス</button><button data-fmt="doubles" class="sub sel">ダブルス（CPUと組む）</button></div>
+    <div id="netst"></div>
+    <div class="row"><button id="lbStart">試合開始</button><button id="lbLeave" class="sub">やめる</button></div>
+  </div>
   <div class="menu" id="menu">
     <h1>🎾 テニス</h1>
     <h2>モードを選択</h2>
@@ -69,6 +87,15 @@
       <button data-lv="2" class="sub">つよい</button>
     </div>
     <button id="start" style="margin-top:10px;font-size:22px">試合開始</button>
+    <div class="online">
+      <h2>オンラインで遊ぶ（最大4人）</h2>
+      <div class="row">
+        <button data-nmode="vs" class="sub sel">対戦</button>
+        <button data-nmode="coop" class="sub">協力</button>
+      </div>
+      <div class="row"><button id="hostBtn">部屋を作る</button></div>
+      <div class="row"><input id="code" inputmode="numeric" maxlength="4" placeholder="1234"><button id="joinBtn" class="sub">部屋に入る</button></div>
+    </div>
     <div class="help">
       移動：矢印キー / WASD（スマホは画面をドラッグ）<br>
       ボールに近づくと自動で打ちます。打つ瞬間の ←→ でコースを狙えます。<br>
@@ -77,7 +104,8 @@
       Shift を押しながら打つとロブ。<br>
       サーブ：スペース（スマホはタップ）<br>
       画面の左下のスティックで移動。右下のボタンは、サーブの時は「フラット／スライス」、ラリー中は「強（強打）／上（ロブ）／弱（ドロップ）」。何も押さなければ普通に返します（キーボードは X でドロップ）。<br>
-      1セットマッチ（6ゲーム先取・2ゲーム差）
+      1セットマッチ（6ゲーム先取・2ゲーム差）<br>
+      オンライン：ひとりが「部屋を作る」、ほかの人は4桁の番号で「部屋に入る」。対戦は最大4人（空いた所はCPU）、協力は2人でCPUと戦います。
     </div>
   </div>
 </div>
@@ -100,13 +128,37 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
 document.querySelectorAll('[data-pos]').forEach(b => b.onclick = () => { pos = b.dataset.pos; sel('[data-pos]', b); });
 document.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => { level = +b.dataset.lv; sel('[data-lv]', b); });
 function sel(q, b){ document.querySelectorAll(q).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); }
-document.getElementById('start').onclick = startMatch;
+document.getElementById('start').onclick = () => { online = false; startMatch(); };
+document.querySelectorAll('[data-nmode]').forEach(b => b.onclick = () => { net.mode = b.dataset.nmode; sel('[data-nmode]', b); });
+document.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => { net.fmt = b.dataset.fmt; hostLobbyUpdate(); });
+document.getElementById('hostBtn').onclick = () => hostRoom();
+document.getElementById('joinBtn').onclick = () => joinRoom();
+document.getElementById('lbStart').onclick = () => hostStart();
+document.getElementById('lbLeave').onclick = () => leaveLobby();
 
 // ---- input ----
 const keys = {};
 addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key.toLowerCase() === 'x') keys['drop'] = true; if (e.key === ' ') { e.preventDefault(); serveRequest = true; } });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; if (e.key.toLowerCase() === 'x') keys['drop'] = false; });
 let touch = null, serveRequest = false;
+const NOINP = { mx: 0, my: 0, left: false, right: false, power: false, lob: false, drop: false, touch: null };
+// この端末の操作（画面の向きのまま。手前=自分側）
+function localInput(){
+  let mx = 0, my = 0;
+  if (keys['arrowleft'] || keys['a']) mx -= 1;
+  if (keys['arrowright'] || keys['d']) mx += 1;
+  if (keys['arrowup'] || keys['w']) my -= 1;
+  if (keys['arrowdown'] || keys['s']) my += 1;
+  if (joy.active) { mx = joy.x; my = joy.y; }
+  return { mx, my, left: !!(keys['arrowleft'] || keys['a']), right: !!(keys['arrowright'] || keys['d']),
+    power: !!(keys['arrowup'] || keys['w'] || keys['power']), lob: !!keys['shift'], drop: !!keys['drop'] };
+}
+// 画面の向きの操作を、その選手のコート上の向きに直す（奥側チームは左右・前後が逆）
+function toWorldInput(i, team, tch){
+  const o = Object.assign({}, NOINP, i, { touch: tch || null });
+  if (team === 1) { o.mx = -i.mx; o.my = -i.my; o.left = i.right; o.right = i.left; }
+  return o;
+}
 const raycaster = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 function toCourt(t){
   const r = cv.getBoundingClientRect();
@@ -145,8 +197,8 @@ const joy = { active: false, x: 0, y: 0, id: null };
   hold('bPower', 'power');
   hold('bLob', 'shift');
   hold('bDrop', 'drop');
-  hold('bFlat', null, () => { serveKind = 'flat'; serveRequest = true; });
-  hold('bSlice', null, () => { serveKind = 'slice'; serveRequest = true; });
+  hold('bFlat', null, () => { if (human) human.serveKind = 'flat'; serveRequest = true; });
+  hold('bSlice', null, () => { if (human) human.serveKind = 'slice'; serveRequest = true; });
   for (const id of ['joy', 'pad']) document.getElementById(id).addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
 }
 
@@ -160,6 +212,7 @@ function mkPlayer(team, role, isHuman, color){
   return { team, role, isHuman, color, x: 0, y: 0, hx: 0, hy: 0, cool: 0, swing: 0 };
 }
 function startMatch(){
+  if (document.activeElement) document.activeElement.blur();
   menu.classList.add('hidden');
   players = [];
   if (mode === 'singles') {
@@ -176,7 +229,284 @@ function startMatch(){
   newPoint();
 }
 function sideSign(team){ return team === 0 ? 1 : -1; }
+function myTeam(){ return human ? human.team : 0; }
+// オフラインは「あなた／CPU」、オンラインは「青チーム／赤チーム」（自分のチームには（あなた）を付ける）
+function teamName(t){
+  if (!online) return t === 0 ? 'あなた' : 'CPU';
+  return t === 0 ? '青チーム' : '赤チーム';
+}
 function servingPlayer(){ return players.find(p => p.team === server && p.role === 'back'); }
+
+// ---- オンライン（最大4人）----
+// しくみ：部屋を作った人（ホスト）の端末だけが試合を計算し、ほかの人（ゲスト）は操作を送って、ホストから届く試合の様子を表示する。
+// つなぎ方：WebRTC（端末どうしの直接通信）。接続情報の受け渡しだけ Firebase（Firestore）の tennisRooms/{4桁} を使う。
+// 部屋の書類には、ホストが参加枠ぶん（対戦3・協力1）の offerN を書き、入る人が空いている枠に answerN を1回だけ書き足す。
+let online = false;
+const net = { role: null, code: null, mode: 'vs', fmt: 'doubles', peers: [], mySlot: 0, unsub: null, ref: null, lastSend: 0, lastIn: 0, members: [] };
+const NET_SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
+let FB = null;
+async function fb(){
+  if (FB) return FB;
+  const [cfg, A, Au, F] = await Promise.all([import('../nine-game/firebase-config.js?v=20261024'), import(NET_SDK + '/firebase-app.js'), import(NET_SDK + '/firebase-auth.js'), import(NET_SDK + '/firebase-firestore.js')]);
+  const app = A.initializeApp(cfg.firebaseConfig, 'tennis');
+  const auth = Au.getAuth(app); if (!auth.currentUser) await Au.signInAnonymously(auth);
+  FB = { F, db: F.getFirestore(app), uid: auth.currentUser.uid }; return FB;
+}
+// テスト用：URLに ?localsig を付けると、Firebase の代わりに同じブラウザ内のタブ同士で受け渡しする
+const LOCALSIG = /[?&]localsig/.test(location.search);
+const sig = LOCALSIG ? (() => {
+  const bc = new BroadcastChannel('tennis-sig'), key = c => 'tennisRoom:' + c, subs = {};
+  bc.onmessage = e => { const f = subs[e.data]; if (f) f(JSON.parse(localStorage.getItem(key(e.data)) || 'null')); };
+  return {
+    async create(code, data){ if (localStorage.getItem(key(code))) throw new Error('used'); localStorage.setItem(key(code), JSON.stringify(data)); },
+    async get(code){ return JSON.parse(localStorage.getItem(key(code)) || 'null'); },
+    async answer(code, n, sdp){ const d = JSON.parse(localStorage.getItem(key(code)) || 'null'); if (!d || d['answer' + n]) throw new Error('taken'); d['answer' + n] = sdp; localStorage.setItem(key(code), JSON.stringify(d)); bc.postMessage(code); },
+    watch(code, f){ subs[code] = f; return () => { delete subs[code]; }; },
+    async remove(code){ localStorage.removeItem(key(code)); },
+  };
+})() : {
+  async create(code, data){ const { F, db, uid } = await fb(); await F.setDoc(F.doc(db, 'tennisRooms', code), Object.assign({}, data, { host: uid, createdAt: F.serverTimestamp() })); },
+  async get(code){ const { F, db } = await fb(); const s = await F.getDoc(F.doc(db, 'tennisRooms', code)); return s.exists() ? s.data() : null; },
+  async answer(code, n, sdp){ const { F, db } = await fb(); await F.updateDoc(F.doc(db, 'tennisRooms', code), { ['answer' + n]: sdp }); },
+  watch(code, f){ let u = () => {}; fb().then(({ F, db }) => { u = F.onSnapshot(F.doc(db, 'tennisRooms', code), s => f(s.data() || null)); }); return () => u(); },
+  async remove(code){ try { const { F, db } = await fb(); await F.deleteDoc(F.doc(db, 'tennisRooms', code)); } catch (e) {} },
+};
+function mkPC(){ return new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] }); }
+function iceDone(pc){ return new Promise(r => { if (pc.iceGatheringState === 'complete') return r(); const t = setTimeout(r, 3500); pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); r(); } }); }); }
+const lobbyEl = () => document.getElementById('lobby');
+function netSt(t){ document.getElementById('netst').innerHTML = t; }
+function sendTo(peer, ch, obj){ const c = peer[ch]; if (c && c.readyState === 'open') try { c.send(JSON.stringify(obj)); } catch (e) {} }
+function broadcast(ch, obj){ for (const pr of net.peers) if (pr.open) sendTo(pr, ch, obj); }
+function setupPeerDC(peer, ch){
+  peer[ch.label] = ch;
+  ch.onmessage = e => { try { onNetMsg(peer, JSON.parse(e.data)); } catch (err) { console.error(err); } };
+  ch.onopen = () => peerReady(peer);
+  ch.onclose = () => peerLost(peer);
+  peerReady(peer);
+}
+function peerReady(peer){
+  if (peer.open || !peer.u || !peer.r || peer.u.readyState !== 'open' || peer.r.readyState !== 'open') return;
+  peer.open = true;
+  if (net.role === 'host') { sendTo(peer, 'r', { t: 'welcome', slot: peer.slot }); hostLobbyUpdate(); }
+  else { netSt('つながりました。ホストが試合を始めるのを待っています…'); }
+}
+function peerLost(peer){
+  if (!peer.open && !peer.failed) return;
+  peer.open = false; peer.failed = true;
+  if (net.role === 'host') {
+    if (peer.player) { peer.player.isHuman = false; peer.player.inp = null; showMsg('プレイヤー' + (peer.slot + 1) + 'の接続が切れました。CPUが代わりに入ります', 2.5); }
+    hostLobbyUpdate();
+  } else if (net.role === 'guest') {
+    netClose();
+    state = 'menu'; players = []; human = null; ball = null;
+    menu.classList.remove('hidden'); lobbyEl().classList.add('hidden');
+    showMsg('ホストとの接続が切れました', 3);
+  }
+}
+function randCode(){ return String(1000 + Math.floor(Math.random() * 9000)); }
+
+// ホスト：部屋を作る（対戦は3枠、協力は1枠）
+async function hostRoom(){
+  netClose(); net.role = 'host'; net.mySlot = 0; netSt('部屋を準備しています…');
+  showLobby();
+  try {
+    const n = net.mode === 'coop' ? 1 : 3, data = { mode: net.mode };
+    for (let i = 1; i <= n; i++) {
+      const pc = mkPC(), peer = { slot: i, pc, open: false };
+      setupPeerDC(peer, pc.createDataChannel('u', { ordered: false, maxRetransmits: 0 }));
+      setupPeerDC(peer, pc.createDataChannel('r'));
+      pc.onconnectionstatechange = () => { if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) peerLost(peer); };
+      net.peers.push(peer);
+    }
+    await Promise.all(net.peers.map(async pr => { await pr.pc.setLocalDescription(await pr.pc.createOffer()); await iceDone(pr.pc); data['offer' + pr.slot] = pr.pc.localDescription.sdp; }));
+    let code = null;
+    for (let i = 0; i < 8 && !code; i++) { const c = randCode(); try { await sig.create(c, data); code = c; } catch (e) {} }
+    if (!code) throw new Error('no code');
+    net.code = code;
+    net.unsub = sig.watch(code, d => {
+      if (!d) return;
+      for (const pr of net.peers) {
+        const a = d['answer' + pr.slot];
+        if (a && !pr.answered) { pr.answered = true; pr.pc.setRemoteDescription({ type: 'answer', sdp: a }).catch(() => {}); }
+      }
+    });
+    hostLobbyUpdate();
+  } catch (e) { console.error(e); netSt('部屋を作れませんでした。通信状況を確認してください（オンラインは公開ページでのみ使えます）'); }
+}
+// ゲスト：部屋に入る
+async function joinRoom(){
+  const code = document.getElementById('code').value.replace(/\D/g, '');
+  if (code.length !== 4) { netSt('4桁の部屋番号を入れてください'); return; }
+  netClose(); net.role = 'guest'; showLobby(); netSt('部屋を探しています…');
+  try {
+    const d = await sig.get(code);
+    if (!d) { netSt('部屋' + code + 'が見つかりません。番号を確認してください'); return; }
+    net.code = code; net.mode = d.mode || 'vs';
+    for (let n = 1; n <= 3; n++) {
+      if (!d['offer' + n] || d['answer' + n]) continue;
+      const pc = mkPC(), peer = { slot: 0, pc, open: false };
+      pc.ondatachannel = e => setupPeerDC(peer, e.channel);
+      pc.onconnectionstatechange = () => { if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) peerLost(peer); };
+      await pc.setRemoteDescription({ type: 'offer', sdp: d['offer' + n] });
+      await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc);
+      try { await sig.answer(code, n, pc.localDescription.sdp); }
+      catch (e) { pc.close(); continue; } // 同時に入った人に取られたら次の枠へ
+      net.peers = [peer]; net.mySlot = n;
+      netSt('接続しています…');
+      setTimeout(() => { if (!peer.open && net.role === 'guest') netSt('つながりませんでした。同じWi-Fiにつなぐと、つながりやすくなります'); }, 20000);
+      return;
+    }
+    netSt('その部屋は満員です');
+  } catch (e) { console.error(e); netSt('接続できませんでした。番号と通信状況を確認してください（オンラインは公開ページでのみ使えます）'); }
+}
+function netClose(){
+  if (net.unsub) { net.unsub(); net.unsub = null; }
+  if (net.role === 'host' && net.code) sig.remove(net.code);
+  for (const pr of net.peers) { try { pr.pc.close(); } catch (e) {} }
+  Object.assign(net, { role: null, code: null, peers: [], mySlot: 0, members: [] });
+  online = false;
+}
+function showLobby(){ lobbyEl().classList.remove('hidden'); menu.classList.add('hidden'); renderLobby(); }
+function leaveLobby(){ netClose(); lobbyEl().classList.add('hidden'); menu.classList.remove('hidden'); }
+
+// 参加者からチームと位置を決める
+function seatPlan(count, mode, fmt){
+  // 戻り値：[{slot, team, role}]（slot=-1 はCPU）
+  if (mode === 'coop') {
+    const s = [{ slot: 0, team: 0, role: 'back' }, { slot: count > 1 ? 1 : -1, team: 0, role: 'front' }];
+    return s.concat([{ slot: -1, team: 1, role: 'back' }, { slot: -1, team: 1, role: 'front' }]);
+  }
+  if (count <= 2 && fmt === 'singles') return [{ slot: 0, team: 0, role: 'back' }, { slot: count > 1 ? 1 : -1, team: 1, role: 'back' }];
+  return [
+    { slot: 0, team: 0, role: 'back' }, { slot: count > 2 ? 2 : -1, team: 0, role: 'front' },
+    { slot: count > 1 ? 1 : -1, team: 1, role: 'back' }, { slot: count > 3 ? 3 : -1, team: 1, role: 'front' },
+  ];
+}
+function connectedSlots(){ return [0].concat(net.peers.filter(p => p.open).map(p => p.slot)).sort(); }
+function hostLobbyUpdate(){
+  if (net.role !== 'host') return;
+  // つながった順に 1,2,3 を詰めた「参加番号」を付ける
+  const conn = net.peers.filter(p => p.open);
+  conn.forEach((p, i) => { p.seat = i + 1; });
+  net.members = [{ seat: 0, name: 'ホスト' }].concat(conn.map(p => ({ seat: p.seat, name: 'プレイヤー' + (p.seat + 1) })));
+  broadcast('r', { t: 'lobby', members: net.members, mode: net.mode, fmt: net.fmt, code: net.code });
+  for (const p of conn) sendTo(p, 'r', { t: 'you', seat: p.seat });
+  renderLobby();
+}
+function renderLobby(){
+  const el = lobbyEl(); if (!el) return;
+  const host = net.role === 'host';
+  document.getElementById('lbCode').textContent = net.code || '----';
+  document.getElementById('lbMode').textContent = net.mode === 'coop' ? '協力（みんなで青チーム、相手はCPU）' : '対戦（青チーム vs 赤チーム）';
+  const cnt = Math.max(1, net.members.length);
+  const plan = seatPlan(cnt, net.mode, net.fmt);
+  const names = { 0: '青チーム', 1: '赤チーム' };
+  let html = '';
+  for (const t of [0, 1]) {
+    html += `<div class="lbTeam t${t}"><b>${names[t]}</b>`;
+    for (const s of plan.filter(q => q.team === t)) {
+      const m = net.members.find(x => x.seat === s.slot);
+      const me = s.slot === (host ? 0 : net.mySeat);
+      html += `<div>${s.role === 'back' ? '後衛' : '前衛'}：${m ? m.name + (me ? '（あなた）' : '') : 'CPU'}</div>`;
+    }
+    html += '</div>';
+  }
+  document.getElementById('lbSeats').innerHTML = html;
+  document.getElementById('lbFmt').classList.toggle('hidden', !(host && net.mode === 'vs' && cnt <= 2));
+  document.querySelectorAll('[data-fmt]').forEach(b => b.classList.toggle('sel', b.dataset.fmt === net.fmt));
+  document.getElementById('lbStart').classList.toggle('hidden', !host);
+  document.getElementById('lbStart').disabled = cnt < 2;
+  if (host) netSt(net.code ? (cnt < 2 ? 'ほかの人は「部屋に入る」でこの番号を入れてください' : `${cnt}人そろいました。「試合開始」を押してください`) : '部屋を準備しています…');
+}
+
+// ホスト：試合開始
+function hostStart(){
+  const cnt = net.members.length; if (cnt < 2 || online) return;
+  if (document.activeElement) document.activeElement.blur(); // スペースキーでボタンがもう一度押されないように
+  const plan = seatPlan(cnt, net.mode, net.fmt);
+  online = true;
+  buildPlayersFromPlan(plan, 0);
+  for (const pr of net.peers) { pr.player = players.find(p => p.seat === pr.seat && pr.open) || null; }
+  broadcast('r', { t: 'start', plan, level });
+  if (net.unsub) { net.unsub(); net.unsub = null; }
+  if (net.code) { sig.remove(net.code); net.code = null; } // 試合が始まったら部屋の書類は消す
+  lobbyEl().classList.add('hidden');
+  score = { pts: [0, 0], games: [0, 0] }; server = 0; faults = 0;
+  newPoint();
+}
+const TEAMCOL = [['#2f7cf6', '#7fb2ff'], ['#e5483b', '#ff9a8f']];
+function buildPlayersFromPlan(plan, mySeat){
+  players = []; human = null;
+  mode = plan.length === 2 ? 'singles' : 'doubles';
+  for (const s of plan) {
+    const p = mkPlayer(s.team, s.role, s.slot >= 0, TEAMCOL[s.team][s.role === 'back' ? 0 : 1]);
+    p.seat = s.slot;
+    if (s.slot === mySeat) human = p;
+    players.push(p);
+  }
+  menu.classList.add('hidden');
+}
+
+// 届いたメッセージ
+function onNetMsg(peer, m){
+  if (net.role === 'host') {
+    const p = peer.player;
+    if (m.t === 'i' && p && p.isHuman) p.inp = toWorldInput(m.i, p.team, null);
+    else if (m.t === 'sv' && p && p.isHuman) { p.serveReq = true; if (m.k) p.serveKind = m.k; }
+    return;
+  }
+  // ゲスト
+  if (m.t === 'welcome') { /* 枠が決まった */ }
+  else if (m.t === 'you') { net.mySeat = m.seat; renderLobby(); }
+  else if (m.t === 'lobby') { net.members = m.members; net.mode = m.mode; net.fmt = m.fmt; net.code = m.code; renderLobby(); netSt(`${m.members.length}人が部屋にいます。ホストが試合を始めるのを待っています…`); }
+  else if (m.t === 'start') {
+    online = true; level = m.level;
+    buildPlayersFromPlan(m.plan, net.mySeat);
+    lobbyEl().classList.add('hidden');
+    score = { pts: [0, 0], games: [0, 0] }; server = 0; faults = 0;
+    ball = { x: 0, y: 0, z: 1, vx: 0, vy: 0, vz: 0, live: false };
+    state = 'serve';
+  }
+  else if (m.t === 's') applySnapshot(m);
+}
+// ホスト → ゲスト：試合の様子（1秒に30回）
+const R3 = v => Math.round(v * 1000) / 1000;
+function hostSendState(now){
+  if (net.role !== 'host' || !online || now - net.lastSend < 33) return;
+  net.lastSend = now;
+  const P = players.map(p => [R3(p.x), R3(p.y), R3(p.vxs || 0), R3(p.walk || 0), R3(p.mv || 0), R3(Math.min(p.st ?? 9, 9)), p.shot || '', R3(p.prep || 0), p.prepType || '', R3(Math.max(-1, p.label || 0)), p.tag || '', R3(Math.min(p.jumpT ?? 9, 9)), p.serveSwing ? 1 : 0, p.isHuman ? 1 : 0]);
+  broadcast('u', { t: 's', st: state, tm: R3(timer), to: tossing ? 1 : 0, tt: R3(tossT), sv: server, ss: serveSide, f: faults, sc: [score.pts[0], score.pts[1], score.games[0], score.games[1]], b: ball ? [R3(ball.x), R3(ball.y), R3(ball.z)] : null, m: msgEl.textContent, P });
+}
+function applySnapshot(m){
+  if (!players.length) return;
+  state = m.st === 'dead' || m.st === 'rally' || m.st === 'serve' || m.st === 'over' ? m.st : state;
+  timer = m.tm; tossing = !!m.to; tossT = m.tt; server = m.sv; serveSide = m.ss; faults = m.f;
+  score = { pts: [m.sc[0], m.sc[1]], games: [m.sc[2], m.sc[3]] };
+  if (m.b && ball) { ball.tx = m.b[0]; ball.ty = m.b[1]; ball.tz = m.b[2]; if (ball.x === undefined || Math.hypot(ball.x - m.b[0], ball.y - m.b[1]) > 3) { ball.x = m.b[0]; ball.y = m.b[1]; ball.z = m.b[2]; } }
+  if (msgEl.textContent !== m.m) { msgEl.textContent = m.m; msgTimer = 999; }
+  m.P.forEach((a, i) => {
+    const p = players[i]; if (!p) return;
+    p.tx = a[0]; p.ty = a[1]; if (p.x === 0 && p.y === 0) { p.x = a[0]; p.y = a[1]; }
+    p.vxs = a[2]; p.walk = a[3]; p.mv = a[4]; p.st = a[5]; p.shot = a[6]; p.prep = a[7]; p.prepType = a[8]; p.label = a[9]; p.tag = a[10]; p.jumpT = a[11]; p.serveSwing = !!a[12];
+    if (p !== human) p.isHuman = !!a[13];
+  });
+}
+// ゲスト：毎フレーム、届いた位置へなめらかに寄せ、アニメーションの時間を進め、操作を送る
+function guestFrame(dt, now){
+  const k = 1 - Math.exp(-dt * 18);
+  for (const p of players) {
+    if (p.tx !== undefined) { p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; }
+    p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; p.label = (p.label || 0) - dt;
+  }
+  if (ball && ball.tx !== undefined) { const kb = 1 - Math.exp(-dt * 30); ball.x += (ball.tx - ball.x) * kb; ball.y += (ball.ty - ball.y) * kb; ball.z += (ball.tz - ball.z) * kb; }
+  if (state === 'serve' || state === 'rally' || state === 'dead') {
+    if (now - net.lastIn > 33) { net.lastIn = now; broadcast('u', { t: 'i', i: localInput() }); }
+    if (serveRequest) { broadcast('r', { t: 'sv', k: human && human.serveKind }); if (human) human.serveKind = null; }
+  }
+  if (state === 'over' && serveRequest) { leaveLobby(); state = 'menu'; players = []; human = null; ball = null; msgEl.textContent = ''; }
+  serveRequest = false;
+}
+
 
 function newPoint(){
   const totalPts = score.pts[0] + score.pts[1];
@@ -196,7 +526,7 @@ function newPoint(){
   ball = { x: sp.x, y: sp.y, z: 1.0, vx: 0, vy: 0, vz: 0, live: false };
   bounces = 0; isServe = true; lastHitter = null; rallyHits = 0;
   state = 'serve'; timer = 0;
-  showMsg(server === 0 && sp.isHuman ? 'スペース / タップでサーブ' : '', 0);
+  showMsg(online ? '' : (server === 0 && sp.isHuman ? 'スペース / タップでサーブ' : ''), 0);
 }
 
 let msgTimer = 0;
@@ -230,17 +560,18 @@ function hit(p){
   const err = [1.6, 1.1, 0.7][level];
   if (p.isHuman) {
     let aim = 0;
-    if (keys['arrowleft'] || keys['a']) aim -= 1;
-    if (keys['arrowright'] || keys['d']) aim += 1;
-    if (touch) aim = Math.max(-1, Math.min(1, (touch.x - p.x) / 2));
+    const I = p.inp || NOINP;
+    if (I.left) aim -= 1;
+    if (I.right) aim += 1;
+    if (I.touch) aim = Math.max(-1, Math.min(1, (I.touch.x - p.x) / 2));
     if (aim === 0) aim = (ball.x - p.x) * 0.8; // natural angle from contact point
     const W = mode === 'doubles' ? DW : SW;
     tx = Math.max(-W + 0.4, Math.min(W - 0.4, aim * (W - 0.8) + (Math.random() - .5) * 0.6));
     ty = -s * (HL - 1.6 - Math.random() * 2.5);
-    lob = keys['shift'];
-    power = !lob && (keys['arrowup'] || keys['w'] || keys['power']);
+    lob = !!I.lob;
+    power = !lob && !!I.power;
     if (power) { tx += (Math.random() - .5) * 1.6; ty -= s * (Math.random() - .3) * 2.2; }
-    drop = !lob && !power && keys['drop'];
+    drop = !lob && !power && !!I.drop;
     if (drop) { ty = -s * (1.3 + Math.random() * 2.2); tx *= 0.7; }
   } else {
     const W = mode === 'doubles' ? DW : SW;
@@ -273,7 +604,7 @@ function hit(p){
     const opps = players.filter(o => o.team !== p.team);
     tx = (Math.random() - .5) * 2 * (W - 0.8);
     if (!p.isHuman) { const o = opps[0]; tx = o.x > 0 ? -(1 + Math.random() * (W - 1.6)) : 1 + Math.random() * (W - 1.6); }
-    else if (keys['arrowleft'] || keys['a']) tx = -(W - 1); else if (keys['arrowright'] || keys['d']) tx = W - 1;
+    else if ((p.inp || NOINP).left) tx = -(W - 1); else if ((p.inp || NOINP).right) tx = W - 1;
     ty = -s * (SL - 1.5 + Math.random() * 4.5);
     lob = false; power = false;
     if (Math.random() < (p.isHuman ? 0.06 : [0.18, 0.1, 0.05][level])) ty *= 1.5;
@@ -359,12 +690,12 @@ function serve(p){
   if (!p.isHuman && Math.random() < [0.3, 0.2, 0.12][level]) ty -= s * 1.0; // fault chance
   // サーブは内側（センター方向）へ曲がる。内側の矢印を押すと大きく曲がる
   let curveAmt = 2.2, sv = 30;
-  const kind = p.isHuman ? serveKind : (Math.random() < 0.5 ? 'flat' : 'slice');
+  const kind = p.isHuman ? p.serveKind : (Math.random() < 0.5 ? 'flat' : 'slice');
   if (kind === 'flat') { curveAmt = 0.5; sv = 35; }        // フラット：速く、ほぼまっすぐ
   else if (kind === 'slice') { curveAmt = 6; sv = 27; }    // スライス：遅めで大きく内側に曲がる
-  serveKind = null;
+  p.serveKind = null;
   if (p.isHuman) {
-    const L = keys['arrowleft'] || keys['a'], Rk = keys['arrowright'] || keys['d'];
+    const L = (p.inp || NOINP).left, Rk = (p.inp || NOINP).right;
     const inward = (boxX > 0 && L) || (boxX < 0 && Rk);
     const outward = (boxX > 0 && Rk) || (boxX < 0 && L);
     if (inward) { curveAmt = Math.max(curveAmt, 6); tx = boxX * (W * 0.55); }
@@ -388,7 +719,7 @@ function serve(p){
 function pointTo(team, reason){
   if (state === 'dead') return;
   state = 'dead'; timer = 1.6; ball.live = false;
-  showMsg(reason + (team === 0 ? '  あなたのポイント！' : '  CPUのポイント'), 1.6);
+  showMsg(reason + '  ' + teamName(team) + 'のポイント' + (team === myTeam() ? '！' : ''), 1.6);
   score.pts[team]++;
   const [a, b] = score.pts;
   if ((a >= 4 || b >= 4) && Math.abs(a - b) >= 2) {
@@ -397,10 +728,10 @@ function pointTo(team, reason){
     const [g0, g1] = score.games;
     if ((g0 >= 6 || g1 >= 6) && Math.abs(g0 - g1) >= 2) {
       state = 'over'; timer = 0;
-      showMsg((g0 > g1 ? '🏆 あなたの勝ち！' : 'CPUの勝ち…') + `  ${g0}-${g1}\nクリック/タップでメニュー`, 999);
+      showMsg((g0 > g1 ? 0 : 1) === myTeam() ? `🏆 ${teamName(myTeam())}の勝ち！  ${g0}-${g1}\nクリック/タップでメニュー` : `${teamName(g0 > g1 ? 0 : 1)}の勝ち…  ${g0}-${g1}\nクリック/タップでメニュー`, 999);
       return;
     }
-    showMsg((w === 0 ? 'あなたが' : 'CPUが') + 'ゲームを取りました', 1.6);
+    showMsg(teamName(w) + 'がゲームを取りました', 1.6);
   }
 }
 function fault(reason){
@@ -410,7 +741,7 @@ function fault(reason){
   showMsg('フォルト（' + reason + '）', 1.2);
   pendingSecondServe = true;
 }
-let pendingSecondServe = false, hitFrom = null, tossing = false, serveQueued = false, serveKind = null, tossT = 0;
+let pendingSecondServe = false, hitFrom = null, tossing = false, serveQueued = false, tossT = 0;
 const DRIB = 1.5; // ボールつきの時間（0.5秒×3回）
 function dribbleQ(t){ const f = (t % 0.5) / 0.5; return (2 * f - 1) * (2 * f - 1); } // 1=手元, 0=地面
 
@@ -466,26 +797,25 @@ let gtime = 0;
 function update(dt){
   gtime += dt;
   if (msgTimer > 0 && msgTimer < 900) { msgTimer -= dt; if (msgTimer <= 0 && state !== 'serve') msgEl.textContent = ''; }
-  if (state === 'menu' || state === 'over') { if (state === 'over' && serveRequest) { serveRequest = false; state = 'menu'; menu.classList.remove('hidden'); msgEl.textContent = ''; } serveRequest = false; return; }
+  if (state === 'menu' || state === 'over') { if (state === 'over' && serveRequest) { serveRequest = false; if (online) netClose(); state = 'menu'; menu.classList.remove('hidden'); msgEl.textContent = ''; } serveRequest = false; return; }
 
-  // human movement
-  let mx = 0, my = 0;
-  if (keys['arrowleft'] || keys['a']) mx -= 1;
-  if (keys['arrowright'] || keys['d']) mx += 1;
-  if (keys['arrowup'] || keys['w']) my -= 1;
-  if (keys['arrowdown'] || keys['s']) my += 1;
-  if (joy.active) { mx = joy.x; my = joy.y; }
+  // 人が操作する選手（この端末の自分＋オンラインの仲間・相手）
+  if (human) { human.inp = toWorldInput(localInput(), human.team, touch); if (serveRequest) human.serveReq = true; }
   const hs = 3.6;
-  if (state === 'serve' && servingPlayer() === human) {
-    human.x += mx * hs * dt * 0.5;
-    const lim = serveSide > 0 ? [0.3, SW] : [-SW, -0.3];
-    human.x = Math.max(lim[0], Math.min(lim[1], human.x)); human.y = HL + 0.4;
-  } else if (touch) {
-    movePlayer(human, touch.x, touch.y, dt, hs);
-  } else if (mx || my) {
-    const l = Math.hypot(mx, my), sc = Math.min(1, l) / l; accelerate(human, mx * sc * hs, my * sc * hs, dt);
-  } else accelerate(human, 0, 0, dt);
-  clampSide(human);
+  for (const hp of players) {
+    if (!hp.isHuman) continue;
+    const I = hp.inp || NOINP, mx = I.mx, my = I.my, sg = sideSign(hp.team);
+    if (state === 'serve' && servingPlayer() === hp) {
+      hp.x += mx * hs * dt * 0.5;
+      const lim = sg * serveSide > 0 ? [0.3, SW] : [-SW, -0.3];
+      hp.x = Math.max(lim[0], Math.min(lim[1], hp.x)); hp.y = sg * (HL + 0.4);
+    } else if (I.touch) {
+      movePlayer(hp, I.touch.x, I.touch.y, dt, hs);
+    } else if (mx || my) {
+      const l = Math.hypot(mx, my), sc = Math.min(1, l) / l; accelerate(hp, mx * sc * hs, my * sc * hs, dt);
+    } else accelerate(hp, 0, 0, dt);
+    clampSide(hp);
+  }
 
   for (const p of players) {
     const d = Math.hypot(p.x - (p.px ?? p.x), p.y - (p.py ?? p.y));
@@ -524,7 +854,7 @@ function update(dt){
     aiMove(dt);
     if (!tossing) {
       // サーブ前に左手でボールを地面に3回つく。そのあと横向きに構える
-      if (sp.isHuman && serveRequest) serveQueued = true;
+      if (sp.isHuman && sp.serveReq) serveQueued = true;
       if (timer < DRIB) {
         const q = dribbleQ(timer);
         ball.x = sp.x + 0.12 * sg; ball.y = sp.y - sg * 0.41; ball.z = 0.82 * q; // 横向きの左手の下
@@ -539,17 +869,17 @@ function update(dt){
       tossT += dt; ball.x += ball.vx * dt; ball.vz -= G * dt; ball.z += ball.vz * dt;
       if (ball.vz <= 0) { tossing = false; serve(sp); }
     }
-    serveRequest = false;
+    serveRequest = false; for (const q of players) q.serveReq = false;
     return;
   }
-  serveRequest = false;
+  serveRequest = false; for (const q of players) q.serveReq = false;
 
   if (state === 'dead') {
     timer -= dt;
     stepBall(dt, true);
     aiMove(dt);
     if (timer <= 0) {
-      if (pendingSecondServe) { pendingSecondServe = false; const keep = faults; newPoint(); faults = keep; showMsg(servingPlayer().isHuman ? 'セカンドサーブ' : '', 0); }
+      if (pendingSecondServe) { pendingSecondServe = false; const keep = faults; newPoint(); faults = keep; showMsg(servingPlayer().isHuman && !online ? 'セカンドサーブ' : '', 0); }
       else { faults = 0; newPoint(); }
     }
     return;
@@ -675,11 +1005,13 @@ scene.fog = new THREE.Fog('#d9ecfa', 60, 120);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
 
 // 自分の後ろの目線に近いカメラ。自分の左右の動きに少しついていく
+function viewSign(){ return human && human.team === 1 ? -1 : 1; }
 let camBase = { fov: 50, y: 6.2, z: HL + 8.5, ly: 0.6, lz: -5 }, camX = 0;
 function placeCamera(tx){
   camX += (tx - camX) * 0.08;
-  camera.position.set(camX, camBase.y, camBase.z);
-  camera.lookAt(camX * 0.35, camBase.ly, camBase.lz);
+  const m = viewSign(); // 奥側チームの人は反対側から見る
+  camera.position.set(camX * m, camBase.y, camBase.z * m);
+  camera.lookAt(camX * 0.35 * m, camBase.ly, camBase.lz * m);
 }
 function resize(){
   const w = innerWidth, h = innerHeight;
@@ -979,7 +1311,8 @@ function render3d(){
       const col = p.tag === '詰まった！' ? '#ff6b6b' : p.tag === '正面…' ? '#c9c9c9' : p.tag ? '#ff9f1c' : p.shot === 'jk' ? '#ff3b3b' : p.shot === 'sm' ? '#ff5fd2' : p.shot && p.shot[0] === 'b' ? '#5fd0ff' : '#ffd23f';
       html += `<div style="color:${col};opacity:${Math.min(1, p.label * 2)};transform:translateY(${-(0.9 - p.label) * 20}px)">${(SHOT_NAME[p.shot] || '') + (p.tag ? ' ' + p.tag : '')}</div>`;
     }
-    if (p.isHuman) html += '<div style="color:#fff;font-size:16px">▼</div>';
+    if (p === human) html += '<div style="color:#fff;font-size:16px">▼</div>';
+    else if (online && p.isHuman) html += `<div style="color:#fff;font-size:12px;opacity:.85">P${p.seat + 1}</div>`;
     el.innerHTML = html; el.style.left = sx + 'px'; el.style.top = sy + 'px';
   }
   if (ball) {
@@ -987,7 +1320,8 @@ function render3d(){
     ballBlob.position.set(ball.x, 0.012, ball.y);
     ballBlob.material.opacity = Math.max(0.08, 0.35 - ball.z * 0.05);
   }
-  placeCamera(human && human.team === 0 ? human.x * 0.45 : 0);
+  placeCamera(human ? human.x * 0.45 * viewSign() : 0);
+  { const inGame = state !== 'menu' && !!human; document.getElementById('joy').classList.toggle('hidden', !inGame); document.getElementById('pad').classList.toggle('hidden', !inGame); }
   { const sv = state === 'serve' && human && servingPlayer() === human;
     if (sv !== lastPadServe) { lastPadServe = sv;
       for (const id of ['bPower', 'bLob', 'bDrop']) document.getElementById(id).classList.toggle('hidden', sv);
@@ -1000,7 +1334,9 @@ function render3d(){
     let pt;
     if (a >= 3 && b >= 3) pt = a === b ? 'デュース' : (a > b ? 'Ad あなた' : 'Ad CPU');
     else pt = `${names[Math.min(a, 3)]} - ${names[Math.min(b, 3)]}`;
-    hud.innerHTML = `あなた <b>${score.games[0]}</b> - <b>${score.games[1]}</b> CPU　|　${pt}　${server === 0 ? '🎾あなたのサーブ' : '🎾CPUのサーブ'}${faults ? '（2nd）' : ''}`;
+    const mt = myTeam(), ot = 1 - mt, nm = t => online ? (t === 0 ? '青' : '赤') + (t === mt ? '(あなた)' : '') : (t === 0 ? 'あなた' : 'CPU');
+    const ptS = (a >= 3 && b >= 3) ? (a === b ? 'デュース' : 'Ad ' + nm(a > b ? 0 : 1)) : `${names[Math.min(score.pts[mt], 3)]} - ${names[Math.min(score.pts[ot], 3)]}`;
+    hud.innerHTML = `${nm(mt)} <b>${score.games[mt]}</b> - <b>${score.games[ot]}</b> ${nm(ot)}　|　${ptS}　🎾${nm(server)}のサーブ${faults ? '（2nd）' : ''}`;
   }
 }
 
@@ -1064,7 +1400,9 @@ let last = performance.now();
 function loop(now){
   let dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
   const steps = 4;
-  if (!window.__freeze) for (let i = 0; i < steps; i++) update(dt / steps);
+  if (net.role === 'guest' && online) guestFrame(dt, now);
+  else if (!window.__freeze) for (let i = 0; i < steps; i++) update(dt / steps);
+  hostSendState(now);
   render3d();
   requestAnimationFrame(loop);
 }

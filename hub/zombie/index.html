@@ -39,8 +39,12 @@ button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
 .tb{position:absolute;width:84px;height:84px;padding:0;border-radius:50%;font-size:17px;opacity:.85}
 #fire{right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(90px + env(safe-area-inset-bottom,0px))}
 #bossw{position:absolute;top:46px;left:50%;transform:translateX(-50%);width:min(420px,70vw);text-align:center;font-family:var(--disp);color:#ff6b6b;pointer-events:none;text-shadow:0 0 6px #000}#bossbg{height:10px;background:rgba(255,255,255,.15);margin-top:2px}#bossbar{height:100%;width:100%;background:#d8263a}
-#sw{right:calc(112px + env(safe-area-inset-right,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));width:60px;height:60px;font-size:13px;background:#4a5a32;box-shadow:none}
-#rl{right:calc(112px + env(safe-area-inset-right,0px));bottom:calc(150px + env(safe-area-inset-bottom,0px));width:60px;height:60px;font-size:13px;background:#2a3a55;box-shadow:none}
+#sw{right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(258px + env(safe-area-inset-bottom,0px));width:60px;height:60px;font-size:13px;background:#4a5a32;box-shadow:none}
+#sticks{position:absolute;left:calc(16px + env(safe-area-inset-left,0px));bottom:calc(66px + env(safe-area-inset-bottom,0px));display:flex;gap:12px}
+.stick{position:relative;width:104px;height:104px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.35);touch-action:none}
+.stick i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.5);box-shadow:0 0 10px rgba(0,0,0,.5);pointer-events:none}
+.stick span{position:absolute;left:0;right:0;bottom:-20px;text-align:center;font-size:12px;color:var(--dim);font-family:var(--disp);pointer-events:none}
+#rl{right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(186px + env(safe-area-inset-bottom,0px));width:60px;height:60px;font-size:13px;background:#2a3a55;box-shadow:none}
 </style>
 <style>:root{padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}body{margin:0}</style>
 </head>
@@ -52,6 +56,7 @@ button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
 <div id="alert"></div>
 <div id="bottom"><div id="hpw"><small>体力</small><div id="hpbar"><div id="hp"></div></div></div><div id="ammo">12<small> / 12</small></div></div>
 <div id="bossw" hidden><small>巨大ゾンビ</small><div id="bossbg"><div id="bossbar"></div></div></div>
+<div id="sticks" hidden><div class="stick" id="stM"><i></i><span>移動</span></div><div class="stick" id="stL"><i></i><span>向き</span></div></div>
 <button id="sw" class="tb" hidden>武器</button><button id="fire" class="tb" hidden>撃つ</button><button id="rl" class="tb" hidden>装填</button>
 <div class="ov" id="title">
  <h1>センター街ゾンビナイト</h1>
@@ -61,7 +66,7 @@ button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
   <span>走るゾンビ：WAVE2から。速い</span>
   <span>巨体ゾンビ：WAVE3から。かたい</span>
  </div>
- <small>PC：マウスで視点・クリックで撃つ・WASDで移動・Shiftで走る・Rで装填（画面をクリックするとマウスが固定されます。Escで解除）<br>スマホ：左半分ドラッグで移動・右半分ドラッグで視点・「撃つ」ボタン　｜　頭を撃つと大ダメージ。10体倒すとロケットランチャー（Q / 1・2で切替）、10体ごとにボスが出現（全5種）。壊れた車は盾になる</small>
+ <small>PC：マウスで視点・クリックで撃つ・WASDで移動・Shiftで走る・Rで装填（画面をクリックするとマウスが固定されます。Escで解除）<br>スマホ：左下のスティックで移動と向き（画面ドラッグでも向きを変えられます）・右下の「撃つ」ボタン　｜　頭を撃つと大ダメージ。10体倒すとロケットランチャー（Q / 1・2で切替）、10体ごとにボスが出現（全5種）。壊れた車は盾になる</small>
  <button id="go">スタート</button>
 </div>
 <div class="ov" id="res" hidden><h1 id="rh"></h1><p id="rp"></p><button id="again">もう一回</button></div>
@@ -403,6 +408,15 @@ const tend=e=>{for(const t of e.changedTouches){if(move&&t.identifier===move.id)
 R.domElement.addEventListener('touchend',tend);R.domElement.addEventListener('touchcancel',tend);
 addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=1;const k=e.key.toLowerCase();if(k==='r')startReload();if(S&&run&&(k==='q'||k==='1'||k==='2'))setWeapon(k==='1'?'gun':k==='2'?'rl':S.p.wp==='gun'?'rl':'gun');if(e.key.startsWith('Arrow')||e.key===' ')e.preventDefault()});
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
+const stM={x:0,y:0},stL={x:0,y:0};
+function stick(el,st){const k=el.querySelector('i');let id=null,cx=0,cy=0;
+ const set=e=>{let dx=e.clientX-cx,dy=e.clientY-cy;const m=Math.hypot(dx,dy),R=40;if(m>R){dx*=R/m;dy*=R/m}k.style.transform=`translate(${dx}px,${dy}px)`;st.x=dx/R;st.y=dy/R};
+ el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();id=e.pointerId;try{el.setPointerCapture(id)}catch(_){}const r=el.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;set(e)});
+ el.addEventListener('pointermove',e=>{if(e.pointerId===id){e.preventDefault();set(e)}});
+ const off=e=>{if(e.pointerId!==id)return;id=null;st.x=st.y=0;k.style.transform=''};el.addEventListener('pointerup',off);el.addEventListener('pointercancel',off);
+ el.addEventListener('touchstart',e=>e.preventDefault(),{passive:false})}
+stick(document.getElementById('stM'),stM);stick(document.getElementById('stL'),stL);
+const sticksEl=document.getElementById('sticks');
 const fireB=document.getElementById('fire'),rlB=document.getElementById('rl');
 fireB.addEventListener('pointerdown',e=>{e.preventDefault();mouseDown=true});fireB.addEventListener('pointerup',()=>mouseDown=false);fireB.addEventListener('pointerleave',()=>mouseDown=false);
 rlB.addEventListener('pointerdown',e=>{e.preventDefault();startReload()});
@@ -459,9 +473,9 @@ function updRockets(dt){xL.intensity*=Math.pow(.02,dt);S.rk=S.rk.filter(r=>{r.m.
   if(hit){explode(q.clone().setY(Math.max(.3,q.y)));scene.remove(r.m);return false}return true})}
 function burst(pt,n,col){for(let i=0;i<n;i++){const m=new THREE.Mesh(geo('pt',()=>new THREE.BoxGeometry(.04,.04,.04)),new THREE.MeshBasicMaterial({color:col}));m.position.copy(pt);scene.add(m);S.parts.push({m,v:new THREE.Vector3(rnd(-2,2),rnd(0,3),rnd(-2,2)),t:.6})}}
 let nextStage=1;
-function start(){newGame(1);document.getElementById('title').hidden=true;document.getElementById('res').hidden=true;run=true;fireB.hidden=rlB.hidden=!isTouch;if(!isTouch){try{R.domElement.requestPointerLock()}catch(_){}}}
+function start(){newGame(1);document.getElementById('title').hidden=true;document.getElementById('res').hidden=true;run=true;fireB.hidden=rlB.hidden=sticksEl.hidden=!isTouch;if(!isTouch){try{R.domElement.requestPointerLock()}catch(_){}}}
 document.getElementById('go').onclick=start;document.getElementById('again').onclick=start;
-function end(){run=false;fireB.hidden=rlB.hidden=swB.hidden=true;document.getElementById('bossw').hidden=true;mouseDown=false;try{document.exitPointerLock()}catch(_){}
+function end(){run=false;fireB.hidden=rlB.hidden=swB.hidden=sticksEl.hidden=true;stM.x=stM.y=stL.x=stL.y=0;document.getElementById('bossw').hidden=true;mouseDown=false;try{document.exitPointerLock()}catch(_){}
  document.getElementById('res').hidden=false;document.getElementById('rh').textContent='やられた…';document.getElementById('rp').textContent=`WAVE ${S.wave}まで生き延び、ゾンビを${S.kills}体倒した。`;
  if(S.kills>best){best=S.kills;try{localStorage.setItem('zbest',best)}catch(e){}document.getElementById('best').textContent=best}}
 try{best=+localStorage.getItem('zbest')||0}catch(e){best=0}document.getElementById('best').textContent=best;
@@ -469,6 +483,8 @@ function hitObst(o,r){for(const b of S.obst){const dx=o.x-b.x,dz=o.z-b.z;if(Math
 function upd(dt){const p=S.p;S.t+=dt;
  let f=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),sx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);
  if(move){const dx=move.x-move.sx,dy=move.y-move.sy,m=Math.hypot(dx,dy);if(m>8){sx=dx/Math.max(m,50);f=-dy/Math.max(m,50)}}
+ if(stM.x||stM.y){sx=stM.x;f=-stM.y}
+ if(stL.x||stL.y){p.yaw-=stL.x*Math.abs(stL.x)*2.6*dt;p.pitch=Math.max(-1.2,Math.min(1.2,p.pitch-stL.y*Math.abs(stL.y)*1.6*dt))}
  const ml=Math.hypot(f,sx);if(ml>1){f/=ml;sx/=ml}
  const sp=(keys.shift?7:4.5),fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw);
  p.x+=(fx*f+Math.cos(p.yaw)*sx)*sp*dt;p.z+=(fz*f-Math.sin(p.yaw)*sx)*sp*dt;

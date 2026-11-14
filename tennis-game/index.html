@@ -104,7 +104,7 @@ cv.addEventListener('mousedown', () => { serveRequest = true; });
 // team 0 = player side (bottom, y>0), team 1 = CPU (top, y<0)
 let players = [], ball, state = 'menu', timer = 0;
 let score, server, serveSide, faults, lastHitter, bounces, isServe, rallyHits, human;
-const SPEED = [4.0, 4.6, 5.2];
+const SPEED = [4.5, 5.2, 5.9];
 
 function mkPlayer(team, role, isHuman, color){
   return { team, role, isHuman, color, x: 0, y: 0, hx: 0, hy: 0, cool: 0, swing: 0 };
@@ -356,7 +356,7 @@ function bouncePoint(){
   return { x: ball.x + ball.vx * t, y: ball.y + ball.vy * t, t };
 }
 // 加速度つきの移動：走り出しはゆっくり加速し、止まるときは素早く減速する
-const ACC = 11, DEC = 16;
+const ACC = 20, DEC = 26;
 function accelerate(p, dvx, dvy, dt){
   p.mvx = p.mvx || 0; p.mvy = p.mvy || 0;
   const ex = dvx - p.mvx, ey = dvy - p.mvy, e = Math.hypot(ex, ey);
@@ -393,7 +393,7 @@ function update(dt){
   if (keys['arrowright'] || keys['d']) mx += 1;
   if (keys['arrowup'] || keys['w']) my -= 1;
   if (keys['arrowdown'] || keys['s']) my += 1;
-  const hs = 4.9;
+  const hs = 5.6;
   if (state === 'serve' && servingPlayer() === human) {
     human.x += mx * hs * dt * 0.5;
     const lim = serveSide > 0 ? [0.3, SW] : [-SW, -0.3];
@@ -409,7 +409,7 @@ function update(dt){
     const d = Math.hypot(p.x - (p.px ?? p.x), p.y - (p.py ?? p.y));
     if (d < 0.5 && dt > 0) p.vxs = (p.vxs || 0) * 0.92 + ((p.x - (p.px ?? p.x)) / dt) * 0.08;
     p.px = p.x; p.py = p.y;
-    if (d < 0.5) { p.walk = (p.walk || 0) + d * 3.4; p.mv = (p.mv || 0) * 0.9 + (d / dt > 0.5 ? 1 : 0) * 0.1; }
+    if (d < 0.5) { p.walk = (p.walk || 0) + d * 3.8; p.mv = (p.mv || 0) * 0.9 + (d / dt > 0.5 ? 1 : 0) * 0.1; }
   }
   for (const p of players) {
     p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt;
@@ -563,12 +563,19 @@ scene.background = new THREE.Color('#9cc7ea');
 scene.fog = new THREE.Fog('#9cc7ea', 60, 120);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
 
+// 自分の後ろの目線に近いカメラ。自分の左右の動きに少しついていく
+let camBase = { fov: 50, y: 6.2, z: HL + 8.5, ly: 0.6, lz: -5 }, camX = 0;
+function placeCamera(tx){
+  camX += (tx - camX) * 0.08;
+  camera.position.set(camX, camBase.y, camBase.z);
+  camera.lookAt(camX * 0.35, camBase.ly, camBase.lz);
+}
 function resize(){
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false); cv.style.width = w + 'px'; cv.style.height = h + 'px';
   camera.aspect = w / h;
-  if (w >= h) { camera.fov = 40; camera.position.set(0, 13.5, HL + 13.5); camera.lookAt(0, 0, 0.2); }
-  else { camera.fov = 52; camera.position.set(0, 19, HL + 13); camera.lookAt(0, 0, -0.5); }
+  camBase = w >= h ? { fov: 50, y: 6.2, z: HL + 8.5, ly: 0.6, lz: -5 } : { fov: 64, y: 8.5, z: HL + 9.5, ly: 0.4, lz: -3.5 };
+  camera.fov = camBase.fov; placeCamera(0);
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
@@ -824,14 +831,14 @@ function render3d(){
   for (const R of rigs) {
     updateRig(R);
     const p = R.p, el = labelFor(R);
-    tmpV.set(p.x, 2.35, p.y).project(camera);
+    tmpV.set(p.x, 2.05, p.y).project(camera);
     const sx = (tmpV.x + 1) / 2 * innerWidth, sy = (1 - tmpV.y) / 2 * innerHeight;
     let html = '';
     if (p.label > 0) {
       const col = p.tag === '詰まった！' ? '#ff6b6b' : p.tag === '正面…' ? '#c9c9c9' : p.tag ? '#ff9f1c' : p.shot === 'sm' ? '#ff5fd2' : p.shot && p.shot[0] === 'b' ? '#5fd0ff' : '#ffd23f';
       html += `<div style="color:${col};opacity:${Math.min(1, p.label * 2)};transform:translateY(${-(0.9 - p.label) * 20}px)">${(SHOT_NAME[p.shot] || '') + (p.tag ? ' ' + p.tag : '')}</div>`;
     }
-    if (p.isHuman) html += '<div style="color:#fff;font-size:13px">▼ YOU</div>';
+    if (p.isHuman) html += '<div style="color:#fff;font-size:16px">▼</div>';
     el.innerHTML = html; el.style.left = sx + 'px'; el.style.top = sy + 'px';
   }
   if (ball) {
@@ -839,6 +846,7 @@ function render3d(){
     ballBlob.position.set(ball.x, 0.012, ball.y);
     ballBlob.material.opacity = Math.max(0.08, 0.35 - ball.z * 0.05);
   }
+  placeCamera(human && human.team === 0 ? human.x * 0.45 : 0);
   renderer.render(scene, camera);
   // HUD
   if (score) {

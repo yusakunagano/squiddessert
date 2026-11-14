@@ -154,7 +154,7 @@ const joy = { active: false, x: 0, y: 0, id: null };
 // team 0 = player side (bottom, y>0), team 1 = CPU (top, y<0)
 let players = [], ball, state = 'menu', timer = 0;
 let score, server, serveSide, faults, lastHitter, bounces, isServe, rallyHits, human;
-const SPEED = [3.3, 3.8, 4.3];
+const SPEED = [3.0, 3.4, 3.9];
 
 function mkPlayer(team, role, isHuman, color){
   return { team, role, isHuman, color, x: 0, y: 0, hx: 0, hy: 0, cool: 0, swing: 0 };
@@ -224,7 +224,9 @@ function hit(p){
   const isSmash = ball.z > 2.9; // 2.5m未満の高めの球はハイボレーにする
   const isVolley = !isSmash && bounces === 0 && Math.abs(p.y) < 8;
   const side = (ball.x - p.x) * s >= 0 ? 'f' : 'b';
-  p.shot = isSmash ? 'sm' : side + (isVolley ? 'v' : 's');
+  const isAirK = !isSmash && !isVolley && p.akPlanned && (p.jumpT ?? 9) < 0.7;
+  p.akPlanned = false;
+  p.shot = isSmash ? 'sm' : isAirK ? 'jk' : side + (isVolley ? 'v' : 's');
   const err = [1.6, 1.1, 0.7][level];
   if (p.isHuman) {
     let aim = 0;
@@ -328,6 +330,7 @@ function hit(p){
   if (drop && !isSmash && !mishit) spd = 8.5;
   const weak = pf < 0.8 && !isSmash;
   if (isSmash) spd = (p.isHuman ? 32 : [25, 28, 31][level]) * (mishit ? 0.6 : 1);
+  if (isAirK && !lob && !drop && !mishit) { spd *= 1.3; ty = -s * (HL - 1.2 - Math.random() * 2); }
   t = dist / spd;
   if (lob) t = Math.max(t, close === 'float' ? 1.4 : p.isHuman ? 1.7 : 1.9);
   const z = Math.max(ball.z, 0.4);
@@ -472,7 +475,7 @@ function update(dt){
   if (keys['arrowup'] || keys['w']) my -= 1;
   if (keys['arrowdown'] || keys['s']) my += 1;
   if (joy.active) { mx = joy.x; my = joy.y; }
-  const hs = 4.0;
+  const hs = 3.6;
   if (state === 'serve' && servingPlayer() === human) {
     human.x += mx * hs * dt * 0.5;
     const lim = serveSide > 0 ? [0.3, SW] : [-SW, -0.3];
@@ -491,7 +494,7 @@ function update(dt){
     if (d < 0.5) { p.walk = (p.walk || 0) + d * 3.8; p.mv = (p.mv || 0) * 0.9 + (d / dt > 0.5 ? 1 : 0) * 0.1; }
   }
   for (const p of players) {
-    p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt;
+    p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; if (p.jumpT > 0.8) p.akPlanned = false;
     // 打つ前の準備動作（テイクバック）
     let target = 0;
     if (state === 'serve' && p === servingPlayer()) { target = tossing ? 1 : 0; p.prepType = 'sm'; }
@@ -502,6 +505,12 @@ function update(dt){
         target = Math.max(0, Math.min(1, 1 - (d - 1.6) / 4.5));
         const sd = (ball.x - p.x) * sideSign(p.team) >= 0 ? 'f' : 'b';
         p.prepType = ball.z > 2.8 && ball.vz < 3 && bounces === 0 ? 'sm' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
+        // エアK：バウンド後に肩の高さへ弾んだフォア側の球が良い位置に来たら、跳び上がって打つ
+        const lat = Math.abs(ball.x - p.x);
+        if (bounces === 1 && sd === 'f' && ball.z > 1.0 && d < 2.0 && lat > 0.35 && lat < 1.4 && (p.jumpT ?? 9) > 1.2 && p.akDecided !== rallyHits) {
+          p.akDecided = rallyHits;
+          if (Math.random() < (p.isHuman ? 0.85 : [0.2, 0.35, 0.5][level])) { p.jumpT = 0; p.akPlanned = true; }
+        }
       }
     }
     p.prep = (p.prep || 0) + (target - (p.prep || 0)) * Math.min(1, dt * 10);
@@ -884,7 +893,8 @@ function updateRig(R){
   const fw = gtime * 9 + p.x * 0.7 + p.team * 1.3;
   const crouch = 0.035 * idle;
   const bob = Math.abs(Math.sin(ph)) * 0.04 * mv + Math.abs(Math.sin(fw)) * 0.03 * idle * (st0 > 0.85 ? 1 : 0) - crouch - (pose.cr || 0) - (receiving ? 0.07 : 0);
-  const W = (a, f, u, noBob) => { const a2 = a * yc + f * ys, f2 = -a * ys + f * yc; return new V3(p.x + rx * a2, u + (noBob ? 0 : bob), p.y + fz * f2); };
+  const jt = p.jumpT ?? 9, jumpH = jt < 0.6 ? Math.sin(Math.PI * jt / 0.6) * 0.5 : 0; // エアKのジャンプ
+  const W = (a, f, u, noBob) => { const a2 = a * yc + f * ys, f2 = -a * ys + f * yc; return new V3(p.x + rx * a2, u + (noBob ? 0 : bob) + jumpH, p.y + fz * f2); };
   const heading = (T) => { const a2 = Math.cos(T + yaw), f2 = -Math.sin(T + yaw); return Math.atan2(-(fz * f2), rx * a2); }; // ローカル右軸の向き
   const twist = pose.tw || 0, twc = Math.cos(twist), tws = Math.sin(twist);
   // 胴体・腰・頭
@@ -966,7 +976,7 @@ function render3d(){
     const sx = (tmpV.x + 1) / 2 * innerWidth, sy = (1 - tmpV.y) / 2 * innerHeight;
     let html = '';
     if (p.label > 0) {
-      const col = p.tag === '詰まった！' ? '#ff6b6b' : p.tag === '正面…' ? '#c9c9c9' : p.tag ? '#ff9f1c' : p.shot === 'sm' ? '#ff5fd2' : p.shot && p.shot[0] === 'b' ? '#5fd0ff' : '#ffd23f';
+      const col = p.tag === '詰まった！' ? '#ff6b6b' : p.tag === '正面…' ? '#c9c9c9' : p.tag ? '#ff9f1c' : p.shot === 'jk' ? '#ff3b3b' : p.shot === 'sm' ? '#ff5fd2' : p.shot && p.shot[0] === 'b' ? '#5fd0ff' : '#ffd23f';
       html += `<div style="color:${col};opacity:${Math.min(1, p.label * 2)};transform:translateY(${-(0.9 - p.label) * 20}px)">${(SHOT_NAME[p.shot] || '') + (p.tag ? ' ' + p.tag : '')}</div>`;
     }
     if (p.isHuman) html += '<div style="color:#fff;font-size:16px">▼</div>';
@@ -1020,13 +1030,19 @@ const POSES = {
         mid:   { tw: -0.05, h: [-0.4, 0.58, 1.1], r: [-0.22, 0.4, 0.42], l: [0.25, -0.12, 0.98], cr: 0.1, sr: 0.3 },
         fol:   { tw: 0.0, h: [-0.35, 0.6, 1.05], r: [-0.2, 0.4, 0.4], l: [0.3, -0.15, 0.95], cr: 0.08, sr: 0.3 } },
   // サーブ／スマッシュ：トロフィーポーズ → ラケットを背中に落とす → 伸び上がって打つ → 右足を後ろに蹴り上げ、体の左下へ振り抜く
+  // エアK：跳び上がり、肩の高さで叩き、空中で脚を入れ替える（シザーズ）
+  jk: { back1: { tw: 1.3, h: [0.6, -0.55, 1.6], r: [0.1, -0.3, 0.55], l: [0.0, 0.55, 1.5], cr: 0.1 },
+        back2: { tw: 1.4, h: [0.68, -0.6, 1.25], r: [0.25, -0.5, -0.2], l: [0.05, 0.5, 1.45], cr: 0.08, kr: 0.2, sr: -0.15 },
+        hit:   { tw: 0.0, h: [0.5, 0.45, 1.45], r: [0.65, 0.2, 0.15], l: [-0.4, 0.2, 1.3], sl: 0.05, sr: -0.25, kr: 0.35 },
+        mid:   { tw: -0.7, h: [0.0, 0.5, 1.75], r: [-0.45, 0.15, 0.35], l: [-0.4, 0.0, 1.2], sl: 0.25, sr: 0.0, kr: 0.15 },
+        fol:   { tw: -1.15, h: [-0.3, 0.1, 1.7], r: [-0.15, -0.45, -0.3], l: [-0.15, 0.3, 1.4], sl: 0.35, sr: 0.12, kr: 0.0 } },
   sm: { back1: { tw: 1.1, h: [0.45, -0.25, 1.55], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.15], cr: 0.07 },
         back2: { tw: 0.9, h: [0.3, -0.15, 1.7], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.95], cr: 0.1 },
         hit:   { tw: 0.2, h: [0.2, 0.3, 2.3], r: [0.0, 0.25, 0.62], l: [-0.3, 0.2, 1.3], cr: -0.03 },
         mid:   { tw: -0.4, h: [0.0, 0.6, 1.3], r: [-0.1, 0.5, -0.3], l: [-0.35, 0.1, 1.0], cr: 0.05, sr: -0.25, kr: 0.22 },
         fol:   { tw: -0.7, h: [-0.35, 0.25, 0.75], r: [-0.3, 0.0, -0.55], l: [-0.4, -0.2, 1.0], cr: 0.08, sr: -0.35, kr: 0.15 } },
 };
-const SHOT_NAME = { fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
+const SHOT_NAME = { jk: 'エアK！', fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
 function lerp3(a, b, t){ return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 function lerpPose(A, B, t){
   t = Math.max(0, Math.min(1, t)); t = t * t * (3 - 2 * t);

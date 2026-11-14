@@ -154,7 +154,7 @@ const joy = { active: false, x: 0, y: 0, id: null };
 // team 0 = player side (bottom, y>0), team 1 = CPU (top, y<0)
 let players = [], ball, state = 'menu', timer = 0;
 let score, server, serveSide, faults, lastHitter, bounces, isServe, rallyHits, human;
-const SPEED = [4.5, 5.2, 5.9];
+const SPEED = [4.1, 4.7, 5.3];
 
 function mkPlayer(team, role, isHuman, color){
   return { team, role, isHuman, color, x: 0, y: 0, hx: 0, hy: 0, cool: 0, swing: 0 };
@@ -221,7 +221,7 @@ function hit(p){
   const contact = Math.hypot(ball.x - p.x, ball.y - p.y);
   let jam = Math.max(0, (0.6 - contact) / 0.6); // 近すぎて詰まった度合い
   const vsSmash = !!ball.smash;
-  const isSmash = ball.z > 2.0;
+  const isSmash = ball.z > 2.5; // 2.5m未満の高めの球はハイボレーにする
   const isVolley = !isSmash && bounces === 0 && Math.abs(p.y) < 8;
   const side = (ball.x - p.x) * s >= 0 ? 'f' : 'b';
   p.shot = isSmash ? 'sm' : side + (isVolley ? 'v' : 's');
@@ -453,7 +453,7 @@ function update(dt){
   if (keys['arrowup'] || keys['w']) my -= 1;
   if (keys['arrowdown'] || keys['s']) my += 1;
   if (joy.active) { mx = joy.x; my = joy.y; }
-  const hs = 5.6;
+  const hs = 5.0;
   if (state === 'serve' && servingPlayer() === human) {
     human.x += mx * hs * dt * 0.5;
     const lim = serveSide > 0 ? [0.3, SW] : [-SW, -0.3];
@@ -482,7 +482,7 @@ function update(dt){
       if (coming && d < 8) {
         target = Math.max(0, Math.min(1, 1 - (d - 1.6) / 4.5));
         const sd = (ball.x - p.x) * sideSign(p.team) >= 0 ? 'f' : 'b';
-        p.prepType = ball.z > 1.9 && ball.vz < 3 && bounces === 0 ? 'sm' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
+        p.prepType = ball.z > 2.4 && ball.vz < 3 && bounces === 0 ? 'sm' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
       }
     }
     p.prep = (p.prep || 0) + (target - (p.prep || 0)) * Math.min(1, dt * 10);

@@ -627,7 +627,7 @@ function upd(dt){const p=S.p;S.t+=dt;
  let f=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),sx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);
  if(move){const dx=move.x-move.sx,dy=move.y-move.sy,m=Math.hypot(dx,dy);if(m>8){sx=dx/Math.max(m,50);f=-dy/Math.max(m,50)}}
  if(stM.x||stM.y){sx=stM.x;f=-stM.y}
- if(stL.x||stL.y){p.yaw-=stL.x*Math.abs(stL.x)*2.6*dt;p.pitch=Math.max(-1.2,Math.min(1.2,p.pitch-stL.y*Math.abs(stL.y)*1.6*dt))}
+ if(stL.x||stL.y){p.yaw-=stL.x*Math.abs(stL.x)*1.5*dt;p.pitch=Math.max(-1.2,Math.min(1.2,p.pitch-stL.y*Math.abs(stL.y)*.9*dt))}
  if(p.dn){f=sx=0}
  const ml=Math.hypot(f,sx);if(ml>1){f/=ml;sx/=ml}
  const sp=(keys.shift?7:4.5),fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw);

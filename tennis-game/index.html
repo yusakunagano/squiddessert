@@ -287,6 +287,25 @@ function hit(p){
   // 近くから打たれた時：60% ふわっとした球 / 20% ネット / 10% ビシッと返す / 10% 大きく詰まる
   let close = '';
   if (rush > 0.25) { const q = Math.random(); close = q < 0.6 ? 'float' : q < 0.8 ? 'net' : q < 0.9 ? 'good' : 'wild'; }
+  // 難しい球（近い打ち合い・体の正面・速い球）はミスが出やすい：コースがぶれる／ふわっと浮く／ネットや大きなミス
+  if (!close && !isSmash && !lob) {
+    const inSpd = Math.hypot(ball.vx, ball.vy);
+    let quick = 0;
+    if (bounces === 0 && hitFrom) {
+      const react = Math.hypot(p.x - hitFrom.x, p.y - hitFrom.y) / Math.max(1, inSpd);
+      quick = Math.max(0, Math.min(1, (0.9 - react) / 0.5));
+    }
+    const lat0 = Math.abs(ball.x - p.x);
+    const center = lat0 < 0.35 ? (0.35 - lat0) / 0.35 : 0;
+    const fast = Math.max(0, Math.min(1, (inSpd - 21) / 16));
+    const pressure = Math.min(1, Math.max(quick, center * 0.8, fast) + 0.25 * (quick + center + fast - Math.max(quick, center, fast)));
+    if (Math.random() < pressure * 0.7) {
+      const q = Math.random();
+      close = q < 0.45 ? 'ctrl' : q < 0.8 ? 'float' : 'net';
+      rush = Math.max(rush, pressure);
+    }
+  }
+  if (close === 'ctrl') { tx += (Math.random() - .5) * 6 * rush; ty += -s * (Math.random() - .4) * 5 * rush; }
   if ((jam > 0 && Math.random() < 0.25 + jam * 0.6) || close === 'net' || close === 'wild' || (vsSmash && Math.random() < 0.4)) {
     if (close) jam = Math.max(jam, 0.7);
     if (vsSmash) jam = Math.max(jam, 0.9);
@@ -317,7 +336,7 @@ function hit(p){
   if (netMiss) ball.vz *= 0.35;
   ball.smash = isSmash && !mishit; ball.curve = 0;
   ball.volley = isVolley;
-  p.tag = drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
+  p.tag = close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
   lastHitter = p; bounces = 0; isServe = false; rallyHits++;
   hitFrom = { x: ball.x, y: ball.y };
   p.prepType = p.prepType && p.prepType === p.shot ? p.prepType : p.shot;

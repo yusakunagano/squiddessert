@@ -22,6 +22,15 @@
   button.sub{background:#cfd8d3}
   .help{font-size:14px;opacity:.85;max-width:420px;text-align:center;line-height:1.6}
   .hidden{display:none!important}
+  /* 画面のコントローラー（左下：スティック、右下：ボタン） */
+  #joy{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:max(18px,env(safe-area-inset-bottom));width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.45);touch-action:none;user-select:none;-webkit-user-select:none}
+  #knob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 2px 8px rgba(0,0,0,.35);pointer-events:none}
+  #pad{position:absolute;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));width:190px;height:150px;touch-action:none;user-select:none;-webkit-user-select:none}
+  .pbtn{position:absolute;width:68px;height:68px;border-radius:50%;border:2px solid rgba(255,255,255,.7);color:#fff;font:bold 14px sans-serif;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 2px #000;box-shadow:0 2px 8px rgba(0,0,0,.35);touch-action:none}
+  .pbtn.on{transform:scale(.92);filter:brightness(1.3)}
+  #bServe{right:0;bottom:40px;width:80px;height:80px;background:rgba(242,212,61,.75);color:#222;text-shadow:none;font-size:15px}
+  #bPower{right:92px;bottom:0;background:rgba(255,120,40,.7)}
+  #bLob{right:92px;bottom:80px;background:rgba(60,150,255,.7)}
 </style>
 </head>
 <body>
@@ -29,6 +38,12 @@
   <canvas id="c"></canvas>
   <div id="hud"></div>
   <div id="msg"></div>
+  <div id="joy"><div id="knob"></div></div>
+  <div id="pad">
+    <div class="pbtn" id="bServe">サーブ</div>
+    <div class="pbtn" id="bPower">強打</div>
+    <div class="pbtn" id="bLob">ロブ</div>
+  </div>
   <div class="menu" id="menu">
     <h1>🎾 テニス</h1>
     <h2>モードを選択</h2>
@@ -57,6 +72,7 @@
       ボールを体の少し右か左でとらえると力が伝わる（正面だと弱い球）。<br>
       Shift を押しながら打つとロブ。<br>
       サーブ：スペース（スマホはタップ）<br>
+      画面の左下のスティックで移動、右下のボタンでサーブ・強打・ロブもできます。<br>
       1セットマッチ（6ゲーム先取・2ゲーム差）
     </div>
   </div>
@@ -99,6 +115,34 @@ cv.addEventListener('touchstart', e => { touch = toCourt(e.touches[0]); serveReq
 cv.addEventListener('touchmove', e => { touch = toCourt(e.touches[0]); e.preventDefault(); }, { passive: false });
 cv.addEventListener('touchend', () => { touch = null; });
 cv.addEventListener('mousedown', () => { serveRequest = true; });
+// ---- 画面のコントローラー ----
+const joy = { active: false, x: 0, y: 0, id: null };
+{
+  const el = document.getElementById('joy'), knob = document.getElementById('knob'), R = 50;
+  const setFrom = (e) => {
+    const r = el.getBoundingClientRect();
+    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; }
+    knob.style.transform = `translate(${dx}px,${dy}px)`;
+    joy.x = dx / R; joy.y = dy / R;
+    // 左右はコース狙い・サーブの曲げにも使う
+    keys['arrowleft'] = joy.x < -0.35; keys['arrowright'] = joy.x > 0.35;
+  };
+  const end = () => { joy.active = false; joy.x = joy.y = 0; joy.id = null; knob.style.transform = ''; keys['arrowleft'] = keys['arrowright'] = false; };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); joy.active = true; joy.id = e.pointerId; el.setPointerCapture(e.pointerId); setFrom(e); });
+  el.addEventListener('pointermove', e => { if (joy.active && e.pointerId === joy.id) setFrom(e); });
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  const hold = (id, key, onDown) => {
+    const b = document.getElementById(id);
+    const up = () => { b.classList.remove('on'); if (key) keys[key] = false; };
+    b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); b.setPointerCapture(e.pointerId); b.classList.add('on'); if (key) keys[key] = true; if (onDown) onDown(); });
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
+  };
+  hold('bServe', null, () => { serveRequest = true; });
+  hold('bPower', 'power');
+  hold('bLob', 'shift');
+  for (const id of ['joy', 'pad']) document.getElementById(id).addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+}
 
 // ---- game state ----
 // team 0 = player side (bottom, y>0), team 1 = CPU (top, y<0)
@@ -186,7 +230,7 @@ function hit(p){
     tx = Math.max(-W + 0.4, Math.min(W - 0.4, aim * (W - 0.8) + (Math.random() - .5) * 0.6));
     ty = -s * (HL - 1.6 - Math.random() * 2.5);
     lob = keys['shift'];
-    power = !lob && (keys['arrowup'] || keys['w']);
+    power = !lob && (keys['arrowup'] || keys['w'] || keys['power']);
     if (power) { tx += (Math.random() - .5) * 1.6; ty -= s * (Math.random() - .3) * 2.2; }
   } else {
     const W = mode === 'doubles' ? DW : SW;
@@ -395,6 +439,7 @@ function update(dt){
   if (keys['arrowright'] || keys['d']) mx += 1;
   if (keys['arrowup'] || keys['w']) my -= 1;
   if (keys['arrowdown'] || keys['s']) my += 1;
+  if (joy.active) { mx = joy.x; my = joy.y; }
   const hs = 5.6;
   if (state === 'serve' && servingPlayer() === human) {
     human.x += mx * hs * dt * 0.5;
@@ -403,7 +448,7 @@ function update(dt){
   } else if (touch) {
     movePlayer(human, touch.x, touch.y, dt, hs);
   } else if (mx || my) {
-    const l = Math.hypot(mx, my); accelerate(human, mx / l * hs, my / l * hs, dt);
+    const l = Math.hypot(mx, my), sc = Math.min(1, l) / l; accelerate(human, mx * sc * hs, my * sc * hs, dt);
   } else accelerate(human, 0, 0, dt);
   clampSide(human);
 
@@ -597,7 +642,7 @@ function resize(){
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false); cv.style.width = w + 'px'; cv.style.height = h + 'px';
   camera.aspect = w / h;
-  camBase = w >= h ? { fov: 50, y: 6.2, z: HL + 8.5, ly: 0.6, lz: -5 } : { fov: 64, y: 8.5, z: HL + 9.5, ly: 0.4, lz: -3.5 };
+  camBase = w >= h ? { fov: 50, y: 6.2, z: HL + 8.5, ly: 0.6, lz: -5 } : { fov: 66, y: 9.5, z: HL + 9.5, ly: 0, lz: -1 };
   camera.fov = camBase.fov; placeCamera(0);
   camera.updateProjectionMatrix();
 }

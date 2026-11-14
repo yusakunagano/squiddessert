@@ -76,9 +76,9 @@ button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
   <span>走るゾンビ：WAVE2から。速い</span>
   <span>巨体ゾンビ：WAVE3から。かたい</span>
  </div>
- <small><span class="pc">PC：マウスで視点・クリックで撃つ・WASDで移動・Shiftで走る・Rで装填・Q / 1〜6キーで武器切替<br></span><span class="tc">スマホ：左下のスティックで移動、右下のスティックで向き、「撃つ」「武器」ボタン<br></span>2人で遊ぶ：1台目で「部屋を作る」→ 出てきた4桁の番号を、2台目の「部屋に入る」に入力</small>
+ <small><span class="pc">PC：マウスで視点・クリックで撃つ・WASDで移動・Shiftで走る・Rで装填・Q / 1〜6キーで武器切替<br></span><span class="tc">スマホ：左下のスティックで移動、右下のスティックで向き、「撃つ」「武器」ボタン<br></span>みんなで遊ぶ（最大4人）：1台目で「部屋を作る」→ 出てきた4桁の番号を、ほかの端末の「部屋に入る」に入力 → そろったら「この人数でスタート」</small>
  <div class="mp"><button id="go">ひとりで遊ぶ</button>
-  <div class="mprow"><button id="host" class="alt">部屋を作る</button><span class="join"><input id="code" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="4桁の番号" aria-label="部屋番号" autocomplete="off"><button id="join" class="alt">部屋に入る</button></span></div>
+  <div class="mprow"><button id="host" class="alt">部屋を作る</button><button id="hoststart" hidden>この人数でスタート</button><span class="join"><input id="code" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="4桁の番号" aria-label="部屋番号" autocomplete="off"><button id="join" class="alt">部屋に入る</button></span></div>
   <p id="netst" aria-live="polite"></p></div>
 </div>
 <div class="ov" id="res" hidden><h1 id="rh"></h1><p id="rp"></p><button id="again">もう一回</button></div>
@@ -253,59 +253,85 @@ function mkBoss(ty){const g=new THREE.Group();scene.add(g);let o;
   o={hp:240,sp:1.05,r:2,hy:5,dmg:45,sc:5,anim:(z,s)=>{walkAnim(P,s*3,S.t*.6+z.ph);const[a1,a2]=P.userData.arms;a1.rotation.x=a2.rotation.x=-1.2+Math.sin(S.t*2)*.2;
    for(const [a,sd,row] of arms){a.rotation.x=-1+Math.sin(S.t*3+a.userData.ph)*.7;a.userData.k.rotation.x=-.5-Math.sin(S.t*4+a.userData.ph)*.4}}}}
  o.m=g;return o}
-// ===== 2人プレイ（Firebase で部屋番号を受け渡し、WebRTC で直接通信） =====
-const net={role:null,u:null,r:null,pc:null,open:false,t:0,acc:{},accH:{},seed:null,wantRole:null};
+// ===== 最大4人プレイ（Firebase で部屋番号を受け渡し、WebRTC で部屋を作った人と各参加者が直接通信） =====
+const MAXP=4,PCOL=[0x2a4fb0,0xb03a2a,0x2a9a4a,0xc0a020],PNAME=['P1','P2','P3','P4'],PCSS=['#7fb4ff','#ff8a7a','#7fe0a0','#ffd860'];
+const net={role:null,slot:0,peers:{},host:null,lobby:false,t:0,acc:{},accH:{},seed:null,joins:[]};
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-net.send=(o,rel)=>{const ch=rel?net.r:net.u;if(ch&&ch.readyState==='open'){try{ch.send(JSON.stringify(o))}catch(e){}}};
+function chSend(L,o,rel){const ch=L&&(rel?L.r:L.u);if(ch&&ch.readyState==='open'){try{ch.send(JSON.stringify(o))}catch(e){}}}
+net.send=(o,rel)=>{if(net.role==='guest'||(!net.role&&net.host))chSend(net.host,o,rel);else for(const k in net.peers)chSend(net.peers[k],o,rel)};
+function sendTo(slot,o,rel){chSend(net.peers[slot],o,rel)}
 const netst=document.getElementById('netst');function st(h){netst.innerHTML=h}
 const NET_SDK='https://www.gstatic.com/firebasejs/12.19.0';let FB=null;
 async function fb(){if(FB)return FB;const [cfg,A,Au,F]=await Promise.all([import('../../nine-game/firebase-config.js?v=20261024'),import(NET_SDK+'/firebase-app.js'),import(NET_SDK+'/firebase-auth.js'),import(NET_SDK+'/firebase-firestore.js')]);
  const app=A.initializeApp(cfg.firebaseConfig,'zombie');const auth=Au.getAuth(app);if(!auth.currentUser)await Au.signInAnonymously(auth);FB={F,db:F.getFirestore(app),uid:auth.currentUser.uid};return FB}
-function mkPC(){const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]});
- pc.onconnectionstatechange=()=>{if(net.open&&(pc.connectionState==='failed'||pc.connectionState==='disconnected'||pc.connectionState==='closed'))peerLost()};return pc}
+function mkPC(){return new RTCPeerConnection({iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]})}
 function iceDone(pc){return new Promise(r=>{if(pc.iceGatheringState==='complete')return r();const t=setTimeout(r,3500);pc.addEventListener('icegatheringstatechange',()=>{if(pc.iceGatheringState==='complete'){clearTimeout(t);r()}})})}
-function setupDC(ch){if(ch.label==='u')net.u=ch;else net.r=ch;ch.onmessage=e=>{try{onMsg(JSON.parse(e.data))}catch(err){console.error(err)}};ch.onopen=netReady;ch.onclose=()=>{if(net.open)peerLost()};netReady()}
-function netReady(){if(net.open||!net.u||!net.r||net.u.readyState!=='open'||net.r.readyState!=='open')return;net.open=true;clearTimeout(net.timer);
- if(net.unsub)net.unsub();if(net.wantRole==='host'&&net.ref&&FB)FB.F.deleteDoc(net.ref).catch(()=>{});st('');start(net.wantRole,net.seed)}
+function isOpen(L){return L&&L.u&&L.r&&L.u.readyState==='open'&&L.r.readyState==='open'}
+function attach(L,ch,onOpen){if(ch.label==='u')L.u=ch;else L.r=ch;ch.onmessage=e=>{try{onMsg(JSON.parse(e.data),L.slot)}catch(err){console.error(err)}};
+ ch.onopen=()=>{if(isOpen(L)&&!L.ok){L.ok=true;onOpen()}};ch.onclose=()=>linkLost(L);if(isOpen(L)&&!L.ok){L.ok=true;onOpen()}}
+function watchPC(L){L.pc.onconnectionstatechange=()=>{const s=L.pc.connectionState;if(s==='failed'||s==='closed'||(s==='disconnected'&&L.ok))linkLost(L)}}
+function lobbyText(){const n=1+Object.values(net.peers).filter(isOpen).length;return '部屋番号 <b class="roomcode">'+net.code+'</b>参加者 '+n+' / '+MAXP+' 人　ほかの端末で「部屋に入る」にこの番号を入れてください'}
 async function hostRoom(){netReset();st('部屋を準備しています…');
- try{const {F,db,uid}=await fb();const pc=mkPC();net.pc=pc;net.wantRole='host';setupDC(pc.createDataChannel('u',{ordered:false,maxRetransmits:0}));setupDC(pc.createDataChannel('r'));
-  await pc.setLocalDescription(await pc.createOffer());await iceDone(pc);
-  const seed=Math.floor(REALRAND()*1e9);net.seed=seed;let code,ref=null;
-  for(let i=0;i<8&&!ref;i++){code=String(1000+Math.floor(REALRAND()*9000));const r=F.doc(db,'zombieRooms',code);try{await F.setDoc(r,{offer:pc.localDescription.sdp,seed,host:uid,createdAt:F.serverTimestamp()});ref=r}catch(e){}}
-  if(!ref)throw new Error('部屋番号を確保できませんでした');net.ref=ref;
-  st('部屋番号 <b class="roomcode">'+code+'</b>もう1台で「部屋に入る」に、この番号を入れてください');
-  net.unsub=F.onSnapshot(ref,s=>{const d=s.data();if(d&&d.answer&&!pc.currentRemoteDescription){st('接続しています…');pc.setRemoteDescription({type:'answer',sdp:d.answer}).catch(()=>st('つながりませんでした。もう一度部屋を作ってください'));
-   net.timer=setTimeout(()=>{if(!net.open)st('つながりませんでした。2台を同じWi-Fiにつなぐと、つながりやすくなります')},20000)}})}
+ try{const {F,db,uid}=await fb();const seed=Math.floor(REALRAND()*1e9);net.seed=seed;let code,ref=null;
+  for(let i=0;i<8&&!ref;i++){code=String(1000+Math.floor(REALRAND()*9000));const r=F.doc(db,'zombieRooms',code);try{await F.setDoc(r,{seed,host:uid,createdAt:F.serverTimestamp()});ref=r}catch(e){}}
+  if(!ref)throw new Error('部屋番号を確保できませんでした');net.ref=ref;net.code=code;net.lobby=true;net.amHost=true;st(lobbyText());document.getElementById('hoststart').hidden=false;
+  net.unsub=F.onSnapshot(F.collection(ref,'joins'),snap=>{for(const ch of snap.docChanges()){if(ch.type!=='added')continue;const d=ch.doc.data();if(!d.offer||d.answer)continue;answerJoin(ch.doc.ref,d.offer)}})}
  catch(e){console.error(e);st('部屋を作れませんでした。通信状況を確認してください')}}
+async function answerJoin(jref,offer){const {F}=FB;net.joins.push(jref);
+ if(!net.lobby){F.updateDoc(jref,{answer:'STARTED'}).catch(()=>{});return}
+ let slot=0;for(let s=1;s<MAXP;s++)if(!net.peers[s]){slot=s;break}
+ if(!slot){F.updateDoc(jref,{answer:'FULL'}).catch(()=>{});return}
+ const L={slot,pc:mkPC()};net.peers[slot]=L;watchPC(L);L.pc.ondatachannel=e=>attach(L,e.channel,()=>{st(lobbyText());chSend(L,{t:'hello',slot},1)});
+ try{await L.pc.setRemoteDescription({type:'offer',sdp:offer});await L.pc.setLocalDescription(await L.pc.createAnswer());await iceDone(L.pc);await F.updateDoc(jref,{answer:L.pc.localDescription.sdp,slot})}
+ catch(e){console.error(e);delete net.peers[slot]}}
+function hostStart(){if(!net.lobby)return;net.lobby=false;document.getElementById('hoststart').hidden=true;
+ for(const k in net.peers)if(!isOpen(net.peers[k])){try{net.peers[k].pc.close()}catch(e){}delete net.peers[k]}
+ if(net.unsub){net.unsub();net.unsub=null}if(FB){for(const j of net.joins)FB.F.deleteDoc(j).catch(()=>{});if(net.ref)FB.F.deleteDoc(net.ref).catch(()=>{})}
+ const slots=[0,...Object.keys(net.peers).map(Number)];net.send({t:'start',seed:net.seed,slots},1);st('');start('host',net.seed,slots)}
 async function joinRoom(){const code=document.getElementById('code').value.replace(/\D/g,'');if(code.length!==4)return st('4桁の部屋番号を入れてください');netReset();st('部屋を探しています…');
- try{const {F,db}=await fb();const ref=F.doc(db,'zombieRooms',code);const s=await F.getDoc(ref);const d=s.data();if(!d||!d.offer)return st('部屋'+code+'が見つかりません。番号を確認してください');if(d.answer)return st('その部屋は、もう別の人が入っています');
-  net.seed=d.seed;net.wantRole='guest';const pc=mkPC();net.pc=pc;pc.ondatachannel=e=>setupDC(e.channel);
-  await pc.setRemoteDescription({type:'offer',sdp:d.offer});await pc.setLocalDescription(await pc.createAnswer());await iceDone(pc);
-  await F.updateDoc(ref,{answer:pc.localDescription.sdp});st('接続しています…');
-  net.timer=setTimeout(()=>{if(!net.open)st('つながりませんでした。2台を同じWi-Fiにつなぐと、つながりやすくなります')},20000)}
+ try{const {F,db,uid}=await fb();const ref=F.doc(db,'zombieRooms',code);const s=await F.getDoc(ref);const d=s.data();if(!d)return st('部屋'+code+'が見つかりません。番号を確認してください');
+  net.seed=d.seed;const L={slot:0,pc:mkPC()};net.host=L;watchPC(L);
+  const onOpen=()=>st('つながりました。部屋を作った人がスタートするのを待っています…');
+  attach(L,L.pc.createDataChannel('u',{ordered:false,maxRetransmits:0}),onOpen);attach(L,L.pc.createDataChannel('r'),onOpen);
+  await L.pc.setLocalDescription(await L.pc.createOffer());await iceDone(L.pc);
+  const jref=F.doc(db,'zombieRooms',code,'joins',uid);await F.deleteDoc(jref).catch(()=>{});await F.setDoc(jref,{offer:L.pc.localDescription.sdp,createdAt:F.serverTimestamp()});st('部屋を作った人の返事を待っています…');
+  net.unsub=F.onSnapshot(jref,s2=>{const j=s2.data();if(!j||!j.answer||L.pc.currentRemoteDescription)return;
+   if(j.answer==='FULL')return st('その部屋は満員です（最大'+MAXP+'人）');if(j.answer==='STARTED')return st('その部屋はもうゲームを始めています');
+   net.slot=j.slot;st('接続しています…');L.pc.setRemoteDescription({type:'answer',sdp:j.answer}).catch(()=>st('つながりませんでした'));
+   net.timer=setTimeout(()=>{if(!isOpen(L))st('つながりませんでした。全員を同じWi-Fiにつなぐと、つながりやすくなります')},20000)})}
  catch(e){console.error(e);st('接続できませんでした。番号と通信状況を確認してください')}}
-function netReset(){clearTimeout(net.timer);if(net.unsub){net.unsub();net.unsub=null}if(net.pc){try{net.pc.close()}catch(e){}}Object.assign(net,{role:null,u:null,r:null,pc:null,open:false,acc:{},accH:{},ref:null})}
-function peerLost(){if(!net.role)return;const wasGuest=net.role==='guest';net.open=false;net.role=null;
- if(S&&S.peer){scene.remove(S.peer.m);S.peer=null}
- if(run){if(wasGuest){end('仲間との接続が切れました')}else msg('仲間との接続が切れました。ひとりで続けます',3)}}
-function makePeer(){const m=mkPerson(0x2a4fb0,0x2a1a10,1,g=>{const gn=new THREE.Mesh(new THREE.BoxGeometry(.06,.08,.35),M(0x222222));gn.position.set(.26,1.12,.28);g.add(gn)},{mood:'n'});add(m);
- const lb=sprite(labelTex('仲間','#7fd4ff'),1.2,.3);lb.position.y=2.2;m.add(lb);S.peer={m,x:0,z:5,tx:0,tz:5,yaw:0,dn:0,spd:0}}
-function updPeer(dt){const q=S.peer;if(!q)return;const ox=q.x,oz=q.z,k=Math.min(1,dt*12);q.x+=(q.tx-q.x)*k;q.z+=(q.tz-q.z)*k;const sp=Math.hypot(q.x-ox,q.z-oz)/Math.max(dt,1e-3);
- q.m.position.set(q.x,q.dn?.3:0,q.z);q.m.rotation.y=q.yaw+Math.PI;q.m.rotation.x=q.dn?-Math.PI/2:0;walkAnim(q.m,q.dn?0:sp,S.t);const a=q.m.userData.arms[1];a.rotation.x=-1.4;a.userData.k.rotation.x=0}
-function zTarget(z){const p=S.p,q=S.peer,c=[];if(!p.dn)c.push(p);if(q&&!q.dn)c.push(q);if(!c.length)return p;let b=c[0],bd=1e9;for(const o of c){const d=Math.hypot(o.x-z.x,o.z-z.z);if(d<bd){bd=d;b=o}}return b}
+function netReset(){clearTimeout(net.timer);if(net.unsub){net.unsub();net.unsub=null}
+ for(const L of [net.host,...Object.values(net.peers)])if(L){L.dead=true;try{L.pc.close()}catch(e){}}
+ Object.assign(net,{role:null,slot:0,peers:{},host:null,lobby:false,acc:{},accH:{},ref:null,joins:[],amHost:false});const hs=document.getElementById('hoststart');if(hs)hs.hidden=true}
+function linkLost(L){if(L.dead)return;L.dead=true;try{L.pc.close()}catch(e){}
+ if(L===net.host){net.host=null;if(run&&net.role==='guest')end('部屋を作った人との接続が切れました');else st('部屋を作った人との接続が切れました');return}
+ delete net.peers[L.slot];if(net.lobby){st(lobbyText());return}
+ if(S&&S.mates[L.slot]){scene.remove(S.mates[L.slot].m);delete S.mates[L.slot]}if(run)msg(PNAME[L.slot]+'との接続が切れました',3)}
+function makeMate(slot){const m=mkPerson(PCOL[slot],0x2a1a10,1,g=>{const gn=new THREE.Mesh(new THREE.BoxGeometry(.06,.08,.35),M(0x222222));gn.position.set(.26,1.12,.28);g.add(gn)},{mood:'n'});add(m);
+ const lb=sprite(labelTex(PNAME[slot],PCSS[slot]),1.2,.3);lb.position.y=2.2;m.add(lb);return S.mates[slot]={m,slot,x:0,z:5,tx:0,tz:5,yaw:0,dn:0}}
+function updMates(dt){for(const q of Object.values(S.mates)){const ox=q.x,oz=q.z,k=Math.min(1,dt*12);q.x+=(q.tx-q.x)*k;q.z+=(q.tz-q.z)*k;const sp=Math.hypot(q.x-ox,q.z-oz)/Math.max(dt,1e-3);
+ q.m.position.set(q.x,q.dn?.3:0,q.z);q.m.rotation.y=q.yaw+Math.PI;q.m.rotation.x=q.dn?-Math.PI/2:0;walkAnim(q.m,q.dn?0:sp,S.t);const a=q.m.userData.arms[1];a.rotation.x=-1.4;a.userData.k.rotation.x=0}}
+function alivePeer(){return Object.values(S.mates).find(q=>!q.dn)}
+function allPeersDown(){return Object.values(S.mates).every(q=>q.dn)}
+function zTarget(z){const p=S.p,c=[];if(!p.dn)c.push(p);for(const q of Object.values(S.mates))if(!q.dn)c.push(q);if(!c.length)return p;let b=c[0],bd=1e9;for(const o of c){const d=Math.hypot(o.x-z.x,o.z-z.z);if(d<bd){bd=d;b=o}}return b}
 function hurtZ(z,a,head){if(z.dead)return;z.hp-=a;
  if(net.role==='guest'){net.acc[z.id]=(net.acc[z.id]||0)+a;if(head)net.accH[z.id]=1;return}
  if(z.hp<=0){z.dead=1;z.dt=0;onKill(z,head)}}
 function hurtMe(d){const p=S.p;if(p.dn)return;p.hp-=d;p.hurt=.4;const el=document.getElementById('dmg');el.style.opacity=1;setTimeout(()=>el.style.opacity=0,180);
  if(p.hp>0)return;p.hp=0;if(!net.role){updHud();end();return}p.dn=1;p.dnT=10}
-function netTick(dt){if(!net.role)return;net.t-=dt;if(net.t>0)return;net.t=1/15;const p=S.p;
- if(net.role==='host'){net.send({t:'s',h:[+p.x.toFixed(2),+p.z.toFixed(2),+p.yaw.toFixed(3),p.dn?1:0],w:S.wave,k:S.kills,
-   z:S.zs.map(z=>[z.id,z.ty,+z.x.toFixed(2),+(z.y||0).toFixed(2),+z.z.toFixed(2),Math.round(z.hp*10)/10,z.dead?1:0])})}
- else{net.send({t:'g',h:[+p.x.toFixed(2),+p.z.toFixed(2),+p.yaw.toFixed(3),p.dn?1:0]});
-  const ids=Object.keys(net.acc);if(ids.length){net.send({t:'dmg',l:ids.map(id=>[+id,+net.acc[id].toFixed(2),net.accH[id]?1:0])},1);net.acc={};net.accH={}}}}
-function onMsg(o){if(!S)return;const p=S.p,q=S.peer;
- if((o.t==='s'||o.t==='g')&&q){q.tx=o.h[0];q.tz=o.h[1];q.yaw=o.h[2];q.dn=o.h[3]}
- if(o.t==='s'){if(o.w!==S.wave){S.wave=o.w;document.getElementById('wv').textContent=S.wave}
+function myState(){const p=S.p;return [net.slot,+p.x.toFixed(2),+p.z.toFixed(2),+p.yaw.toFixed(3),p.dn?1:0]}
+function netTick(dt){if(!net.role)return;net.t-=dt;if(net.t>0)return;net.t=1/15;
+ if(net.role==='host'){const h=[myState(),...Object.values(S.mates).map(q=>[q.slot,+q.tx.toFixed(2),+q.tz.toFixed(2),+q.yaw.toFixed(3),q.dn?1:0])];
+  net.send({t:'s',h,w:S.wave,k:S.kills,z:S.zs.map(z=>[z.id,z.ty,+z.x.toFixed(2),+(z.y||0).toFixed(2),+z.z.toFixed(2),Math.round(z.hp*10)/10,z.dead?1:0])})}
+ else{net.send({t:'g',h:myState()});const ids=Object.keys(net.acc);if(ids.length){net.send({t:'dmg',l:ids.map(id=>[+id,+net.acc[id].toFixed(2),net.accH[id]?1:0])},1);net.acc={};net.accH={}}}}
+function onMsg(o,from){
+ if(o.t==='hello'){net.slot=o.slot;return}
+ if(o.t==='start'){if(net.role)return;net.slot=net.slot||o.slots.find(s=>s!==0)||1;st('');start('guest',o.seed,o.slots);return}
+ if(!S||!net.role)return;const p=S.p;
+ if(o.t==='g'){const q=S.mates[from];if(q){q.tx=o.h[1];q.tz=o.h[2];q.yaw=o.h[3];q.dn=o.h[4]}return}
+ if(o.t==='s'){const seenP=new Set();for(const [sl,x,zz,yaw,dn] of o.h){if(sl===net.slot)continue;seenP.add(sl);const q=S.mates[sl]||makeMate(sl);q.tx=x;q.tz=zz;q.yaw=yaw;q.dn=dn}
+  for(const k in S.mates)if(!seenP.has(+k)){scene.remove(S.mates[k].m);delete S.mates[k]}
+  if(o.w!==S.wave){S.wave=o.w;document.getElementById('wv').textContent=S.wave}
   if(o.k!==S.kills){if(Math.floor(o.k/4)>Math.floor(S.kills/4))p.rockets=Math.min(6,p.rockets+1);S.kills=o.k;document.getElementById('kills').textContent=S.kills}
   const seen=new Set();
   for(const [id,ty,x,y,zz,hp,dead] of o.z){seen.add(id);let z=S.zs.find(e=>e.id===id);
@@ -325,7 +351,7 @@ function guestZ(dt){for(const z of S.zs){
   const s=Math.hypot(z.x-ox,z.z-oz)/Math.max(dt,1e-3),T=zTarget(z);
   z.m.position.set(z.x,z.y||0,z.z);z.m.rotation.y=Math.atan2(T.x-z.x,T.z-z.z);if(z.anim){z.anim(z,s)}else{z.m.rotation.z=Math.sin(S.t*3+z.ph)*.08;
   walkAnim(z.m,s,S.t*(z.ty==='run'?1.4:.7)+z.ph);const [a1,a2]=z.m.userData.arms;a1.rotation.x=-1.35+Math.sin(S.t*3+z.ph)*.15;a2.rotation.x=-1.45+Math.cos(S.t*3+z.ph)*.15}}}
-document.getElementById('host').onclick=hostRoom;document.getElementById('join').onclick=joinRoom;
+document.getElementById('host').onclick=hostRoom;document.getElementById('join').onclick=joinRoom;document.getElementById('hoststart').onclick=hostStart;
 document.getElementById('code').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom()});
 // people
 const FOE={yan:{sp:5.2,see:4.5,give:1.2,c:0xffd23d,head:0xffd23d,n:'ヤンキー',s:1},
@@ -456,7 +482,7 @@ function newGame(stage){clearWorld();
   for(const sx of[-.8,.8])for(const sz of[-1.35,1.35]){const wh=new THREE.Mesh(geo('cwh',()=>new THREE.CylinderGeometry(.33,.33,.24,14)),M(0x111111));wh.rotation.z=Math.PI/2;wh.position.set(sx,.33,sz);g.add(wh)}
   if(SR()<.5){const fl=new THREE.PointLight(0xff7a2a,1.2,7);fl.position.set(0,1.6,0);g.add(fl);const fi=new THREE.Mesh(geo('fire',()=>new THREE.ConeGeometry(.35,.9,8)),new THREE.MeshBasicMaterial({color:0xff9a3a}));fi.position.set(0,1.9,.5);g.add(fi);S.lights.push(fi);fi.userData.flick=SR()*9}
   g.position.set(x,0,z);g.rotation.y=ry;S.obst.push({x,z,w:1.05,l:2.25})}
- S.p={x:0,z:5,yaw:0,pitch:0,hp:100,ammo:{gun:12,sg:6,mg:40,fl:100,sn:5},own:{gun:1,sg:1,rl:1,mg:1,fl:1,sn:1},reload:0,cd:0,kick:0,bob:0,hurt:0,dn:0,dnT:0,wp:'gun',rockets:5,shake:0};S.rk=[];S.zid=0;S.peer=null;S.boss=null;S.nextBoss=10;S.bossN=0;setWeapon('gun');document.getElementById('bossw').hidden=true;
+ S.p={x:0,z:5,yaw:0,pitch:0,hp:100,ammo:{gun:12,sg:6,mg:40,fl:100,sn:5},own:{gun:1,sg:1,rl:1,mg:1,fl:1,sn:1},reload:0,cd:0,kick:0,bob:0,hurt:0,dn:0,dnT:0,wp:'gun',rockets:5,shake:0};S.rk=[];S.zid=0;S.mates={};S.boss=null;S.nextBoss=10;S.bossN=0;setWeapon('gun');document.getElementById('bossw').hidden=true;
  S.zs=[];S.wave=0;S.kills=0;S.left=0;S.st=1.5;S.parts=[];S.pause=2;
  nextWave()}
 function nextWave(){S.wave++;S.left=5+S.wave*4;S.st=1;S.pause=0;msg('WAVE '+S.wave,2,1);document.getElementById('wv').textContent=S.wave}
@@ -476,7 +502,7 @@ function spawnBoss(ty,at){const p=S.p,o=mkBoss(ty);let z=p.z-34>-S.len+2?p.z-34:
  const zo={m:o.m,x,z,y:o.fly?6:0,hp:o.hp,max:o.hp,sp:o.sp,ty,sc:o.sc||2.5,r:o.r,hy:o.hy,dmg:o.dmg,fly:o.fly,anim:o.anim,custom:ty!=='titan',atk:0,dead:0,ph:Math.random()*9,diveT:4};
  o.m.position.set(x,zo.y,z);add(o.m);const gl=new THREE.PointLight(0xff2a1a,2,10);gl.position.y=2;o.m.add(gl);zo.id=at?at.id:++S.zid;S.zs.push(zo);bossUI(zo)}
 function onKill(z,head){S.kills++;document.getElementById('kills').textContent=S.kills;const p=S.p;
- if(z===S.boss){S.boss=null;document.getElementById('bossw').hidden=true;msg(BNAME[z.ty]+'を倒した！',3,1);if(S.peer)net.send({t:'heal'},1);p.rockets=Math.min(6,p.rockets+3)}
+ if(z===S.boss){S.boss=null;document.getElementById('bossw').hidden=true;msg(BNAME[z.ty]+'を倒した！',3,1);net.send({t:'heal'},1);p.rockets=Math.min(6,p.rockets+3)}
  else if(head)msg('ヘッドショット！',.7);
  if(p.own.rl&&S.kills%4===0)p.rockets=Math.min(6,p.rockets+1);
  if(S.kills>=S.nextBoss&&!S.boss){S.nextBoss+=10;spawnZ(BOSSES[S.bossN++%BOSSES.length])}}
@@ -484,7 +510,7 @@ function onKill(z,head){S.kills++;document.getElementById('kills').textContent=S
 let mouseDown=false,locked=false,look=null,move=null;
 const isTouch=matchMedia('(pointer:coarse)').matches;
 document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===R.domElement});
-R.domElement.addEventListener('mousedown',e=>{if(!run)return;if(!locked&&!isTouch){try{R.domElement.requestPointerLock()}catch(_){}}mouseDown=true});
+R.domElement.addEventListener('mousedown',e=>{if(!run)return;if(!locked&&!isTouch){try{const q=R.domElement.requestPointerLock();if(q&&q.catch)q.catch(()=>{})}catch(_){}}mouseDown=true});
 addEventListener('mouseup',()=>mouseDown=false);
 addEventListener('mousemove',e=>{if(!run||isTouch)return;const k=S.p.wp==='sn'?.4:1;S.p.yaw-=e.movementX*.0025*k;S.p.pitch=Math.max(-1.2,Math.min(1.2,S.p.pitch-e.movementY*.0025*k))});
 R.domElement.addEventListener('touchstart',e=>{if(!run)return;for(const t of e.changedTouches){if(t.clientX<innerWidth/2&&!move)move={id:t.identifier,sx:t.clientX,sy:t.clientY,x:t.clientX,y:t.clientY};else if(!look)look={id:t.identifier,x:t.clientX,y:t.clientY}}e.preventDefault()},{passive:false});
@@ -589,15 +615,15 @@ function updRockets(dt){xL.intensity*=Math.pow(.02,dt);S.rk=S.rk.filter(r=>{r.m.
   if(hit){explode(q.clone().setY(Math.max(.3,q.y)));scene.remove(r.m);return false}return true})}
 function burst(pt,n,col){for(let i=0;i<n;i++){const m=new THREE.Mesh(geo('pt',()=>new THREE.BoxGeometry(.04,.04,.04)),new THREE.MeshBasicMaterial({color:col}));m.position.copy(pt);scene.add(m);S.parts.push({m,v:new THREE.Vector3(rnd(-2,2),rnd(0,3),rnd(-2,2)),t:.6})}}
 let nextStage=1;
-function start(role,seed){net.role=(role==='host'||role==='guest')?role:null;if(net.role){SR=mulberry(seed);try{newGame(1)}finally{SR=()=>Math.random()}makePeer();msg(net.role==='host'?'仲間が来た！ 2人で生き延びろ':'部屋に入った！ 2人で生き延びろ',3)}else newGame(1);document.getElementById('title').hidden=true;document.getElementById('res').hidden=true;run=true;fireB.hidden=rlB.hidden=sticksEl.hidden=swB.hidden=!isTouch;if(!isTouch){try{R.domElement.requestPointerLock()}catch(_){}}}
+function start(role,seed,slots){net.role=(role==='host'||role==='guest')?role:null;if(net.role){SR=mulberry(seed);try{newGame(1)}finally{SR=()=>Math.random()}for(const sl of slots||[])if(sl!==net.slot)makeMate(sl);msg((slots?slots.length:2)+'人で生き延びろ！ あなたは'+PNAME[net.slot],3.5)}else newGame(1);document.getElementById('title').hidden=true;document.getElementById('res').hidden=true;run=true;fireB.hidden=rlB.hidden=sticksEl.hidden=swB.hidden=!isTouch;if(!isTouch){try{const q=R.domElement.requestPointerLock();if(q&&q.catch)q.catch(()=>{})}catch(_){}}}
 document.getElementById('go').onclick=()=>{netReset();start()};document.getElementById('again').onclick=()=>{netReset();start()};
 function end(why){const coop=!!net.role;if(coop){net.role=null;setTimeout(netReset,300)}run=false;fireB.hidden=rlB.hidden=swB.hidden=sticksEl.hidden=true;stM.x=stM.y=stL.x=stL.y=0;document.getElementById('bossw').hidden=true;mouseDown=false;try{document.exitPointerLock()}catch(_){}
- document.getElementById('res').hidden=false;document.getElementById('rh').textContent=why?'接続が切れました':coop?'2人ともやられた…':'やられた…';document.getElementById('rp').textContent=(why?why+'。':'')+`${coop?'2人で':''}WAVE ${S.wave}まで生き延び、ゾンビを${S.kills}体倒した。`;document.getElementById('again').textContent='ひとりでもう一回';
+ document.getElementById('res').hidden=false;document.getElementById('rh').textContent=why?'接続が切れました':coop?'全員やられた…':'やられた…';document.getElementById('rp').textContent=(why?why+'。':'')+`${coop?'みんなで':''}WAVE ${S.wave}まで生き延び、ゾンビを${S.kills}体倒した。`;document.getElementById('again').textContent='ひとりでもう一回';
  if(S.kills>best){best=S.kills;try{localStorage.setItem('zbest',best)}catch(e){}document.getElementById('best').textContent=best}}
 try{best=+localStorage.getItem('zbest')||0}catch(e){best=0}document.getElementById('best').textContent=best;
 function hitObst(o,r){for(const b of S.obst){const dx=o.x-b.x,dz=o.z-b.z;if(Math.abs(dx)<b.w+r&&Math.abs(dz)<b.l+r){const ox=b.w+r-Math.abs(dx),oz=b.l+r-Math.abs(dz);if(ox<oz)o.x+=Math.sign(dx||1)*ox;else o.z+=Math.sign(dz||1)*oz}}}
 function upd(dt){const p=S.p;S.t+=dt;
- if(p.dn){p.dnT-=dt;msg(p.dnT>0?'やられた… '+Math.ceil(p.dnT)+'秒後に復活':'',.3);if(p.dnT<=0){p.dn=0;p.hp=60;if(S.peer){p.x=S.peer.x;p.z=S.peer.z+1}}}
+ if(p.dn){p.dnT-=dt;msg(p.dnT>0?'やられた… '+Math.ceil(p.dnT)+'秒後に復活':'',.3);if(p.dnT<=0){p.dn=0;p.hp=60;const q=alivePeer();if(q){p.x=q.x;p.z=q.z+1}}}
  let f=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),sx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);
  if(move){const dx=move.x-move.sx,dy=move.y-move.sy,m=Math.hypot(dx,dy);if(m>8){sx=dx/Math.max(m,50);f=-dy/Math.max(m,50)}}
  if(stM.x||stM.y){sx=stM.x;f=-stM.y}
@@ -614,7 +640,7 @@ function upd(dt){const p=S.p;S.t+=dt;
  if(net.role==='guest')guestZ(dt);else{
  // waves
  if(S.left>0){S.st-=dt;if(S.st<=0&&S.zs.filter(z=>!z.dead).length<14){spawnZ();S.left--;S.st=rnd(.7,1.6)}}
- else if(!S.zs.some(z=>!z.dead)){if(!S.pause){S.pause=3;msg(`WAVE ${S.wave} クリア！`,2.5,1);if(!p.dn)p.hp=Math.min(100,p.hp+25);if(S.peer)net.send({t:'heal'},1)}else{S.pause-=dt;if(S.pause<=0)nextWave()}}
+ else if(!S.zs.some(z=>!z.dead)){if(!S.pause){S.pause=3;msg(`WAVE ${S.wave} クリア！`,2.5,1);if(!p.dn)p.hp=Math.min(100,p.hp+25);net.send({t:'heal'},1)}else{S.pause-=dt;if(S.pause<=0)nextWave()}}
  for(const z of S.zs){
   if(z.dead){z.dt+=dt;if(z.fly){z.y=Math.max(.6,z.y-dt*9);z.m.position.y=z.y;z.m.rotation.z+=dt*3}else z.m.rotation.x=Math.max(-Math.PI/2,-z.dt*(z.custom?2:4));if(z.dt>4){z.m.position.y-=dt*.4}continue}
   const T=zTarget(z),dx=T.x-z.x,dz=T.z-z.z,d=Math.hypot(dx,dz)||.01;
@@ -628,11 +654,11 @@ function upd(dt){const p=S.p;S.t+=dt;
   if(!z.fly)hitObst(z,z.r);z.x=Math.max(-HW+.4,Math.min(HW-.4,z.x));
   z.m.position.set(z.x,z.y||0,z.z);z.m.rotation.y=Math.atan2(dx,dz);if(z.anim){z.anim(z,s)}else{z.m.rotation.z=Math.sin(S.t*3+z.ph)*.08;
   walkAnim(z.m,s,S.t*(z.ty==='run'?1.4:.7)+z.ph);const [a1,a2]=z.m.userData.arms;a1.rotation.x=-1.35+Math.sin(S.t*3+z.ph)*.15;a2.rotation.x=-1.45+Math.cos(S.t*3+z.ph)*.15}
-  z.atk=Math.max(0,z.atk-dt);if(d<z.r+.6&&(!z.fly||z.y<2.4)&&z.atk<=0){z.atk=1;if(T===S.p)hurtMe(z.dmg);else net.send({t:'hurt',d:z.dmg},1)}}
+  z.atk=Math.max(0,z.atk-dt);if(d<z.r+.6&&(!z.fly||z.y<2.4)&&z.atk<=0){z.atk=1;if(T===S.p)hurtMe(z.dmg);else sendTo(T.slot,{t:'hurt',d:z.dmg},1)}}
  S.zs=S.zs.filter(z=>{if(z.dead&&z.dt>6){scene.remove(z.m);return false}return true});
- if(net.role==='host'&&p.dn&&S.peer&&S.peer.dn){net.send({t:'over'},1);return end()}}
+ if(net.role==='host'&&p.dn&&allPeersDown()){net.send({t:'over'},1);return end()}}
  if(!run)return;
- updPeer(dt);netTick(dt);
+ updMates(dt);netTick(dt);
  updRockets(dt);p.shake=Math.max(0,p.shake-dt);
  if(S.boss){document.getElementById('bossbar').style.width=Math.max(0,S.boss.hp/S.boss.max*100)+'%'}
  S.parts=S.parts.filter(q=>{q.t-=dt;if(q.grow){q.m.scale.setScalar(1+(.35-q.t)*12);q.m.material.opacity=Math.max(0,q.t*2.5)}if(!q.ng)q.v.y-=9*dt;q.m.position.addScaledVector(q.v,dt);if(q.m.position.y<.02){q.m.position.y=.02;q.v.set(0,0,0)}if(q.t<=0){scene.remove(q.m);return false}return true});

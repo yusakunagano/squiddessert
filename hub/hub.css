@@ -73,7 +73,7 @@ a.card.c-game { --c1: #fb7185; --c2: #f43f5e; } a.card.c-study { --c1: #a78bfa; 
 a.card.c-job { --c1: #38bdf8; --c2: #6366f1; } a.card.c-lab { --c1: #fbbf24; --c2: #f97316; } a.card.c-design { --c1: #f472b6; --c2: #a855f7; }
 a.card.c-ai { --c1: #22d3ee; --c2: #3b82f6; } a.card.c-tool { --c1: #a3e635; --c2: #10b981; }
 
-footer { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--sub); }
+footer { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--sub); }
 footer a { color: var(--sub); text-underline-offset: 3px; }
 footer a:hover { color: var(--text); }
 
@@ -91,7 +91,7 @@ a.card.c-dev .arrow { flex: none; position: relative; }
 .back { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 26px; font-size: 13px; color: var(--sub); text-decoration: none;
   padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: color .2s, border-color .2s; }
 .back:hover { color: var(--text); border-color: var(--sub); }
-.social { display: flex; gap: 10px; }
+.social { display: flex; gap: 10px; margin-top: 44px; }
 .social a { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card);
   color: var(--text); text-decoration: none; font-size: 13px; font-weight: 600; transition: transform .2s, border-color .2s, background .2s; }
 .social a:hover { transform: translateY(-2px); border-color: var(--sub); background: var(--card-hover); }

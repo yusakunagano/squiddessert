@@ -30,6 +30,9 @@
   #lbSeats{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
   .lbTeam{padding:10px 14px;border-radius:10px;min-width:150px;line-height:1.7}
   .lbTeam.t0{background:rgba(47,124,246,.35)} .lbTeam.t1{background:rgba(229,72,59,.35)}
+  .slot{display:block;width:100%;margin-top:6px;font-size:15px;padding:9px 12px;background:rgba(255,255,255,.85);color:#222}
+  .slot.mine{outline:3px solid #fff;background:#f2d43d}
+  .slot.taken{background:rgba(255,255,255,.45);color:#111}
   #netst{min-height:1.4em;text-align:center;max-width:420px;font-size:15px}
   /* 画面のコントローラー（左下：スティック、右下：ボタン） */
   #joy{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:max(18px,env(safe-area-inset-bottom));width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.45);touch-action:none;user-select:none;-webkit-user-select:none}
@@ -62,7 +65,7 @@
     <div id="lbCode">----</div>
     <div id="lbMode"></div>
     <div id="lbSeats"></div>
-    <div id="lbFmt" class="row hidden"><button data-fmt="singles" class="sub">シングルス</button><button data-fmt="doubles" class="sub sel">ダブルス（CPUと組む）</button></div>
+    <div id="lbFmt" class="row hidden"><button data-fmt="singles" class="sub">シングルス</button><button data-fmt="doubles" class="sub sel">ダブルス</button></div>
     <div id="netst"></div>
     <div class="row"><button id="lbStart">試合開始</button><button id="lbLeave" class="sub">やめる</button></div>
   </div>
@@ -89,10 +92,7 @@
     <button id="start" style="margin-top:10px;font-size:22px">試合開始</button>
     <div class="online">
       <h2>オンラインで遊ぶ（最大4人）</h2>
-      <div class="row">
-        <button data-nmode="vs" class="sub sel">対戦</button>
-        <button data-nmode="coop" class="sub">協力</button>
-      </div>
+      <div style="font-size:13px;opacity:.85;text-align:center">そろってから、各自が青／赤チームと後衛／前衛を選びます。<br>人どうしが分かれれば対戦、同じチームならCPUと協力して戦います。</div>
       <div class="row"><button id="hostBtn">部屋を作る</button></div>
       <div class="row"><input id="code" inputmode="numeric" maxlength="4" placeholder="1234"><button id="joinBtn" class="sub">部屋に入る</button></div>
     </div>
@@ -105,7 +105,7 @@
       サーブ：スペース（スマホはタップ）<br>
       画面の左下のスティックで移動。右下のボタンは、サーブの時は「フラット／スライス」、ラリー中は「強（強打）／上（ロブ）／弱（ドロップ）」。何も押さなければ普通に返します（キーボードは X でドロップ）。<br>
       1セットマッチ（6ゲーム先取・2ゲーム差）<br>
-      オンライン：ひとりが「部屋を作る」、ほかの人は4桁の番号で「部屋に入る」。対戦は最大4人（空いた所はCPU）、協力は2人でCPUと戦います。
+      オンライン：ひとりが「部屋を作る」、ほかの人は4桁の番号で「部屋に入る」（最大4人）。部屋の画面で各自がチームと位置を選びます。空いた所はCPU。
     </div>
   </div>
 </div>
@@ -129,7 +129,6 @@ document.querySelectorAll('[data-pos]').forEach(b => b.onclick = () => { pos = b
 document.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => { level = +b.dataset.lv; sel('[data-lv]', b); });
 function sel(q, b){ document.querySelectorAll(q).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); }
 document.getElementById('start').onclick = () => { online = false; startMatch(); };
-document.querySelectorAll('[data-nmode]').forEach(b => b.onclick = () => { net.mode = b.dataset.nmode; sel('[data-nmode]', b); });
 document.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => { net.fmt = b.dataset.fmt; hostLobbyUpdate(); });
 document.getElementById('hostBtn').onclick = () => hostRoom();
 document.getElementById('joinBtn').onclick = () => joinRoom();
@@ -242,7 +241,7 @@ function servingPlayer(){ return players.find(p => p.team === server && p.role =
 // つなぎ方：WebRTC（端末どうしの直接通信）。接続情報の受け渡しだけ Firebase（Firestore）の tennisRooms/{4桁} を使う。
 // 部屋の書類には、ホストが参加枠ぶん（対戦3・協力1）の offerN を書き、入る人が空いている枠に answerN を1回だけ書き足す。
 let online = false;
-const net = { role: null, code: null, mode: 'vs', fmt: 'doubles', peers: [], mySlot: 0, unsub: null, ref: null, lastSend: 0, lastIn: 0, members: [] };
+const net = { role: null, code: null, mode: 'vs', fmt: 'doubles', assign: {}, peers: [], mySlot: 0, unsub: null, ref: null, lastSend: 0, lastIn: 0, members: [] };
 const NET_SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
 let FB = null;
 async function fb(){
@@ -310,7 +309,7 @@ async function hostRoom(){
   netClose(); net.role = 'host'; net.mySlot = 0; netSt('部屋を準備しています…');
   showLobby();
   try {
-    const n = net.mode === 'coop' ? 1 : 3, data = { mode: net.mode };
+    const n = 3, data = { mode: 'vs' };
     for (let i = 1; i <= n; i++) {
       const pc = mkPC(), peer = { slot: i, pc, open: false };
       setupPeerDC(peer, pc.createDataChannel('u', { ordered: false, maxRetransmits: 0 }));
@@ -363,67 +362,90 @@ function netClose(){
   if (net.unsub) { net.unsub(); net.unsub = null; }
   if (net.role === 'host' && net.code) sig.remove(net.code);
   for (const pr of net.peers) { try { pr.pc.close(); } catch (e) {} }
-  Object.assign(net, { role: null, code: null, peers: [], mySlot: 0, members: [] });
+  Object.assign(net, { role: null, code: null, peers: [], mySlot: 0, members: [], assign: {} });
   online = false;
 }
 function showLobby(){ lobbyEl().classList.remove('hidden'); menu.classList.add('hidden'); renderLobby(); }
 function leaveLobby(){ netClose(); lobbyEl().classList.add('hidden'); menu.classList.remove('hidden'); }
 
-// 参加者からチームと位置を決める
-function seatPlan(count, mode, fmt){
-  // 戻り値：[{slot, team, role}]（slot=-1 はCPU）
-  if (mode === 'coop') {
-    const s = [{ slot: 0, team: 0, role: 'back' }, { slot: count > 1 ? 1 : -1, team: 0, role: 'front' }];
-    return s.concat([{ slot: -1, team: 1, role: 'back' }, { slot: -1, team: 1, role: 'front' }]);
+// 部屋は1種類（最大4人）。そろってから、各自が「青／赤」「後衛／前衛」の枠をタップして選ぶ。空いた枠はCPU。
+// 枠の名前：b0=青後衛, f0=青前衛, b1=赤後衛, f1=赤前衛（シングルスは b0 と b1 だけ）
+const SLOT_ORDER = ['b0', 'b1', 'f0', 'f1'];
+const SLOT_NAME = { b0: '青チーム 後衛', f0: '青チーム 前衛', b1: '赤チーム 後衛', f1: '赤チーム 前衛' };
+function slotsFor(fmt){ return fmt === 'singles' ? ['b0', 'b1'] : SLOT_ORDER; }
+function autoAssign(){
+  // 抜けた人の枠を外し、まだ枠のない人を空いている枠に入れる
+  const seats = net.members.map(m => m.seat), ok = slotsFor(net.fmt);
+  for (const k of Object.keys(net.assign)) if (!seats.includes(+k) || !ok.includes(net.assign[k])) delete net.assign[k];
+  for (const sd of seats) {
+    if (net.assign[sd]) continue;
+    const used = Object.values(net.assign), free = ok.find(x => !used.includes(x));
+    if (free) net.assign[sd] = free;
   }
-  if (count <= 2 && fmt === 'singles') return [{ slot: 0, team: 0, role: 'back' }, { slot: count > 1 ? 1 : -1, team: 1, role: 'back' }];
-  return [
-    { slot: 0, team: 0, role: 'back' }, { slot: count > 2 ? 2 : -1, team: 0, role: 'front' },
-    { slot: count > 1 ? 1 : -1, team: 1, role: 'back' }, { slot: count > 3 ? 3 : -1, team: 1, role: 'front' },
-  ];
 }
-function connectedSlots(){ return [0].concat(net.peers.filter(p => p.open).map(p => p.slot)).sort(); }
+function planFromAssign(){
+  const bySlot = {}; for (const [sd, sl] of Object.entries(net.assign)) bySlot[sl] = +sd;
+  return slotsFor(net.fmt).map(sl => ({ slot: sl in bySlot ? bySlot[sl] : -1, team: +sl[1], role: sl[0] === 'b' ? 'back' : 'front' }));
+}
 function hostLobbyUpdate(){
   if (net.role !== 'host') return;
   // つながった順に 1,2,3 を詰めた「参加番号」を付ける
   const conn = net.peers.filter(p => p.open);
   conn.forEach((p, i) => { p.seat = i + 1; });
   net.members = [{ seat: 0, name: 'ホスト' }].concat(conn.map(p => ({ seat: p.seat, name: 'プレイヤー' + (p.seat + 1) })));
-  broadcast('r', { t: 'lobby', members: net.members, mode: net.mode, fmt: net.fmt, code: net.code });
+  if (net.members.length > 2 && net.fmt === 'singles') net.fmt = 'doubles';
+  autoAssign();
+  broadcast('r', { t: 'lobby', members: net.members, fmt: net.fmt, code: net.code, assign: net.assign });
   for (const p of conn) sendTo(p, 'r', { t: 'you', seat: p.seat });
   renderLobby();
 }
+function pickSlot(seat, sl){
+  if (!slotsFor(net.fmt).includes(sl)) return;
+  if (Object.entries(net.assign).some(([k, v]) => v === sl && +k !== seat)) return; // ほかの人がいる枠には入れない
+  net.assign[seat] = sl; hostLobbyUpdate();
+}
+function lobbyKind(){
+  const teams = Object.values(net.assign).map(v => +v[1]);
+  if (teams.length < 2) return '';
+  return teams.every(t => t === teams[0]) ? '協力（人どうしが同じチームでCPUと戦う）' : '対戦（人どうしが分かれて戦う）';
+}
 function renderLobby(){
   const el = lobbyEl(); if (!el) return;
-  const host = net.role === 'host';
+  const host = net.role === 'host', me = host ? 0 : net.mySeat;
   document.getElementById('lbCode').textContent = net.code || '----';
-  document.getElementById('lbMode').textContent = net.mode === 'coop' ? '協力（みんなで青チーム、相手はCPU）' : '対戦（青チーム vs 赤チーム）';
   const cnt = Math.max(1, net.members.length);
-  const plan = seatPlan(cnt, net.mode, net.fmt);
-  const names = { 0: '青チーム', 1: '赤チーム' };
+  document.getElementById('lbMode').textContent = lobbyKind();
   let html = '';
   for (const t of [0, 1]) {
-    html += `<div class="lbTeam t${t}"><b>${names[t]}</b>`;
-    for (const s of plan.filter(q => q.team === t)) {
-      const m = net.members.find(x => x.seat === s.slot);
-      const me = s.slot === (host ? 0 : net.mySeat);
-      html += `<div>${s.role === 'back' ? '後衛' : '前衛'}：${m ? m.name + (me ? '（あなた）' : '') : 'CPU'}</div>`;
+    html += `<div class="lbTeam t${t}"><b>${t === 0 ? '青チーム' : '赤チーム'}</b>`;
+    for (const sl of slotsFor(net.fmt).filter(x => +x[1] === t)) {
+      const who = Object.entries(net.assign).find(([, v]) => v === sl);
+      const m = who && net.members.find(x => x.seat === +who[0]);
+      const mine = who && +who[0] === me;
+      const label = (net.fmt === 'singles' ? '' : (sl[0] === 'b' ? '後衛：' : '前衛：')) + (m ? m.name + (mine ? '（あなた）' : '') : 'CPU（空き）');
+      html += `<button class="slot${mine ? ' mine' : ''}${m && !mine ? ' taken' : ''}" data-slot="${sl}">${label}</button>`;
     }
     html += '</div>';
   }
   document.getElementById('lbSeats').innerHTML = html;
-  document.getElementById('lbFmt').classList.toggle('hidden', !(host && net.mode === 'vs' && cnt <= 2));
+  document.querySelectorAll('#lbSeats [data-slot]').forEach(b => b.onclick = () => {
+    if (host) pickSlot(0, b.dataset.slot);
+    else broadcast('r', { t: 'pick', slot: b.dataset.slot });
+  });
+  document.getElementById('lbFmt').classList.toggle('hidden', !host);
+  document.querySelector('[data-fmt="singles"]').disabled = cnt > 2;
   document.querySelectorAll('[data-fmt]').forEach(b => b.classList.toggle('sel', b.dataset.fmt === net.fmt));
   document.getElementById('lbStart').classList.toggle('hidden', !host);
   document.getElementById('lbStart').disabled = cnt < 2;
-  if (host) netSt(net.code ? (cnt < 2 ? 'ほかの人は「部屋に入る」でこの番号を入れてください' : `${cnt}人そろいました。「試合開始」を押してください`) : '部屋を準備しています…');
+  if (host) netSt(net.code ? (cnt < 2 ? 'ほかの人は「部屋に入る」でこの番号を入れてください（最大4人）' : `${cnt}人そろいました。入りたい枠をタップして選び、「試合開始」を押してください`) : '部屋を準備しています…');
 }
 
 // ホスト：試合開始
 function hostStart(){
   const cnt = net.members.length; if (cnt < 2 || online) return;
   if (document.activeElement) document.activeElement.blur(); // スペースキーでボタンがもう一度押されないように
-  const plan = seatPlan(cnt, net.mode, net.fmt);
+  autoAssign();
+  const plan = planFromAssign();
   online = true;
   buildPlayersFromPlan(plan, 0);
   for (const pr of net.peers) { pr.player = players.find(p => p.seat === pr.seat && pr.open) || null; }
@@ -453,12 +475,13 @@ function onNetMsg(peer, m){
     const p = peer.player;
     if (m.t === 'i' && p && p.isHuman) p.inp = toWorldInput(m.i, p.team, null);
     else if (m.t === 'sv' && p && p.isHuman) { p.serveReq = true; if (m.k) p.serveKind = m.k; }
+    else if (m.t === 'pick' && !online && peer.seat) pickSlot(peer.seat, m.slot);
     return;
   }
   // ゲスト
   if (m.t === 'welcome') { /* 枠が決まった */ }
   else if (m.t === 'you') { net.mySeat = m.seat; renderLobby(); }
-  else if (m.t === 'lobby') { net.members = m.members; net.mode = m.mode; net.fmt = m.fmt; net.code = m.code; renderLobby(); netSt(`${m.members.length}人が部屋にいます。ホストが試合を始めるのを待っています…`); }
+  else if (m.t === 'lobby') { net.members = m.members; net.fmt = m.fmt; net.code = m.code; net.assign = m.assign || {}; renderLobby(); netSt(`${m.members.length}人が部屋にいます。ホストが試合を始めるのを待っています…`); }
   else if (m.t === 'start') {
     online = true; level = m.level;
     buildPlayersFromPlan(m.plan, net.mySeat);

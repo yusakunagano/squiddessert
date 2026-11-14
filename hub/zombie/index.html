@@ -45,6 +45,7 @@ button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
 #sticks{position:absolute;left:calc(16px + env(safe-area-inset-left,0px));bottom:calc(66px + env(safe-area-inset-bottom,0px));display:flex;gap:12px}
 .stick{position:relative;width:104px;height:104px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.35);touch-action:none}
 .stick i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.5);box-shadow:0 0 10px rgba(0,0,0,.5);pointer-events:none}
+.stick#stL{position:fixed;left:auto;right:calc(116px + env(safe-area-inset-right,0px));bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 .stick span{position:absolute;left:0;right:0;bottom:-20px;text-align:center;font-size:12px;color:var(--dim);font-family:var(--disp);pointer-events:none}
 #rl{right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(186px + env(safe-area-inset-bottom,0px));width:60px;height:60px;font-size:13px;background:#2a3a55;box-shadow:none}
 </style>
@@ -68,7 +69,7 @@ button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
   <span>走るゾンビ：WAVE2から。速い</span>
   <span>巨体ゾンビ：WAVE3から。かたい</span>
  </div>
- <small>PC：マウスで視点・クリックで撃つ・WASDで移動・Shiftで走る・Rで装填（画面をクリックするとマウスが固定されます。Escで解除）<br>スマホ：左下のスティックで移動と向き（画面ドラッグでも向きを変えられます）・右下の「撃つ」ボタン　｜　頭を撃つと大ダメージ。倒した数で武器が増える（5体ショットガン・10体ロケット・15体マシンガン・25体火炎放射器・35体スナイパー。Qキー / 数字キー / 武器ボタンで切替）、10体ごとにボスが出現（全5種）。壊れた車は盾になる</small>
+ <small>PC：マウスで視点・クリックで撃つ・WASDで移動・Shiftで走る・Rで装填（画面をクリックするとマウスが固定されます。Escで解除）<br>スマホ：左下のスティックで移動と向き（画面ドラッグでも向きを変えられます）・右下の「撃つ」ボタン　｜　頭を撃つと大ダメージ。武器は最初から6種類（拳銃・ショットガン・ロケット・マシンガン・火炎放射器・スナイパー）。Qキー / 1〜6キー / 武器ボタンで切替。10体ごとにボスが出現（全5種）。壊れた車は盾になる</small>
  <button id="go">スタート</button>
 </div>
 <div class="ov" id="res" hidden><h1 id="rh"></h1><p id="rp"></p><button id="again">もう一回</button></div>
@@ -372,7 +373,7 @@ function newGame(stage){clearWorld();
   for(const sx of[-.8,.8])for(const sz of[-1.35,1.35]){const wh=new THREE.Mesh(geo('cwh',()=>new THREE.CylinderGeometry(.33,.33,.24,14)),M(0x111111));wh.rotation.z=Math.PI/2;wh.position.set(sx,.33,sz);g.add(wh)}
   if(Math.random()<.5){const fl=new THREE.PointLight(0xff7a2a,1.2,7);fl.position.set(0,1.6,0);g.add(fl);const fi=new THREE.Mesh(geo('fire',()=>new THREE.ConeGeometry(.35,.9,8)),new THREE.MeshBasicMaterial({color:0xff9a3a}));fi.position.set(0,1.9,.5);g.add(fi);S.lights.push(fi);fi.userData.flick=Math.random()*9}
   g.position.set(x,0,z);g.rotation.y=ry;S.obst.push({x,z,w:1.05,l:2.25})}
- S.p={x:0,z:5,yaw:0,pitch:0,hp:100,ammo:{gun:12,sg:6,mg:40,fl:100,sn:5},own:{gun:1},reload:0,cd:0,kick:0,bob:0,hurt:0,wp:'gun',rockets:0,shake:0};S.rk=[];S.boss=null;S.nextBoss=10;S.bossN=0;setWeapon('gun');document.getElementById('bossw').hidden=true;
+ S.p={x:0,z:5,yaw:0,pitch:0,hp:100,ammo:{gun:12,sg:6,mg:40,fl:100,sn:5},own:{gun:1,sg:1,rl:1,mg:1,fl:1,sn:1},reload:0,cd:0,kick:0,bob:0,hurt:0,wp:'gun',rockets:5,shake:0};S.rk=[];S.boss=null;S.nextBoss=10;S.bossN=0;setWeapon('gun');document.getElementById('bossw').hidden=true;
  S.zs=[];S.wave=0;S.kills=0;S.left=0;S.st=1.5;S.parts=[];S.pause=2;
  nextWave()}
 function nextWave(){S.wave++;S.left=5+S.wave*4;S.st=1;S.pause=0;msg('WAVE '+S.wave,2);document.getElementById('wv').textContent=S.wave}
@@ -394,7 +395,6 @@ function spawnBoss(ty){const p=S.p,o=mkBoss(ty);let z=p.z-34>-S.len+2?p.z-34:p.z
 function onKill(z,head){S.kills++;document.getElementById('kills').textContent=S.kills;const p=S.p;
  if(z===S.boss){S.boss=null;document.getElementById('bossw').hidden=true;msg(BNAME[z.ty]+'を倒した！',3);p.rockets=Math.min(6,p.rockets+3)}
  else if(head)msg('ヘッドショット！',.7);
- for(const k of WORDER){if(!p.own[k]&&S.kills>=WP[k].unlock){p.own[k]=1;if(k==='rl')p.rockets=3;msg(WP[k].name+'入手！',3);if(isTouch)document.getElementById('sw').hidden=false;setWeapon(k)}}
  if(p.own.rl&&S.kills%4===0)p.rockets=Math.min(6,p.rockets+1);
  if(S.kills>=S.nextBoss&&!S.boss){S.nextBoss+=10;spawnZ(BOSSES[S.bossN++%BOSSES.length])}}
 // input
@@ -505,7 +505,7 @@ function updRockets(dt){xL.intensity*=Math.pow(.02,dt);S.rk=S.rk.filter(r=>{r.m.
   if(hit){explode(q.clone().setY(Math.max(.3,q.y)));scene.remove(r.m);return false}return true})}
 function burst(pt,n,col){for(let i=0;i<n;i++){const m=new THREE.Mesh(geo('pt',()=>new THREE.BoxGeometry(.04,.04,.04)),new THREE.MeshBasicMaterial({color:col}));m.position.copy(pt);scene.add(m);S.parts.push({m,v:new THREE.Vector3(rnd(-2,2),rnd(0,3),rnd(-2,2)),t:.6})}}
 let nextStage=1;
-function start(){newGame(1);document.getElementById('title').hidden=true;document.getElementById('res').hidden=true;run=true;fireB.hidden=rlB.hidden=sticksEl.hidden=!isTouch;if(!isTouch){try{R.domElement.requestPointerLock()}catch(_){}}}
+function start(){newGame(1);document.getElementById('title').hidden=true;document.getElementById('res').hidden=true;run=true;fireB.hidden=rlB.hidden=sticksEl.hidden=swB.hidden=!isTouch;if(!isTouch){try{R.domElement.requestPointerLock()}catch(_){}}}
 document.getElementById('go').onclick=start;document.getElementById('again').onclick=start;
 function end(){run=false;fireB.hidden=rlB.hidden=swB.hidden=sticksEl.hidden=true;stM.x=stM.y=stL.x=stL.y=0;document.getElementById('bossw').hidden=true;mouseDown=false;try{document.exitPointerLock()}catch(_){}
  document.getElementById('res').hidden=false;document.getElementById('rh').textContent='やられた…';document.getElementById('rp').textContent=`WAVE ${S.wave}まで生き延び、ゾンビを${S.kills}体倒した。`;

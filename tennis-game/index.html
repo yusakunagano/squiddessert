@@ -1354,7 +1354,8 @@ function computePose(p){
   } else if (mv > 0.35) {
     // 走るとき：腕は大きく振らず、ラケットを軽く引いた（テイクバックした）まま走る
     const a = Math.sin(ph) * mv;
-    const side = state === 'rally' && p.prepType && POSES[p.prepType] && p.prepType[1] === 's' ? p.prepType : 'fs';
+    // 右へ動くときはフォア側（右手だけで引き、左手は斜め前）、左へ動くときはバック側（両手で引く）
+    const side = Math.abs(latV) > 0.4 ? (latV > 0 ? 'fs' : 'bs') : (state === 'rally' && p.prepType && POSES[p.prepType] && p.prepType[1] === 's' ? p.prepType : 'fs');
     const base = lerpPose(READY, POSES[side].back1, 0.6);
     pose = { h: [base.h[0], base.h[1] + a * 0.06, base.h[2] + Math.abs(a) * 0.03], r: base.r, l: base.l === 'grip' ? 'grip' : [base.l[0], base.l[1] - a * 0.08, base.l[2]], tw: (base.tw || 0) * 0.8, bend: 0.12 + 0.15 * sprint, cr: 0.04 + 0.04 * sprint };
   } else pose = READY;
@@ -1517,8 +1518,8 @@ const SERVE_DROP = { eu: 1, tw: 0.9, h: [0.22, -0.18, 1.5], r: [0.0, -0.25, -0.6
 const READY = { h: [0.05, 0.38, 0.95], r: [0, 0.45, 0.4], l: 'grip', cr: 0.03 };
 const POSES = {
   // フォアハンド：ラケットを高く引く → 後ろで下に落とす（ループ）→ 前で打つ → 左肩の上に巻きつけて終わる
-  fs: { back1: { tw: 1.5, h: [0.62, -0.72, 1.5], r: [0.05, -0.25, 0.65], l: [0.05, 0.6, 1.3], cr: 0.1, sl: 0.25 },
-        back2: { tw: 1.6, h: [0.7, -0.85, 0.9], r: [0.2, -0.5, -0.45], l: [0.1, 0.55, 1.2], cr: 0.14, sl: 0.3 },
+  fs: { back1: { tw: 1.5, h: [0.62, -0.72, 1.5], r: [0.05, -0.25, 0.65], l: [0.25, 0.6, 1.3], cr: 0.1, sl: 0.25 },
+        back2: { tw: 1.6, h: [0.7, -0.85, 0.9], r: [0.2, -0.5, -0.45], l: [0.3, 0.55, 1.2], cr: 0.14, sl: 0.3 },
         hit:   { tw: 0.1, h: [0.5, 0.4, 0.95], r: [0.65, 0.15, 0.1], l: [-0.35, 0.25, 1.1], cr: 0.08, sl: 0.3 },
         mid:   { tw: -0.55, h: [0.05, 0.5, 1.4], r: [-0.4, 0.2, 0.45], l: [-0.35, 0.1, 1.15], cr: 0.04, sl: 0.3, sr: 0.05 },
         fol:   { tw: -1.0, h: [-0.3, 0.15, 1.6], r: [-0.15, -0.45, -0.3], l: [-0.12, 0.3, 1.35], cr: 0.02, sl: 0.3, sr: 0.12, kr: 0.06 } },

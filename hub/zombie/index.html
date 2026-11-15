@@ -32,6 +32,7 @@ canvas{display:block;width:100%;height:100%}
 .mp{display:flex;flex-direction:column;align-items:center;gap:12px}.mprow{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}.join{display:flex;gap:8px}
 .mp .alt{background:#2a3a55;box-shadow:none;font-size:17px;padding:10px 20px}
 #code{font-family:var(--disp);font-size:20px;width:6.5em;text-align:center;padding:8px;border-radius:4px;border:1px solid #445066;background:#111826;color:var(--ink)}
+#netst small{display:block;font-size:12px;color:var(--dim);margin-top:4px;line-height:1.5}
 #netst{min-height:1.6em;color:var(--amber);font-family:var(--disp);line-height:1.6;margin:0}.roomcode{display:block;font-size:44px;letter-spacing:.25em;color:#fff;font-weight:400}
 #dmg{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(200,0,20,.75));opacity:0;transition:opacity .25s}
 .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;background:rgba(5,8,14,.84);padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
@@ -269,40 +270,50 @@ function iceDone(pc){return new Promise(r=>{if(pc.iceGatheringState==='complete'
 function isOpen(L){return L&&L.u&&L.r&&L.u.readyState==='open'&&L.r.readyState==='open'}
 function attach(L,ch,onOpen){if(ch.label==='u')L.u=ch;else L.r=ch;ch.onmessage=e=>{try{onMsg(JSON.parse(e.data),L.slot)}catch(err){console.error(err)}};
  ch.onopen=()=>{if(isOpen(L)&&!L.ok){L.ok=true;onOpen()}};ch.onclose=()=>linkLost(L);if(isOpen(L)&&!L.ok){L.ok=true;onOpen()}}
-function watchPC(L){L.pc.onconnectionstatechange=()=>{const s=L.pc.connectionState;if(s==='failed'||s==='closed'||(s==='disconnected'&&L.ok))linkLost(L)}}
-function lobbyText(){const n=1+Object.values(net.peers).filter(isOpen).length;return '部屋番号 <b class="roomcode">'+net.code+'</b>参加者 '+n+' / '+MAXP+' 人　ほかの端末で「部屋に入る」にこの番号を入れてください'}
+function watchPC(L){L.pc.onconnectionstatechange=()=>{const s=L.pc.connectionState;if(s==='failed'&&!L.ok){L.failed=true;if(L.onFail)L.onFail();return}if(s==='failed'||s==='closed'||(s==='disconnected'&&L.ok))linkLost(L)}}
+const FAILMSG='通信の経路が見つからず、つながりませんでした。全員を同じWi-Fiにつないで、もう一度試してください';
+function lobbyText(){const ps=Object.values(net.peers),n=1+ps.filter(isOpen).length,w=ps.filter(p=>!isOpen(p)&&!p.failed).length;
+ return '部屋番号 <b class="roomcode">'+net.code+'</b>参加者 '+n+' / '+MAXP+' 人'+(w?'（ほかに'+w+'人が接続中…）':'')+(net.lobbyNote?'<br>'+net.lobbyNote:'')+'<br><small>番号を送るために別のアプリへ切り替えたら、相手が入力する前にこの画面へ戻ってください（画面を離れると受付が止まります）</small>'}
 async function hostRoom(){netReset();st('部屋を準備しています…');
- try{const {F,db,uid}=await fb();const seed=Math.floor(REALRAND()*1e9);net.seed=seed;let code,ref=null;
-  for(let i=0;i<8&&!ref;i++){code=String(1000+Math.floor(REALRAND()*9000));const r=F.doc(db,'zombieRooms',code);try{await F.setDoc(r,{seed,host:uid,createdAt:F.serverTimestamp()});ref=r}catch(e){}}
-  if(!ref)throw new Error('部屋番号を確保できませんでした');net.ref=ref;net.code=code;net.lobby=true;net.amHost=true;st(lobbyText());document.getElementById('hoststart').hidden=false;
-  net.unsub=F.onSnapshot(F.collection(ref,'joins'),snap=>{for(const ch of snap.docChanges()){if(ch.type!=='added')continue;const d=ch.doc.data();if(!d.offer||d.answer)continue;answerJoin(ch.doc.ref,d.offer)}})}
- catch(e){console.error(e);st('部屋を作れませんでした。通信状況を確認してください')}}
+ try{const {F,db,uid}=await fb();const seed=Math.floor(REALRAND()*1e9);net.seed=seed;let code,ref=null,lastErr=null;
+  for(let i=0;i<8&&!ref;i++){code=String(1000+Math.floor(REALRAND()*9000));const r=F.doc(db,'zombieRooms',code);try{await F.setDoc(r,{seed,host:uid,createdAt:F.serverTimestamp()});ref=r}catch(e){lastErr=e}}
+  if(!ref)throw lastErr||new Error('部屋番号を確保できませんでした');net.ref=ref;net.code=code;net.lobby=true;net.amHost=true;net.handled=new Set();net.lobbyNote='';st(lobbyText());document.getElementById('hoststart').hidden=false;
+  const jcol=F.collection(ref,'joins');net.jcol=jcol;
+  net.unsub=F.onSnapshot(jcol,snap=>{for(const d of snap.docs)checkJoin(d)},e=>{console.error(e);net.lobbyNote='参加の受付でエラーが起きました（'+(e.code||e.message)+'）。部屋を作り直してください';st(lobbyText())})}
+ catch(e){console.error(e);st('部屋を作れませんでした（'+(e.code||e.message||'不明なエラー')+'）。通信状況を確認してください')}}
+function checkJoin(doc){const d=doc.data();if(!d||!d.offer||d.answer)return;const key=doc.id+':'+d.offer.length+':'+d.offer.slice(-24);if(net.handled.has(key))return;net.handled.add(key);answerJoin(doc.ref,d.offer)}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible'||!net.lobby||!net.jcol||!FB)return;FB.F.getDocs(net.jcol).then(s=>s.docs.forEach(checkJoin)).catch(()=>{})});
 async function answerJoin(jref,offer){const {F}=FB;net.joins.push(jref);
  if(!net.lobby){F.updateDoc(jref,{answer:'STARTED'}).catch(()=>{});return}
  let slot=0;for(let s=1;s<MAXP;s++)if(!net.peers[s]){slot=s;break}
  if(!slot){F.updateDoc(jref,{answer:'FULL'}).catch(()=>{});return}
- const L={slot,pc:mkPC()};net.peers[slot]=L;watchPC(L);L.pc.ondatachannel=e=>attach(L,e.channel,()=>{st(lobbyText());chSend(L,{t:'hello',slot},1)});
+ const L={slot,pc:mkPC()};net.peers[slot]=L;watchPC(L);net.lobbyNote='';st(lobbyText());
+ L.onFail=()=>{delete net.peers[slot];net.lobbyNote=PNAME[slot]+'になる予定の人とつながりませんでした（通信の経路が見つかりません）。同じWi-Fiにつないで、もう一度「部屋に入る」を押してもらってください';st(lobbyText())};
+ L.pc.ondatachannel=e=>attach(L,e.channel,()=>{net.lobbyNote=PNAME[slot]+'が入りました';st(lobbyText());chSend(L,{t:'hello',slot},1)});
+ setTimeout(()=>{if(net.peers[slot]===L&&!isOpen(L)&&!L.failed){L.failed=true;try{L.pc.close()}catch(e){}L.onFail()}},25000);
  try{await L.pc.setRemoteDescription({type:'offer',sdp:offer});await L.pc.setLocalDescription(await L.pc.createAnswer());await iceDone(L.pc);await F.updateDoc(jref,{answer:L.pc.localDescription.sdp,slot})}
- catch(e){console.error(e);delete net.peers[slot]}}
+ catch(e){console.error(e);delete net.peers[slot];net.lobbyNote='参加者への返事に失敗しました（'+(e.code||e.message)+'）';st(lobbyText())}}
 function hostStart(){if(!net.lobby)return;net.lobby=false;document.getElementById('hoststart').hidden=true;
  for(const k in net.peers)if(!isOpen(net.peers[k])){try{net.peers[k].pc.close()}catch(e){}delete net.peers[k]}
  if(net.unsub){net.unsub();net.unsub=null}if(FB){for(const j of net.joins)FB.F.deleteDoc(j).catch(()=>{});if(net.ref)FB.F.deleteDoc(net.ref).catch(()=>{})}
  const slots=[0,...Object.keys(net.peers).map(Number)];net.send({t:'start',seed:net.seed,slots},1);st('');start('host',net.seed,slots)}
-async function joinRoom(){const code=document.getElementById('code').value.replace(/\D/g,'');if(code.length!==4)return st('4桁の部屋番号を入れてください');netReset();st('部屋を探しています…');
- try{const {F,db,uid}=await fb();const ref=F.doc(db,'zombieRooms',code);const s=await F.getDoc(ref);const d=s.data();if(!d)return st('部屋'+code+'が見つかりません。番号を確認してください');
-  net.seed=d.seed;const L={slot:0,pc:mkPC()};net.host=L;watchPC(L);
-  const onOpen=()=>st('つながりました。部屋を作った人がスタートするのを待っています…');
+async function joinRoom(){const code=document.getElementById('code').value.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\D/g,'');if(code.length!==4)return st('4桁の部屋番号を入れてください');netReset();st('部屋'+code+'を探しています…');
+ try{const {F,db,uid}=await fb();const ref=F.doc(db,'zombieRooms',code);const s=await F.getDoc(ref);const d=s.data();if(!d)return st('部屋'+code+'が見つかりません。番号を確認するか、部屋を作った人に作り直してもらってください');
+  net.seed=d.seed;const L={slot:0,pc:mkPC()};net.host=L;watchPC(L);L.onFail=()=>st(FAILMSG);
+  const onOpen=()=>{clearTimeout(net.timer);st('つながりました！ 部屋を作った人がスタートするのを待っています…')};
   attach(L,L.pc.createDataChannel('u',{ordered:false,maxRetransmits:0}),onOpen);attach(L,L.pc.createDataChannel('r'),onOpen);
   await L.pc.setLocalDescription(await L.pc.createOffer());await iceDone(L.pc);
-  const jref=F.doc(db,'zombieRooms',code,'joins',uid);await F.deleteDoc(jref).catch(()=>{});await F.setDoc(jref,{offer:L.pc.localDescription.sdp,createdAt:F.serverTimestamp()});st('部屋を作った人の返事を待っています…');
-  net.unsub=F.onSnapshot(jref,s2=>{const j=s2.data();if(!j||!j.answer||L.pc.currentRemoteDescription)return;
+  const jref=F.doc(db,'zombieRooms',code,'joins',uid);await F.deleteDoc(jref).catch(()=>{});await F.setDoc(jref,{offer:L.pc.localDescription.sdp,createdAt:F.serverTimestamp()});
+  st('部屋'+code+'に参加を申し込みました。部屋を作った人の返事を待っています…');
+  net.timer=setTimeout(()=>{if(!L.pc.currentRemoteDescription)st('部屋を作った人から返事がありません。部屋を作った人の画面で、このゲームが開いたままになっているか確認してから、もう一度「部屋に入る」を押してください')},15000);
+  net.unsub=F.onSnapshot(jref,s2=>{const j=s2.data();if(!j||!j.answer||L.pc.currentRemoteDescription)return;clearTimeout(net.timer);
    if(j.answer==='FULL')return st('その部屋は満員です（最大'+MAXP+'人）');if(j.answer==='STARTED')return st('その部屋はもうゲームを始めています');
-   net.slot=j.slot;st('接続しています…');L.pc.setRemoteDescription({type:'answer',sdp:j.answer}).catch(()=>st('つながりませんでした'));
-   net.timer=setTimeout(()=>{if(!isOpen(L))st('つながりませんでした。全員を同じWi-Fiにつなぐと、つながりやすくなります')},20000)})}
- catch(e){console.error(e);st('接続できませんでした。番号と通信状況を確認してください')}}
-function netReset(){clearTimeout(net.timer);if(net.unsub){net.unsub();net.unsub=null}
+   net.slot=j.slot;st('返事が来ました。接続しています…');L.pc.setRemoteDescription({type:'answer',sdp:j.answer}).catch(e=>st('つながりませんでした（'+e.message+'）'));
+   net.timer=setTimeout(()=>{if(!isOpen(L))st(FAILMSG)},20000)},e=>{console.error(e);st('返事の受け取りでエラーが起きました（'+(e.code||e.message)+'）')})}
+ catch(e){console.error(e);st('接続できませんでした（'+(e.code||e.message||'不明なエラー')+'）。番号と通信状況を確認してください')}}
+function netReset(){clearTimeout(net.timer);if(net.unsub){net.unsub();net.unsub=null}if(net.amHost&&net.lobby&&net.ref&&FB)FB.F.deleteDoc(net.ref).catch(()=>{});
  for(const L of [net.host,...Object.values(net.peers)])if(L){L.dead=true;try{L.pc.close()}catch(e){}}
- Object.assign(net,{role:null,slot:0,peers:{},host:null,lobby:false,acc:{},accH:{},ref:null,joins:[],amHost:false});const hs=document.getElementById('hoststart');if(hs)hs.hidden=true}
+ Object.assign(net,{role:null,slot:0,peers:{},host:null,lobby:false,acc:{},accH:{},ref:null,joins:[],amHost:false,jcol:null,lobbyNote:''});const hs=document.getElementById('hoststart');if(hs)hs.hidden=true}
 function linkLost(L){if(L.dead)return;L.dead=true;try{L.pc.close()}catch(e){}
  if(L===net.host){net.host=null;if(run&&net.role==='guest')end('部屋を作った人との接続が切れました');else st('部屋を作った人との接続が切れました');return}
  delete net.peers[L.slot];if(net.lobby){st(lobbyText());return}

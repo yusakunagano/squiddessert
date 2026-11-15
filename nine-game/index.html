@@ -438,10 +438,36 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     const PX = 7, H = 21;                      // screen px per pixel, stage height in pixels
     let W = 50;                                // stage width in pixels, set from the layout
     // X light fur, K dark fur (panda, penguin), O orange (beak, feet), R/S hearts and sparkles, Z sleep.
-    const COLORS = { X: '#f2f2ef', K: '#6b6b67', O: '#e8a33d', R: '#be2a3c', S: '#c8c846', Z: '#9b9b96' };
+    // もふ (the fluffy one): F cream fur, P face, C rosy cheeks, M mouth, G sprout.
+    const COLORS = {
+      X: '#f2f2ef', K: '#6b6b67', O: '#e8a33d', R: '#be2a3c', S: '#c8c846', Z: '#9b9b96',
+      F: '#e6d7bf', P: '#f7ebdc', C: '#f2a7a0', M: '#8a6a55', G: '#8fbf6a'
+    };
     const LEGS = [['.X.X....X.X..'], ['..X.X..X.X...']];
     // Each animal: body rows (without legs), two leg poses, where the eyes are (holes punched by code),
     // where the arm nubs go (null = no arms), and a lying-down pose with the head on the left.
+    // もふ: an original fluffy creature with a sprout on its head; it is the dancer for now.
+    const MOFU = {
+      name: 'もふ',
+      body: [
+        '......GG.....',
+        '.....GG......',
+        '..F...G...F..',
+        '..FFFFFFFFF..',
+        '.FFFFFFFFFFF.',
+        '.FFFPPPPPFFF.',
+        '.FFPPPPPPPFF.',
+        '.FPPPPPPPPPF.',
+        '.FPCPPMPPCPF.',
+        '.FFPPPPPPPFF.',
+        '.FFFFFFFFFFF.',
+        '.FFFFFFFFFFF.',
+        '..FFFFFFFFF..'
+      ],
+      legs: [['...FF...FF...'], ['..FF.....FF..']], eyes: { x: [4, 8], top: 6, bottom: 7 },
+      arms: { row: 11, x: [0, 12], up: [7, 8], color: 'F' },
+      nap: ['..GG.........', '...G.........', '.FFFFF.......', 'FPPPPPF......', 'FPCPPPFFFFFF.', 'FFFFFFFFFFFFF', '.FFFFFFFFFFF.']
+    };
     const ANIMALS = [
       {
         name: 'ねこ',
@@ -590,7 +616,9 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     const slow = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const WALK_SPEED = 14;                     // pixels per second
 
-    let animal = ANIMALS[randInt(0, ANIMALS.length - 1)];
+    // The earlier animals stay in ANIMALS so they can come back; for now もふ dances every game.
+    const ROSTER = [MOFU];
+    let animal = ROSTER[0];
     let cx = 12;                               // horizontal centre of the animal
     let face = 1;
     let mood = { name: 'dance', t0: 0, dur: 4000 };
@@ -717,10 +745,10 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     window.addEventListener('resize', resize);
     requestAnimationFrame(loop);
 
-    // A different animal for the next game.
+    // A different dancer for the next game (when the roster has more than one).
     function randomize() {
-      const others = ANIMALS.filter(a => a !== animal);
-      animal = others[randInt(0, others.length - 1)];
+      const others = ROSTER.filter(a => a !== animal);
+      if (others.length) animal = others[randInt(0, others.length - 1)];
       mood = { name: 'dance', t0: performance.now(), dur: 3000 };
     }
 
@@ -743,7 +771,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
         });
       }
     }
-    return { cheer, randomize, names: ANIMALS.map(a => a.name) };
+    return { cheer, randomize, names: ROSTER.map(a => a.name) };
   })();
 
   // ---- sound: little chiptune effects made with Web Audio (no audio files). Off by default. ----

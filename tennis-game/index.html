@@ -152,6 +152,29 @@ const keys = {};
 addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key.toLowerCase() === 'x') keys['drop'] = true; if (e.key === ' ') { e.preventDefault(); serveRequest = true; } });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; if (e.key.toLowerCase() === 'x') keys['drop'] = false; });
 let touch = null, serveRequest = false;
+// ---- 効果音（WebAudioで合成。音声ファイルは使わない）----
+let actx = null;
+function audio(){ if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } if (actx.state === 'suspended') actx.resume(); return actx; }
+addEventListener('pointerdown', audio, { once: false, passive: true }); addEventListener('keydown', audio, { passive: true });
+function playHit(power = 1){
+  const a = actx; if (!a || a.state !== 'running') return;
+  const t = a.currentTime, g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * Math.min(1.3, power), t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+  const o = a.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(950 + 250 * power, t); o.frequency.exponentialRampToValueAtTime(380, t + 0.1);
+  // ガットの「パコッ」というアタック音（短いノイズ）
+  const n = a.createBufferSource(), buf = a.createBuffer(1, a.sampleRate * 0.03, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2;
+  n.buffer = buf; const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 1.2;
+  o.connect(g); n.connect(f); f.connect(g); g.connect(a.destination);
+  o.start(t); o.stop(t + 0.13); n.start(t);
+}
+function playBounce(){
+  const a = actx; if (!a || a.state !== 'running') return;
+  const t = a.currentTime, g = a.createGain(), o = a.createOscillator();
+  o.type = 'sine'; o.frequency.setValueAtTime(240, t); o.frequency.exponentialRampToValueAtTime(110, t + 0.08);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + 0.11);
+}
 const NOINP = { mx: 0, my: 0, left: false, right: false, power: false, lob: false, drop: false, slice: false, touch: null };
 // この端末の操作（画面の向きのまま。手前=自分側）
 function localInput(){
@@ -524,6 +547,7 @@ function applySnapshot(m){
   m.P.forEach((a, i) => {
     const p = players[i]; if (!p) return;
     p.tx = a[0]; p.ty = a[1]; if (p.x === 0 && p.y === 0) { p.x = a[0]; p.y = a[1]; }
+    if (a[5] < 0.1 && (p.st ?? 9) > 0.3 && a[10] !== '届かない…') playHit(1);
     p.vxs = a[2]; p.walk = a[3]; p.mv = a[4]; p.st = a[5]; p.shot = a[6]; p.prep = a[7]; p.prepType = a[8]; p.label = a[9]; p.tag = a[10]; p.jumpT = a[11]; p.serveSwing = !!a[12];
     if (p !== human) p.isHuman = !!a[13];
     p.lungeT = a[14]; p.lungeDir = a[15]; p.jumpAmp = a[16]; p.vys = a[17];
@@ -592,7 +616,7 @@ function hit(p, reach = 1.5){
   const isSmash = ball.z > 2.9; // 2.5m未満の高めの球はハイボレーにする
   const isVolley = !isSmash && bounces === 0 && Math.abs(p.y) < 8;
   const side = (ball.x - p.x) * s >= 0 ? 'f' : 'b';
-  const isAirK = !isSmash && !isVolley && p.akPlanned && (p.jumpT ?? 9) < 0.7;
+  const isAirK = !isSmash && !isVolley && p.akPlanned && (p.jumpT ?? 9) < 0.8;
   p.akPlanned = false;
   p.shot = isSmash ? 'sm' : isAirK ? 'jk' : side + (isVolley ? 'v' : 's');
   const err = [1.6, 1.1, 0.7][level];
@@ -729,6 +753,7 @@ function hit(p, reach = 1.5){
   p.prepType = p.prepType && p.prepType === p.shot ? p.prepType : p.shot;
   p.fromPose = (p.prep || 0) > 0.3 && p.prepType === p.shot ? prepPose(p) : POSES[p.shot].back2;
   p.swing = 0.25; p.st = 0; p.prep = 0; p.serveSwing = false;
+  playHit(isSmash || power || isAirK ? 1.3 : lob || drop || mishit ? 0.6 : 1);
   p.label = 0.9;
   for (const q of players) q.cool = 0;
   p.cool = 0.4;
@@ -767,7 +792,7 @@ function serve(p){
   Object.assign(ball, v);
   ball.curve = ax;
   ball.live = true; lastHitter = p; hitFrom = { x: p.x, y: p.y }; bounces = 0; isServe = true;
-  p.swing = 0.3; p.cool = 0.5; p.shot = 'sm'; p.prepType = 'sm'; p.fromPose = SERVE_DROP; p.st = 0; p.prep = 0; ball.smash = false; ball.volley = false; p.serveSwing = true; ball.spin = kind === 'kick' ? 'kick' : kind === 'slice' ? 'slice' : null; p.label = 1.1; p.tag = kind === 'flat' ? 'フラットサーブ' : kind === 'slice' ? 'スライスサーブ' : kind === 'kick' ? 'キックサーブ' : 'サーブ'; p.jumpT = 0; p.jumpAmp = 0.22;
+  p.swing = 0.3; p.cool = 0.5; p.shot = 'sm'; p.prepType = 'sm'; p.fromPose = SERVE_DROP; p.st = 0; p.prep = 0; ball.smash = false; ball.volley = false; p.serveSwing = true; playHit(kind === 'flat' ? 1.3 : 1); ball.spin = kind === 'kick' ? 'kick' : kind === 'slice' ? 'slice' : null; p.label = 1.1; p.tag = kind === 'flat' ? 'フラットサーブ' : kind === 'slice' ? 'スライスサーブ' : kind === 'kick' ? 'キックサーブ' : 'サーブ'; p.jumpT = 0; p.jumpAmp = 0.22;
   state = 'rally'; showMsg('', 0);
 }
 
@@ -880,22 +905,22 @@ function update(dt){
     if (d < 0.5) { p.walk = (p.walk || 0) + d * 3.8; p.mv = (p.mv || 0) * 0.9 + (d / dt > 0.5 ? 1 : 0) * 0.1; }
   }
   for (const p of players) {
-    p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; p.lungeT = (p.lungeT ?? 9) + dt; if (p.jumpT > 0.8) p.akPlanned = false;
+    p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; p.lungeT = (p.lungeT ?? 9) + dt; if (p.jumpT > 0.9) p.akPlanned = false;
     // 打つ前の準備動作（テイクバック）
     let target = 0;
     if (state === 'serve' && p === servingPlayer()) { target = tossing ? 1 : 0; p.prepType = 'sm'; }
     else if (state === 'rally' && lastHitter && lastHitter.team !== p.team && !(isServe && bounces === 0 && false) && p.st > 0.5) {
       const d = Math.hypot(ball.x - p.x, ball.y - p.y);
       const coming = (ball.y - p.y) * ball.vy < 0 || d < 1.6;
-      if (coming && d < 8) {
-        target = Math.max(0, Math.min(1, 1 - (d - 1.6) / 4.5));
+      if (coming && d < 11) {
+        target = Math.max(0, Math.min(1, 1 - (d - 1.6) / 6)); // 早めにテイクバックし、引いたまま動く
         const sd = (ball.x - p.x) * sideSign(p.team) >= 0 ? 'f' : 'b';
         p.prepType = ball.z > 2.8 && ball.vz < 3 && bounces === 0 ? 'sm' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
         // エアK：バウンド後に肩の高さへ弾んだフォア側の球が良い位置に来たら、跳び上がって打つ
         const lat = Math.abs(ball.x - p.x);
         if (bounces === 1 && sd === 'f' && ball.z > 1.0 && d < 2.0 && lat > 0.35 && lat < 1.4 && (p.jumpT ?? 9) > 1.2 && p.akDecided !== rallyHits) {
           p.akDecided = rallyHits;
-          if (Math.random() < (p.isHuman ? 0.85 : [0.2, 0.35, 0.5][level])) { p.jumpT = 0; p.jumpAmp = 0.5; p.akPlanned = true; }
+          if (Math.random() < (p.isHuman ? 0.85 : [0.2, 0.35, 0.5][level])) { p.jumpT = 0; p.jumpAmp = 0.9; p.akPlanned = true; }
         }
       }
     }
@@ -957,6 +982,15 @@ function update(dt){
     if (bounces === 0) reach *= ball.z > 2.9 ? 0.65 : 0.75;
     const d = Math.hypot(ball.x - p.x, ball.y - p.y);
     if (d < reach * (ball.smash ? 0.85 : 1) && ball.z < 3.3) { hit(p, reach); break; }
+    // ギリギリで届かなかった球にも、ラケットを振る（空振り）
+    if (p.whiff !== rallyHits && d < reach * 1.9 && ball.z < 3.3 && sideSign(p.team) * (ball.y - p.y) > 0.15 && sideSign(p.team) * ball.vy > 0) {
+      p.whiff = rallyHits;
+      const sd = (ball.x - p.x) * sideSign(p.team) >= 0 ? 'f' : 'b';
+      p.shot = sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
+      p.fromPose = (p.prep || 0) > 0.3 ? prepPose(p) : POSES[p.shot].back2;
+      p.st = 0; p.prep = 0; p.serveSwing = false; p.label = 0.8; p.tag = '届かない…';
+      p.lungeT = 0; p.lungeDir = Math.sign((ball.x - p.x) * sideSign(p.team)) || 1;
+    }
   }
 }
 
@@ -978,7 +1012,7 @@ function stepBall(dt, dead){
   }
   if (ball.z <= 0) {
     ball.z = 0; ball.curve = 0; const bz = ball.spin === 'kick' ? 1.05 : ball.spin === 'slice' ? 0.42 : 0.62; ball.vz = -ball.vz * bz; const keep = ball.spin === 'slice' ? 0.8 : ball.spin === 'kick' ? 0.72 : ball.volley ? 0.55 : 0.68; ball.vx *= keep; ball.vy *= keep; ball.spin = null;
-    bounces++;
+    bounces++; playBounce();
     const opp = 1 - lastHitter.team;
     if (bounces === 1) {
       if (isServe) { if (!inServiceBox(ball.x, ball.y, opp)) { fault('アウト'); return; } }
@@ -1262,9 +1296,9 @@ function computePose(p){
   const ph = p.walk || 0, mv = p.mv || 0;
   // 走る向きに体を向ける。速く遠くへ走るほど、はっきりその方向を向く（後ろへ下がるときは横向きで）
   const sgn = sideSign(p.team), latV = (p.vxs || 0) * sgn, fwdV = -(p.vys || 0) * sgn, spd = Math.hypot(latV, fwdV);
-  const sprint = Math.max(0, Math.min(1, (spd - 1.2) / 1.6));
-  let runYaw = fwdV >= 0 ? Math.atan2(latV, Math.max(0.01, fwdV)) : Math.sign(latV || 1) * Math.min(1.3, 0.9 + Math.abs(Math.atan2(-fwdV, Math.abs(latV) + 0.01)) * 0.3);
-  runYaw = Math.max(-1.35, Math.min(1.35, runYaw));
+  const sprint = Math.max(0, Math.min(1, (spd - 0.9) / 1.3));
+  let runYaw = fwdV >= 0 ? Math.atan2(latV, Math.max(0.01, fwdV)) : Math.sign(latV || 1) * Math.min(1.57, 0.9 + Math.abs(Math.atan2(-fwdV, Math.abs(latV) + 0.01)) * 0.3);
+  runYaw = Math.max(-1.57, Math.min(1.57, runYaw)); // 押し続けると真横まで向く
   let yaw = Math.max(-1, Math.min(1, latV / 5)) * 0.6 * (1 - sprint) + runYaw * sprint;
   if (state === 'serve' && p === servingPlayer()) yaw = 0.9;
   else if (p.prepType === 'sm' && (p.prep || 0) > 0.03 && (p.st ?? 9) > 0.7) yaw = 0.9 * p.prep; // スマッシュの構えも横向き
@@ -1287,7 +1321,7 @@ function computePose(p){
   } else if (state === 'serve' && p === servingPlayer() && tossing) {
     // トス：両腕をいっしょに下ろす → 左手を上へ伸ばしひざを深く曲げ背中を反らす（トロフィー）→ ラケットを背中に落とす
     pose = tossT < 0.15 ? lerpPose(SERVE_READY, SERVE_DOWN, tossT / 0.15) : tossT < 0.45 ? lerpPose(SERVE_DOWN, SERVE_TROPHY, (tossT - 0.15) / 0.3) : lerpPose(SERVE_TROPHY, SERVE_DROP, (tossT - 0.45) / 0.18);
-  } else if ((p.prep || 0) > 0.03 && POSES[p.prepType]) {
+  } else if ((p.prep || 0) > 0.03 && POSES[p.prepType] && !(sprint > 0.75 && p.prep < 0.85)) {
     pose = prepPose(p);
   } else if (mv > 0.35) {
     const a = Math.sin(ph) * mv * (1 + 0.7 * sprint); // 全力で走るときは腕を大きく振り、前傾する
@@ -1302,13 +1336,13 @@ function updateRig(R){
   const tgt = cp.pose, inSwing = (p.st ?? 9) < 0.5;
   const kk = 1 - Math.exp(-frameDt * (inSwing ? 30 : 16));
   const tl = tgt.l === 'grip' ? null : tgt.l;
-  if (!R.sm) R.sm = { h: tgt.h.slice(), r: tgt.r.slice(), l: (tl || [tgt.h[0] - 0.02, tgt.h[1] - 0.04, tgt.h[2] - 0.1]).slice(), tw: 0, cr: 0, sl: 0, sr: 0, kr: 0, bend: 0, yaw: cp.yaw };
+  if (!R.sm) R.sm = { h: tgt.h.slice(), r: tgt.r.slice(), l: (tl || [tgt.h[0] - 0.02, tgt.h[1] - 0.04, tgt.h[2] - 0.1]).slice(), tw: 0, cr: 0, sl: 0, sr: 0, kr: 0, bend: 0, eu: 0, yaw: cp.yaw };
   const sm = R.sm, ap = (a, b) => { for (let i = 0; i < 3; i++) a[i] += (b[i] - a[i]) * kk; };
   ap(sm.h, tgt.h); ap(sm.r, tgt.r);
   ap(sm.l, tl || [sm.h[0] - 0.02, sm.h[1] - 0.04, sm.h[2] - 0.1]);
-  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'bend']) sm[k] += ((tgt[k] || 0) - sm[k]) * kk;
+  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'bend', 'eu']) sm[k] += ((tgt[k] || 0) - sm[k]) * kk;
   sm.yaw += (cp.yaw - sm.yaw) * (1 - Math.exp(-frameDt * 12));
-  const pose = { h: sm.h, r: sm.r, l: tl ? sm.l : 'grip', tw: sm.tw, cr: sm.cr, sl: sm.sl, sr: sm.sr, kr: sm.kr, bend: sm.bend };
+  const pose = { h: sm.h, r: sm.r, l: tl ? sm.l : 'grip', tw: sm.tw, cr: sm.cr, sl: sm.sl, sr: sm.sr, kr: sm.kr, bend: sm.bend, eu: sm.eu };
   if (!tl) sm.l = [sm.h[0] - 0.02, sm.h[1] - 0.04, sm.h[2] - 0.1];
   const yaw = sm.yaw;
   const st0 = p.st ?? 9;
@@ -1321,7 +1355,7 @@ function updateRig(R){
   const fw = gtime * 9 + p.x * 0.7 + p.team * 1.3;
   const crouch = 0.035 * idle;
   const bob = Math.abs(Math.sin(ph)) * 0.04 * mv + Math.abs(Math.sin(fw)) * 0.03 * idle * (st0 > 0.85 ? 1 : 0) - crouch - (pose.cr || 0) - (receiving ? 0.07 : 0);
-  const jt = p.jumpT ?? 9, jumpH = jt < 0.6 ? Math.sin(Math.PI * jt / 0.6) * (p.jumpAmp ?? 0.5) : 0; // エアKのジャンプ
+  const jt = p.jumpT ?? 9, jumpH = jt < 0.7 ? Math.sin(Math.PI * jt / 0.7) * (p.jumpAmp ?? 0.5) : 0; // エアKのジャンプ
   // 体勢を崩したとき：ボールの方へ上半身を大きく傾け、腰を落とす
   const lt = p.lungeT ?? 9, lean = lt < 0.8 ? Math.sin(Math.PI * Math.min(1, lt / 0.8)) * (p.lungeDir || 1) : 0;
   const bendV = pose.bend || 0;
@@ -1348,7 +1382,9 @@ function updateRig(R){
     d = Math.min(d, L1 + L2 - 0.002); d = Math.max(d, 0.12);
     const H = S0.clone().addScaledVector(dir, d);
     const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
-    const pole = new V3().subVectors(W(sa * 2.2, -0.35, 0.2), W(0, 0, 1.25)); // 外・後ろ・下
+    // 肘の向き：ふだんは外・後ろ・下。サーブ／スマッシュの右腕は肘を高く上げて曲げる（外・上）
+    const eu = i === 0 ? (pose.eu || 0) : 0;
+    const pole = new V3().subVectors(W(sa * (2.2 - 0.6 * eu), -0.35 + 0.1 * eu, 0.2 + 2.6 * eu), W(0, 0, 1.25));
     pole.addScaledVector(dir, -pole.dot(dir)); if (pole.lengthSq() < 1e-6) pole.set(0, -1, 0); pole.normalize();
     const E = S0.clone().addScaledVector(dir, a).addScaledVector(pole, hh);
     R.shoulders[i].position.copy(S0); R.elbows[i].position.copy(E); R.hands[i].position.copy(H);
@@ -1443,19 +1479,19 @@ function render3d(){
 // 体ローカル座標 [a=右, f=ネット方向, u=高さ]。tw=上半身のひねり, cr=ひざの曲げ, sl/sr=左/右足の前後, kr=右足の蹴り上げ
 const SERVE_READY = { h: [0.12, 0.42, 1.0], r: [0.05, 0.45, 0.32], l: [0.05, 0.45, 1.0], cr: 0.06, bend: 0.25 };
 const SERVE_DOWN = { h: [0.3, 0.05, 0.78], r: [0.1, -0.15, -0.45], l: [-0.08, 0.3, 0.85], cr: 0.08, bend: 0.15 };
-const SERVE_TROPHY = { tw: 1.1, h: [0.42, -0.3, 1.5], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.1], cr: 0.22, bend: -0.3 };
-const SERVE_DROP = { tw: 0.9, h: [0.3, -0.2, 1.62], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.9], cr: 0.24, bend: -0.35 };
+const SERVE_TROPHY = { eu: 1, tw: 1.1, h: [0.42, -0.3, 1.5], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.1], cr: 0.22, bend: -0.3 };
+const SERVE_DROP = { eu: 1, tw: 0.9, h: [0.22, -0.18, 1.5], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.9], cr: 0.24, bend: -0.35 };
 const READY = { h: [0.05, 0.38, 0.95], r: [0, 0.45, 0.4], l: 'grip', cr: 0.03 };
 const POSES = {
   // フォアハンド：ラケットを高く引く → 後ろで下に落とす（ループ）→ 前で打つ → 左肩の上に巻きつけて終わる
-  fs: { back1: { tw: 1.25, h: [0.6, -0.55, 1.45], r: [0.05, -0.2, 0.65], l: [0.0, 0.55, 1.25], cr: 0.08, sl: 0.25 },
-        back2: { tw: 1.35, h: [0.72, -0.68, 0.85], r: [0.25, -0.45, -0.45], l: [0.05, 0.5, 1.15], cr: 0.12, sl: 0.3 },
+  fs: { back1: { tw: 1.5, h: [0.62, -0.72, 1.5], r: [0.05, -0.25, 0.65], l: [0.05, 0.6, 1.3], cr: 0.1, sl: 0.25 },
+        back2: { tw: 1.6, h: [0.7, -0.85, 0.9], r: [0.2, -0.5, -0.45], l: [0.1, 0.55, 1.2], cr: 0.14, sl: 0.3 },
         hit:   { tw: 0.1, h: [0.5, 0.4, 0.95], r: [0.65, 0.15, 0.1], l: [-0.35, 0.25, 1.1], cr: 0.08, sl: 0.3 },
         mid:   { tw: -0.55, h: [0.05, 0.5, 1.4], r: [-0.4, 0.2, 0.45], l: [-0.35, 0.1, 1.15], cr: 0.04, sl: 0.3, sr: 0.05 },
         fol:   { tw: -1.0, h: [-0.3, 0.15, 1.6], r: [-0.15, -0.45, -0.3], l: [-0.12, 0.3, 1.35], cr: 0.02, sl: 0.3, sr: 0.12, kr: 0.06 } },
   // バックハンド（両手打ち）：左肩の上に大きく引く → 低く落とす → 前で打つ → 両手で右肩の上へ振り抜く
-  bs: { back1: { tw: -1.35, h: [-0.5, -0.35, 1.35], r: [-0.05, -0.2, 0.62], l: 'grip', cr: 0.08, sr: 0.3 },
-        back2: { tw: -1.5, h: [-0.68, -0.62, 0.88], r: [-0.22, -0.5, -0.38], l: 'grip', cr: 0.12, sr: 0.35 },
+  bs: { back1: { tw: -1.6, h: [-0.55, -0.55, 1.4], r: [-0.05, -0.25, 0.62], l: 'grip', cr: 0.1, sr: 0.3 },
+        back2: { tw: -1.75, h: [-0.68, -0.8, 0.9], r: [-0.2, -0.5, -0.4], l: 'grip', cr: 0.14, sr: 0.35 },
         hit:   { tw: -0.3, h: [-0.2, 0.5, 0.95], r: [-0.6, 0.25, 0.05], l: 'grip', cr: 0.08, sr: 0.35 },
         mid:   { tw: 0.45, h: [0.25, 0.45, 1.35], r: [0.35, 0.1, 0.5], l: 'grip', cr: 0.04, sr: 0.35 },
         fol:   { tw: 0.95, h: [0.32, 0.0, 1.6], r: [0.2, -0.45, -0.25], l: 'grip', cr: 0.02, sr: 0.35, sl: 0.08, kr: 0.05 } },
@@ -1473,12 +1509,12 @@ const POSES = {
   // エアK：跳び上がり、肩の高さで叩き、空中で脚を入れ替える（シザーズ）
   jk: { back1: { tw: 1.3, h: [0.6, -0.55, 1.6], r: [0.1, -0.3, 0.55], l: [0.0, 0.55, 1.5], cr: 0.1 },
         back2: { tw: 1.4, h: [0.68, -0.6, 1.25], r: [0.25, -0.5, -0.2], l: [0.05, 0.5, 1.45], cr: 0.08, kr: 0.2, sr: -0.15 },
-        hit:   { tw: 0.0, h: [0.5, 0.45, 1.45], r: [0.65, 0.2, 0.15], l: [-0.4, 0.2, 1.3], sl: 0.05, sr: -0.25, kr: 0.35 },
+        hit:   { tw: 0.0, h: [0.5, 0.45, 1.45], r: [0.65, 0.2, 0.15], l: [-0.4, 0.2, 1.3], sl: 0.05, sr: -0.35, kr: 0.5 },
         mid:   { tw: -0.7, h: [0.0, 0.5, 1.75], r: [-0.45, 0.15, 0.35], l: [-0.4, 0.0, 1.2], sl: 0.25, sr: 0.0, kr: 0.15 },
         fol:   { tw: -1.15, h: [-0.3, 0.1, 1.7], r: [-0.15, -0.45, -0.3], l: [-0.15, 0.3, 1.4], sl: 0.35, sr: 0.12, kr: 0.0 } },
-  sm: { back1: { tw: 1.1, h: [0.45, -0.25, 1.55], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.15], cr: 0.07 },
-        back2: { tw: 0.9, h: [0.3, -0.15, 1.7], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.95], cr: 0.1 },
-        hit:   { tw: 0.2, h: [0.2, 0.3, 2.3], r: [0.0, 0.25, 0.62], l: [-0.3, 0.2, 1.3], cr: -0.03 },
+  sm: { back1: { eu: 1, tw: 1.1, h: [0.45, -0.25, 1.55], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.15], cr: 0.07 },
+        back2: { eu: 1, tw: 0.9, h: [0.22, -0.15, 1.5], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.95], cr: 0.1 },
+        hit:   { eu: 0.6, tw: 0.2, h: [0.2, 0.3, 2.3], r: [0.0, 0.25, 0.62], l: [-0.3, 0.2, 1.3], cr: -0.03 },
         mid:   { tw: -0.4, h: [0.0, 0.6, 1.3], r: [-0.1, 0.5, -0.3], l: [-0.35, 0.1, 1.0], cr: 0.05, sl: 0.3, sr: -0.35, kr: 0.32, bend: 0.25 },
         fol:   { tw: -0.7, h: [-0.35, 0.25, 0.75], r: [-0.3, 0.0, -0.55], l: [-0.4, -0.2, 1.0], cr: 0.1, sl: 0.4, sr: -0.4, kr: 0.2, bend: 0.3 } },
 };
@@ -1489,7 +1525,7 @@ function lerpPose(A, B, t){
   const gl = (P0) => P0.l === 'grip' ? [P0.h[0] - 0.02, P0.h[1] - 0.04, P0.h[2] - 0.1] : P0.l;
   const l = (A.l === 'grip' && B.l === 'grip') ? 'grip' : lerp3(gl(A), gl(B), t);
   const o = { h: lerp3(A.h, B.h, t), r: lerp3(A.r, B.r, t), l };
-  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'bend']) o[k] = (A[k] || 0) + ((B[k] || 0) - (A[k] || 0)) * t;
+  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'bend', 'eu']) o[k] = (A[k] || 0) + ((B[k] || 0) - (A[k] || 0)) * t;
   return o;
 }
 // 準備動作：構え → 高く引く(back1) → ラケットを落とす(back2)

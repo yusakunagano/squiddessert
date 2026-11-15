@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>テニスの動き方</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="description" content="ダブルスのストローカー（後衛）と前衛の動き方を、OK・NGの22パターンで解説。コートに4人とボールを置いて動かせる作戦ボード付き。">
+<style>
+  :root{--bg:#10241a;--card:#173326;--line:#2c5a43;--text:#eef5f0;--muted:#a9c2b4;--ok:#35c27a;--ng:#ff5a5a;--accent:#f2d43d;--court:#3b77c0;--court2:#4a8cd2}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
+  header{position:sticky;top:0;z-index:5;background:rgba(16,36,26,.96);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{font-size:19px;margin:0;flex:1;min-width:180px}
+  a.back{color:var(--accent);text-decoration:none;font-weight:bold}
+  .tabs{display:flex;gap:8px}
+  .tabs button,.filters button,.tool button{border:none;border-radius:999px;padding:8px 14px;font-weight:bold;font-size:14px;cursor:pointer;background:#2a4a3a;color:var(--text)}
+  .tabs button.on,.filters button.on{background:var(--accent);color:#222}
+  @media (max-width:600px){header{position:static}}
+  main{max-width:1100px;margin:0 auto;padding:16px}
+  .intro{color:var(--muted);font-size:14px;margin:0 0 12px}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted);margin-bottom:12px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:14px;height:14px;border-radius:50%;display:inline-block}
+  .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+  .card h3{margin:0;font-size:16px;display:flex;align-items:center;gap:8px}
+  .badge{font-size:12px;font-weight:bold;padding:2px 9px;border-radius:999px;color:#fff;flex:none}
+  .badge.ok{background:var(--ok)} .badge.ng{background:var(--ng)}
+  .card p{margin:0;font-size:14px}
+  .card .point{font-size:13px;color:var(--accent)}
+  .card svg{width:100%;height:auto;border-radius:10px;background:#c4744a}
+  .card .open{align-self:flex-start;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer}
+  #board{display:none}
+  .boardwrap{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+  .boardwrap svg{width:min(100%,460px);height:auto;border-radius:12px;background:#c4744a;touch-action:none;user-select:none}
+  .side{flex:1;min-width:240px;display:flex;flex-direction:column;gap:10px}
+  .tool{display:flex;flex-wrap:wrap;gap:8px}
+  .note{font-size:14px;color:var(--muted)}
+  .piece{cursor:grab}
+  .piece:active{cursor:grabbing}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">← ゲームに戻る</a>
+  <h1>🎾 テニスの動き方（ダブルス）</h1>
+  <div class="tabs"><button id="tPat" class="on">OK・NG パターン</button><button id="tBoard">作戦ボード</button></div>
+</header>
+<main>
+  <section id="patterns">
+    <p class="intro">ダブルスで、ストローカー（後衛）と前衛がどう動くと良いか・悪いかを、コートを上から見た図で説明します。図の下側が自分たちのチームです。</p>
+    <div class="legend">
+      <span><i class="dot" style="background:#2f7cf6"></i>自分たち（A＝後衛、B＝前衛）</span>
+      <span><i class="dot" style="background:#e5483b"></i>相手（C＝後衛、D＝前衛）</span>
+      <span><i class="dot" style="background:#e8ff3a"></i>ボール</span>
+      <span>点線＝ボールの通り道／実線の矢印＝人の動き</span>
+      <span><i class="dot" style="background:rgba(255,90,90,.6)"></i>狙われる・空いている所</span>
+      <span><i class="dot" style="background:rgba(53,194,122,.6)"></i>守れている所</span>
+    </div>
+    <div class="filters"><button data-f="all" class="on">すべて</button><button data-f="ok">OKだけ</button><button data-f="ng">NGだけ</button></div>
+    <div class="grid" id="grid"></div>
+  </section>
+  <section id="board">
+    <div class="boardwrap">
+      <svg id="bsvg" viewBox="-8 -15 16 30"></svg>
+      <div class="side">
+        <p class="note">青（A・B）と赤（C・D）の4人と、黄色のボールを指やマウスでドラッグして動かせます。作戦を考えたり、友だちに説明したりするのに使ってください。</p>
+        <div class="tool">
+          <button data-preset="gankou">雁行陣</button>
+          <button data-preset="heikou">平行陣</button>
+          <button data-preset="twoback">2バック</button>
+          <button data-preset="serve">サーブの配置</button>
+        </div>
+        <div class="tool"><button id="flip">矢印を消す</button></div>
+        <p class="note" id="bnote">「OK・NG パターン」の各図の「ボードで動かす」を押すと、その配置がここに出ます。</p>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+// ---- コートの寸法（m）。x：右が＋、y：下（自分たちのベースライン）が＋ ----
+const HL = 11.885, DW = 5.485, SW = 4.115, SL = 6.4;
+// 22パターン。p：選手の位置 {A,B,C,D}、ball：ボール、moves：矢印 [種類, x1, y1, x2, y2]（b=ボール、a/b2=人）、zones：塗る範囲 [色, x1, y1, x2, y2]
+const PATTERNS = [
+  { ok: true, t: '基本の雁行陣（クロスのラリー）', p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [-2.8, -12], moves: [['b', 2.8, 12, -2.8, -12]],
+    zones: [['g', -5.5, 0.8, -0.6, 5.2]],
+    d: '後衛同士がクロスで打ち合い、前衛はボールを打つ相手後衛の正面側（ストレート側）に立ちます。ネットとサービスラインの間、少しネット寄りが基本の位置です。',
+    k: '前衛は「相手の打つ人の前」に立つ' },
+  { ok: false, t: '前衛がサービスライン上で止まる', p: { A: [2.8, 12.4], B: [-2.4, 6.3], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [-2.8, -12], moves: [['b', -2.8, -12, -2.6, 6.6]],
+    zones: [['r', -4.5, 5.3, -0.8, 7.5]],
+    d: '前衛がサービスライン付近にいると、ボレーで決められる距離でもなく、足元に沈められると返せません。中途半端な位置は一番狙われます。',
+    k: '前衛は前に詰めるか、はっきり下がるか' },
+  { ok: true, t: '相手後衛の位置に合わせて前衛が動く', p: { A: [2.8, 12.4], B: [-3.3, 3.0], C: [-4.4, -11.8], D: [2.4, -3.0] }, ball: [-4.4, -11.5], moves: [['a', -2.4, 3.0, -3.3, 3.0], ['b', 2.8, 12, -4.4, -11.5]],
+    zones: [['g', -5.5, 1, -2, 5]],
+    d: '相手後衛がサイド（アレー）寄りへ動いたら、前衛もストレートを締めるようにサイドへ少し動きます。ボールの位置に合わせて、こまめに横へ動くのが大切です。',
+    k: 'ボールが動いたら前衛も一緒に動く' },
+  { ok: false, t: '前衛がボールに関係なく動かない', p: { A: [2.8, 12.4], B: [-1.2, 3.0], C: [-4.4, -11.8], D: [2.4, -3.0] }, ball: [-4.4, -11.5], moves: [['b', -4.4, -11.5, -4.8, 10]],
+    zones: [['r', -5.5, -0.5, -3, 11]],
+    d: '相手後衛がサイドへ動いたのに前衛が同じ場所のままだと、ストレート（アレー）に打たれて抜かれます。立っているだけの前衛は、相手にとって怖くありません。',
+    k: '止まっている前衛は「穴」になる' },
+  { ok: true, t: 'センターに来た球は前衛が中を締める', p: { A: [0.8, 12.4], B: [-0.8, 3.0], C: [0.2, -12.4], D: [2.0, -3.0] }, ball: [0.2, -12], moves: [['a', -2.0, 3.0, -0.8, 3.0], ['b', 2.0, 12.0, 0.2, -12]],
+    zones: [['g', -2.5, 1, 1, 5]],
+    d: '相手がセンターから打つときは、一番通されやすいのは2人の間（センター）です。前衛は少し中へ寄り、後衛もセンター寄りに構えて真ん中を守ります。',
+    k: '迷ったらセンターを守る' },
+  { ok: false, t: '2人が同じサイドに寄ってしまう', p: { A: [3.3, 12.4], B: [2.6, 3.4], C: [-2.8, -12.4], D: [-2.4, -3.0] }, ball: [-2.8, -12], moves: [['b', -2.8, -12, -4.2, 9]],
+    zones: [['r', -5.5, 0.5, -0.5, 11.9]],
+    d: 'ボールを追って2人とも同じ側に寄ると、反対側ががら空きになります。どちらかがボールを追ったら、もう1人は空いた側をカバーします。',
+    k: '2人で1つのコートを半分ずつ' },
+  { ok: true, t: 'ロブで頭を抜かれたらサイドチェンジ', p: { A: [-2.2, 10.5], B: [2.2, 4.0], C: [2.6, -12.0], D: [-2.0, -3.0] }, ball: [-2.6, 9.5], moves: [['b', 2.6, -12, -2.6, 9.5], ['a', 2.8, 12.4, -2.2, 10.5], ['a', -2.4, 3.0, 2.2, 4.0]],
+    zones: [['g', 0.5, 2, 5, 6]],
+    d: '前衛（B）の頭の上をロブで抜かれたら、後衛（A）が斜めに走って追いかけ、前衛は反対側（Aがいた側）へ移ります。2人の場所を入れ替えて、コート全体を守ります。',
+    k: '声を出して「チェンジ！」' },
+  { ok: false, t: 'ロブにお見合いしてしまう', p: { A: [2.8, 12.4], B: [-2.4, 6.0], C: [2.6, -12.0], D: [-2.0, -3.0] }, ball: [-2.6, 9.5], moves: [['b', 2.6, -12, -2.6, 9.5], ['a', -2.4, 3.0, -2.4, 6.0]],
+    zones: [['r', -5, 7.5, -0.5, 11.9]],
+    d: '前衛が下がりながらロブを追い、後衛はその場で見ているだけ。2人とも中途半端になり、ボールに追いつけないか、苦しい体勢で返すことになります。',
+    k: 'ロブは後衛が追う、前衛は場所を移る' },
+  { ok: true, t: 'ポーチに出て、後衛は空いた側へ', p: { A: [-1.5, 12.0], B: [0.5, 2.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [0.5, 2.0], moves: [['b', -2.8, -12, 0.5, 2.0], ['a', -2.4, 3.0, 0.5, 2.0], ['a', 2.8, 12.4, -1.5, 12.0], ['b', 0.5, 2.0, 2.6, -4.5]],
+    zones: [['g', -5, 6, 0, 11.9]],
+    d: '相手のクロスの球を前衛（B）が横に飛び出してボレー（ポーチ）。前衛がいなくなった側は、後衛（A）がすぐ横に動いてカバーします。決めるボレーは相手前衛の足元や2人の間へ。',
+    k: '出る前衛と、埋める後衛はセット' },
+  { ok: false, t: 'ポーチに出たのに後衛が動かない', p: { A: [2.8, 12.4], B: [0.5, 2.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [0.5, 2.0], moves: [['b', -2.8, -12, 0.5, 2.0], ['a', -2.4, 3.0, 0.5, 2.0], ['b', 0.5, 2.0, -1.0, -4], ['b', -1.0, -4, -4.6, 10.5]],
+    zones: [['r', -5.5, 3, -1, 11.9]],
+    d: '前衛がポーチに出ても決まらずに返されると、前衛がいた側がまるごと空いています。後衛が反対サイドに残ったままだと、そこへ打たれて終わりです。',
+    k: '味方が動いたら、自分も動く' },
+  { ok: true, t: '平行陣は2人でセンターを詰める', p: { A: [1.3, 4.5], B: [-1.6, 3.8], C: [0.5, -12.0], D: [-2.6, -11.6] }, ball: [0.5, -11.8], moves: [['a', 2.2, 5.5, 1.3, 4.5], ['a', -2.6, 4.2, -1.6, 3.8]],
+    zones: [['g', -2.5, 3, 2.5, 6]],
+    d: '2人ともネットに出る平行陣では、ボールのある方へ2人いっしょに少しずつ寄り、間（センター）を狭くします。ボールが来る側の人はやや前、反対の人はやや後ろでロブにも備えます。',
+    k: '2人の間隔はひもでつながっているように' },
+  { ok: false, t: '平行陣でセンターが空く', p: { A: [3.6, 4.5], B: [-3.6, 4.5], C: [0.3, -12.0], D: [-2.6, -11.6] }, ball: [0.3, -11.8], moves: [['b', 0.3, -11.8, 0.0, 10.5]],
+    zones: [['r', -2, 2, 2, 11.9]],
+    d: '平行陣で2人がそれぞれのサイドラインに寄ると、真ん中に大きな道ができます。相手はセンターに打つだけで抜けます。',
+    k: '外より、まず真ん中' },
+  { ok: true, t: '2バックで守る（相手が強いとき）', p: { A: [2.2, 12.6], B: [-2.2, 12.6], C: [1.0, -5.5], D: [-2.0, -2.5] }, ball: [1.0, -5.5], moves: [['a', -2.4, 3.0, -2.2, 12.6]],
+    zones: [['g', -5.5, 10, 5.5, 13.5]],
+    d: '相手が2人ともネットに出てきてスマッシュやボレーが強いときは、2人ともベースラインまで下がって守る方法もあります。ロブや足元へのボールでチャンスを待ちます。',
+    k: '守るときは、はっきり守る' },
+  { ok: false, t: '後衛がノーマンズランドで止まる', p: { A: [1.5, 8.2], B: [-2.4, 3.0], C: [-2.6, -12.0], D: [2.4, -3.0] }, ball: [1.6, 8.6], moves: [['a', 2.8, 12.4, 1.5, 8.2], ['b', -2.6, -12, 1.6, 8.6]],
+    zones: [['r', -5.5, 6.4, 5.5, 10]],
+    d: 'サービスラインとベースラインの間（ノーマンズランド）は、足元にボールが来やすく、返しにくい場所です。前に出るならネットまで、出ないならベースラインへ戻ります。',
+    k: '止まるならベースラインかネット' },
+  { ok: true, t: 'サーブのときの配置', p: { A: [1.0, 12.3], B: [-3.2, 3.6], C: [-3.5, -12.3], D: [1.6, -6.4] }, ball: [1.0, 12.0], moves: [['b', 1.0, 12, -2.2, -5.2]],
+    zones: [['g', -5.5, 1.5, -1.5, 5.5]],
+    d: 'サーバー（A）はセンターマークの近く。前衛（B）はサーブを打つ反対側のサービスボックスの、ネットとサービスラインの中間で、サイドライン寄りに立ちます。ストレートを守りながら、甘い返球をポーチします。',
+    k: '前衛はまずストレートを守る' },
+  { ok: false, t: 'サーブのとき前衛がセンター寄りすぎ', p: { A: [1.0, 12.3], B: [-0.6, 3.0], C: [-3.5, -12.3], D: [1.6, -6.4] }, ball: [-3.5, -12], moves: [['b', -3.5, -12, -5.0, 9]],
+    zones: [['r', -5.5, 0.5, -2.5, 11]],
+    d: '前衛が真ん中に寄りすぎると、レシーブをストレート（アレー）に打たれて簡単に抜かれます。サーブの直後は、まずストレートを締めておきます。',
+    k: 'ストレートを抜かれるのは前衛の責任' },
+  { ok: true, t: 'レシーブのとき前衛はサービスライン付近', p: { A: [-3.5, 12.3], B: [2.0, 6.4], C: [1.0, -12.3], D: [-3.2, -3.6] }, ball: [1.0, -12], moves: [['b', 1.0, -12, -3.2, 6.6]],
+    zones: [['g', 0, 5.4, 4.5, 7.6]],
+    d: 'レシーブする側の前衛（B）は、まずサービスライン付近に立ち、サーブが入るかを見ながら相手前衛（D）の動きを見張ります。レシーブがうまく返ったら前へ詰めます。',
+    k: 'レシーブ前衛は「見張り役」から' },
+  { ok: false, t: 'レシーブのとき前衛がネットにつきすぎ', p: { A: [-3.5, 12.3], B: [1.6, 1.5], C: [1.0, -12.3], D: [-3.2, -3.6] }, ball: [-2.6, -2.4], moves: [['b', 1.0, -12, -3.5, 11.8], ['b', -3.5, 11.8, -2.6, -2.4], ['b', -2.6, -2.4, 1.6, 1.8]],
+    zones: [['r', 0.5, 0.5, 3, 3]],
+    d: 'レシーブ側の前衛が最初からネットにつくと、相手前衛にレシーブをポーチされたとき、至近距離から体の正面や足元に打たれて返せません。',
+    k: '近すぎる前衛は的になる' },
+  { ok: true, t: '打つ人に体を向けてスプリットステップ', p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [-2.8, -12], moves: [['b', 2.8, 12, -2.8, -12]],
+    zones: [['g', -4, 1.6, -0.8, 4.4]],
+    d: '前衛は、いま打とうとしている相手（C）に体とラケットを向け、相手が打つ瞬間に小さくジャンプ（スプリットステップ）して、どちらにもすぐ動けるようにします。',
+    k: '相手が打つ瞬間に「トン」と着地' },
+  { ok: false, t: '前衛が後ろを振り返って味方を見る', p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [2.8, 12], moves: [['b', -2.8, -12, 2.8, 12]],
+    zones: [['r', -4, 1.6, -0.8, 4.4]],
+    d: '味方の後衛が打つところを振り返って見ていると、相手の打球への反応が遅れます。味方が打つ間も前を向き、相手の構えを見て次の球を予想します。',
+    k: '前衛の目は、いつも相手側' },
+  { ok: true, t: '相手前衛がポーチに出たらストレートへ', p: { A: [2.4, 11.0], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [0.0, -2.0] }, ball: [2.4, 11], moves: [['a', 2.4, -3.0, 0.0, -2.0], ['b', 2.4, 11, 4.6, -9.5]],
+    zones: [['g', 2.5, -11.9, 5.5, -2]],
+    d: '相手前衛（D）がポーチに出ようと真ん中へ動いたら、後衛（A）は空いたストレートへ打ちます。相手の動きを見て、空いている所へ打つのが基本です。',
+    k: '打つ前に、相手前衛をちらっと見る' },
+  { ok: false, t: '相手前衛が待っているところに打ち続ける', p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [0.6, -2.2] }, ball: [0.6, -2.2], moves: [['b', 2.8, 12, 0.6, -2.2], ['b', 0.6, -2.2, -0.8, 8.0]],
+    zones: [['r', -1.6, -4, 2.4, -0.5]],
+    d: '相手前衛がセンター寄りに構えてポーチを狙っているのに、同じクロスへ打ち続けると、つかまってセンターに決められます。ロブやストレートで相手前衛を動かします。',
+    k: '同じコースばかりは読まれる' },
+];
+
+// ---- SVG で描く ----
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attr, parent) => { const e = document.createElementNS(NS, tag); for (const k in attr) e.setAttribute(k, attr[k]); if (parent) parent.appendChild(e); return e; };
+function drawCourt(svg){
+  el('rect', { x: -DW - 1.6, y: -HL - 2.6, width: (DW + 1.6) * 2, height: (HL + 2.6) * 2, fill: '#4a8cd2', rx: .2 }, svg);
+  el('rect', { x: -DW, y: -HL, width: DW * 2, height: HL * 2, fill: '#3b77c0' }, svg);
+  const L = (x1, y1, x2, y2) => el('line', { x1, y1, x2, y2, stroke: '#fff', 'stroke-width': .08 }, svg);
+  L(-DW, -HL, DW, -HL); L(-DW, HL, DW, HL); L(-DW, -HL, -DW, HL); L(DW, -HL, DW, HL);
+  L(-SW, -HL, -SW, HL); L(SW, -HL, SW, HL); L(-SW, -SL, SW, -SL); L(-SW, SL, SW, SL); L(0, -SL, 0, SL);
+  L(0, -HL, 0, -HL + .3); L(0, HL, 0, HL - .3);
+  el('line', { x1: -DW - .9, y1: 0, x2: DW + .9, y2: 0, stroke: '#222', 'stroke-width': .16 }, svg);
+  el('line', { x1: -DW - .9, y1: 0, x2: DW + .9, y2: 0, stroke: '#fff', 'stroke-width': .05, 'stroke-dasharray': '.15 .15' }, svg);
+}
+function defs(svg, id){
+  const d = el('defs', {}, svg);
+  for (const [n, c] of [['b', '#e8ff3a'], ['a', '#ffffff']]) {
+    const m = el('marker', { id: id + n, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 5, markerHeight: 5, orient: 'auto-start-reverse' }, d);
+    el('path', { d: 'M0,0 L10,5 L0,10 z', fill: c }, m);
+  }
+}
+const COL = { A: '#2f7cf6', B: '#2f7cf6', C: '#e5483b', D: '#e5483b' };
+const NAME = { A: 'A', B: 'B', C: 'C', D: 'D' };
+function drawPiece(svg, k, x, y){
+  const g = el('g', { class: 'piece', 'data-k': k, transform: `translate(${x} ${y})` }, svg);
+  el('circle', { r: .62, fill: COL[k], stroke: '#fff', 'stroke-width': .1 }, g);
+  const t = el('text', { y: .24, 'text-anchor': 'middle', 'font-size': .72, 'font-weight': 'bold', fill: '#fff' }, g); t.textContent = NAME[k];
+  return g;
+}
+function drawBall(svg, x, y){
+  const g = el('g', { class: 'piece', 'data-k': 'ball', transform: `translate(${x} ${y})` }, svg);
+  el('circle', { r: .34, fill: '#e8ff3a', stroke: '#6b7a00', 'stroke-width': .06 }, g);
+  return g;
+}
+let uid = 0;
+function renderPattern(svg, pt, opts = {}){
+  svg.innerHTML = '';
+  const id = 'm' + (uid++);
+  defs(svg, id); drawCourt(svg);
+  for (const [c, x1, y1, x2, y2] of pt.zones || []) el('rect', { x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1), fill: c === 'r' ? 'rgba(255,70,70,.45)' : 'rgba(53,194,122,.45)', rx: .3 }, svg);
+  if (!opts.noArrows) for (const [kind, x1, y1, x2, y2] of pt.moves || []) {
+    const ball = kind === 'b';
+    el('line', { x1, y1, x2, y2, stroke: ball ? '#e8ff3a' : '#fff', 'stroke-width': ball ? .12 : .16, 'stroke-dasharray': ball ? '.4 .3' : 'none', 'marker-end': `url(#${id}${ball ? 'b' : 'a'})`, opacity: .95 }, svg);
+  }
+  const pieces = {};
+  for (const k of ['A', 'B', 'C', 'D']) pieces[k] = drawPiece(svg, k, ...pt.p[k]);
+  pieces.ball = drawBall(svg, ...pt.ball);
+  return pieces;
+}
+
+// ---- パターン一覧 ----
+const grid = document.getElementById('grid');
+PATTERNS.forEach((pt, i) => {
+  const c = document.createElement('article'); c.className = 'card'; c.dataset.ok = pt.ok ? 'ok' : 'ng';
+  c.innerHTML = `<h3><span class="badge ${pt.ok ? 'ok' : 'ng'}">${pt.ok ? 'OK' : 'NG'}</span>${i + 1}. ${pt.t}</h3>`;
+  const svg = el('svg', { viewBox: '-8 -15 16 30', role: 'img', 'aria-label': pt.t }); c.appendChild(svg);
+  renderPattern(svg, pt);
+  const p = document.createElement('p'); p.textContent = pt.d; c.appendChild(p);
+  const k = document.createElement('p'); k.className = 'point'; k.textContent = '💡 ' + pt.k; c.appendChild(k);
+  const b = document.createElement('button'); b.className = 'open'; b.textContent = 'ボードで動かす →'; b.onclick = () => loadBoard(pt, `${i + 1}. ${pt.t}`); c.appendChild(b);
+  grid.appendChild(c);
+});
+document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-f]').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.card').forEach(c => { c.style.display = b.dataset.f === 'all' || c.dataset.ok === b.dataset.f ? '' : 'none'; });
+});
+
+// ---- 作戦ボード ----
+const bsvg = document.getElementById('bsvg');
+const PRESETS = {
+  gankou: { p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [-2.8, -12] },
+  heikou: { p: { A: [1.6, 4.4], B: [-1.6, 4.0], C: [2.4, -12.4], D: [-2.4, -12.4] }, ball: [2.4, -12] },
+  twoback: { p: { A: [2.2, 12.6], B: [-2.2, 12.6], C: [1.6, -4.5], D: [-1.6, -4.0] }, ball: [1.6, -4.5] },
+  serve: { p: { A: [1.0, 12.3], B: [-3.2, 3.6], C: [-3.5, -12.3], D: [1.6, -6.4] }, ball: [1.0, 12.0] },
+};
+let current = PRESETS.gankou, showArrows = true;
+function loadBoard(pt, title){
+  current = JSON.parse(JSON.stringify(pt));
+  document.getElementById('bnote').textContent = title ? `「${title}」の配置です。動かしてみてください。` : '';
+  showTab('board'); drawBoard();
+}
+function drawBoard(){
+  const pieces = renderPattern(bsvg, current, { noArrows: !showArrows });
+  document.getElementById('flip').textContent = showArrows ? '矢印を消す' : '矢印を出す';
+  for (const [k, g] of Object.entries(pieces)) enableDrag(g, k);
+}
+function svgPoint(e){
+  const pt = bsvg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(bsvg.getScreenCTM().inverse());
+}
+function enableDrag(g, k){
+  g.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    bsvg.appendChild(g); // いちばん上に表示
+    const id = e.pointerId;
+    const move = ev => {
+      if (ev.pointerId !== id) return;
+      const p = svgPoint(ev), x = Math.max(-7.6, Math.min(7.6, p.x)), y = Math.max(-14.6, Math.min(14.6, p.y));
+      g.setAttribute('transform', `translate(${x} ${y})`);
+      if (k === 'ball') current.ball = [x, y]; else current.p[k] = [x, y];
+    };
+    const up = ev => { if (ev.pointerId !== id) return; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  });
+}
+document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { current = JSON.parse(JSON.stringify(PRESETS[b.dataset.preset])); document.getElementById('bnote').textContent = b.textContent + 'の配置です。'; drawBoard(); });
+document.getElementById('flip').onclick = () => { showArrows = !showArrows; drawBoard(); };
+
+function showTab(t){
+  document.getElementById('patterns').style.display = t === 'board' ? 'none' : '';
+  document.getElementById('board').style.display = t === 'board' ? 'block' : 'none';
+  document.getElementById('tPat').classList.toggle('on', t !== 'board');
+  document.getElementById('tBoard').classList.toggle('on', t === 'board');
+  if (t === 'board') window.scrollTo(0, 0);
+}
+document.getElementById('tPat').onclick = () => showTab('pat');
+document.getElementById('tBoard').onclick = () => showTab('board');
+if (location.hash === '#board') showTab('board');
+drawBoard();
+</script>
+<script src="../ga.js?v=20261104"></script>
+</body>
+</html>

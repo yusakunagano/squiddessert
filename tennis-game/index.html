@@ -24,6 +24,8 @@
   .hidden{display:none!important}
   .online{margin-top:6px;padding:12px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:440px}
   .online h2{margin:0}
+  a.lbtn{font-size:16px;padding:11px 18px;border-radius:10px;background:#f2d43d;color:#222;font-weight:bold;text-decoration:none}
+  a.lbtn.sub{background:#cfd8d3}
   .online input{font-size:20px;width:110px;text-align:center;padding:9px;border-radius:10px;border:none;letter-spacing:.2em}
   #lobby{gap:12px}
   #lbCode{font-size:46px;letter-spacing:.25em;font-weight:bold}
@@ -100,6 +102,11 @@
       <div style="font-size:13px;opacity:.85;text-align:center">そろってから、各自が青／赤チームと後衛／前衛を選びます。<br>人どうしが分かれれば対戦、同じチームならCPUと協力して戦います。</div>
       <div class="row"><button id="hostBtn">部屋を作る</button></div>
       <div class="row"><input id="code" inputmode="numeric" maxlength="4" placeholder="1234"><button id="joinBtn" class="sub">部屋に入る</button></div>
+    </div>
+    <div class="online">
+      <h2>テニスの動き方</h2>
+      <div style="font-size:13px;opacity:.85;text-align:center">ダブルスの後衛・前衛の動き方を、OK・NGの22パターンで解説。<br>4人とボールを動かせる作戦ボードもあります。</div>
+      <div class="row"><a class="lbtn" href="learn.html">OK・NG パターン</a><a class="lbtn sub" href="learn.html#board">作戦ボード</a></div>
     </div>
     <div class="help">
       移動：矢印キー / WASD（スマホは画面をドラッグ）<br>

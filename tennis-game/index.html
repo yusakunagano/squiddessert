@@ -511,7 +511,7 @@ const R3 = v => Math.round(v * 1000) / 1000;
 function hostSendState(now){
   if (net.role !== 'host' || !online || now - net.lastSend < 33) return;
   net.lastSend = now;
-  const P = players.map(p => [R3(p.x), R3(p.y), R3(p.vxs || 0), R3(p.walk || 0), R3(p.mv || 0), R3(Math.min(p.st ?? 9, 9)), p.shot || '', R3(p.prep || 0), p.prepType || '', R3(Math.max(-1, p.label || 0)), p.tag || '', R3(Math.min(p.jumpT ?? 9, 9)), p.serveSwing ? 1 : 0, p.isHuman ? 1 : 0, R3(Math.min(p.lungeT ?? 9, 9)), p.lungeDir || 1, p.jumpAmp ?? 0.5]);
+  const P = players.map(p => [R3(p.x), R3(p.y), R3(p.vxs || 0), R3(p.walk || 0), R3(p.mv || 0), R3(Math.min(p.st ?? 9, 9)), p.shot || '', R3(p.prep || 0), p.prepType || '', R3(Math.max(-1, p.label || 0)), p.tag || '', R3(Math.min(p.jumpT ?? 9, 9)), p.serveSwing ? 1 : 0, p.isHuman ? 1 : 0, R3(Math.min(p.lungeT ?? 9, 9)), p.lungeDir || 1, p.jumpAmp ?? 0.5, R3(p.vys || 0)]);
   broadcast('u', { t: 's', st: state, tm: R3(timer), to: tossing ? 1 : 0, tt: R3(tossT), sv: server, ss: serveSide, f: faults, sc: [score.pts[0], score.pts[1], score.games[0], score.games[1]], b: ball ? [R3(ball.x), R3(ball.y), R3(ball.z)] : null, m: msgEl.textContent, P });
 }
 function applySnapshot(m){
@@ -526,7 +526,7 @@ function applySnapshot(m){
     p.tx = a[0]; p.ty = a[1]; if (p.x === 0 && p.y === 0) { p.x = a[0]; p.y = a[1]; }
     p.vxs = a[2]; p.walk = a[3]; p.mv = a[4]; p.st = a[5]; p.shot = a[6]; p.prep = a[7]; p.prepType = a[8]; p.label = a[9]; p.tag = a[10]; p.jumpT = a[11]; p.serveSwing = !!a[12];
     if (p !== human) p.isHuman = !!a[13];
-    p.lungeT = a[14]; p.lungeDir = a[15]; p.jumpAmp = a[16];
+    p.lungeT = a[14]; p.lungeDir = a[15]; p.jumpAmp = a[16]; p.vys = a[17];
   });
 }
 // ゲスト：毎フレーム、届いた位置へなめらかに寄せ、アニメーションの時間を進め、操作を送る
@@ -564,7 +564,7 @@ function newPoint(){
   ball = { x: sp.x, y: sp.y, z: 1.0, vx: 0, vy: 0, vz: 0, live: false };
   bounces = 0; isServe = true; lastHitter = null; rallyHits = 0;
   state = 'serve'; timer = 0;
-  showMsg(online ? '' : (server === 0 && sp.isHuman ? 'スペース / タップでサーブ' : ''), 0);
+  showMsg('', 0);
 }
 
 let msgTimer = 0;
@@ -873,7 +873,7 @@ function update(dt){
 
   for (const p of players) {
     const d = Math.hypot(p.x - (p.px ?? p.x), p.y - (p.py ?? p.y));
-    if (d < 0.5 && dt > 0) p.vxs = (p.vxs || 0) * 0.92 + ((p.x - (p.px ?? p.x)) / dt) * 0.08;
+    if (d < 0.5 && dt > 0) { p.vxs = (p.vxs || 0) * 0.92 + ((p.x - (p.px ?? p.x)) / dt) * 0.08; p.vys = (p.vys || 0) * 0.92 + ((p.y - (p.py ?? p.y)) / dt) * 0.08; }
     p.px = p.x; p.py = p.y;
     if (d < 0.5) { p.walk = (p.walk || 0) + d * 3.8; p.mv = (p.mv || 0) * 0.9 + (d / dt > 0.5 ? 1 : 0) * 0.1; }
   }
@@ -933,7 +933,7 @@ function update(dt){
     stepBall(dt, true);
     aiMove(dt);
     if (timer <= 0) {
-      if (pendingSecondServe) { pendingSecondServe = false; const keep = faults; newPoint(); faults = keep; showMsg(servingPlayer().isHuman && !online ? 'セカンドサーブ' : '', 0); }
+      if (pendingSecondServe) { pendingSecondServe = false; const keep = faults; newPoint(); faults = keep; showMsg('', 0); }
       else { faults = 0; newPoint(); }
     }
     return;
@@ -1180,8 +1180,6 @@ cline(0, -HL, 0, -HL + 0.2); cline(0, HL, 0, HL - 0.2);
   const leg = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.8, 0.7), cb); leg.position.y = 0.9; chair.add(leg);
   const seat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.9), cm); seat.position.y = 1.86; chair.add(seat);
   const backr = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.8, 0.9), cm); backr.position.set(0.42, 2.3, 0); chair.add(backr);
-  const ub = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.55, 0.4), M('#2c3e66')); ub.position.set(0.1, 2.25, 0); chair.add(ub);
-  const uh = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), M('#e0ac69')); uh.position.set(0.1, 2.65, 0); chair.add(uh);
   chair.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   chair.position.set(DW + 1.3, 0, 0); scene.add(chair);
 }
@@ -1205,6 +1203,34 @@ function setLimb(m, a, b){
 }
 function ball3(r, mat){ const m = new THREE.Mesh(geoSph, mat); m.scale.setScalar(r); m.castShadow = true; return m; }
 const rigs = [];
+// 審判：選手と同じ作りの3D人形を、審判台にコートの方を向いて座らせる
+(function buildUmpire(){
+  const ox = DW + 1.3, g = new THREE.Group(); scene.add(g);
+  const skin = M(SKIN, { roughness: 0.6 }), coat = M('#2c3e66', { roughness: 0.6 }), pants = M('#4a4f58'), shoe = M('#222', { roughness: 0.5 }), shirt = M('#f4f4f4');
+  const P = (x, y, z) => new V3(ox + x, y, z);
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 0.5, 16), coat); torso.scale.z = 0.62; torso.position.copy(P(0.12, 2.27, 0)); torso.rotation.y = Math.PI / 2; torso.rotation.z = 0.08;
+  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), coat); chest.scale.set(1, 0.5, 0.62); chest.position.copy(P(0.11, 2.52, 0)); chest.rotation.y = Math.PI / 2;
+  const tie = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.22, 0.08), shirt); tie.position.copy(P(-0.02, 2.45, 0));
+  const hips = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.2, 14), pants); hips.scale.z = 0.7; hips.position.copy(P(0.14, 2.02, 0)); hips.rotation.y = Math.PI / 2;
+  const neck = limbMesh(0.05, skin); setLimb(neck, P(0.1, 2.55, 0), P(0.08, 2.68, 0));
+  const head = ball3(0.115, skin); head.position.copy(P(0.07, 2.78, 0));
+  const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.08, 18), M('#f2f2f2')); hat.position.copy(P(0.07, 2.88, 0));
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.012, 22), M('#f2f2f2')); brim.position.copy(P(0.07, 2.845, 0));
+  g.add(torso, chest, tie, hips, neck, head, hat, brim);
+  for (const sz of [-1, 1]) {
+    const sh = P(0.11, 2.52, sz * 0.22), el = P(0.06, 2.24, sz * 0.27), hd = P(-0.2, 2.2, sz * 0.13);
+    const ua = limbMesh(0.05, coat), fa = limbMesh(0.04, coat); setLimb(ua, sh, el); setLimb(fa, el, hd);
+    const s1 = ball3(0.07, coat); s1.position.copy(sh); const h1 = ball3(0.045, skin); h1.position.copy(hd);
+    const hip = P(0.14, 2.0, sz * 0.1), kn = P(-0.3, 2.0, sz * 0.12), ft = P(-0.33, 1.6, sz * 0.12);
+    const th = limbMesh(0.075, pants), sn = limbMesh(0.055, pants); setLimb(th, hip, kn); setLimb(sn, kn, ft);
+    const k1 = ball3(0.06, pants); k1.position.copy(kn);
+    const sho = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.08, 0.11), shoe); sho.position.copy(P(-0.38, 1.57, sz * 0.12));
+    g.add(ua, fa, s1, h1, th, sn, k1, sho);
+  }
+  // 手元のスコアカード
+  const card = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.22, 0.3), M('#ffffff')); card.position.copy(P(-0.24, 2.24, 0)); card.rotation.z = -0.5; g.add(card);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+})();
 function buildRig(p){
   const g = new THREE.Group(); scene.add(g);
   const skin = M(SKIN, { roughness: 0.6 }), shirt = M(p.color, { roughness: 0.55 });
@@ -1232,7 +1258,12 @@ function buildRig(p){
 
 function computePose(p){
   const ph = p.walk || 0, mv = p.mv || 0;
-  let yaw = Math.max(-1, Math.min(1, (p.vxs || 0) * sideSign(p.team) / 5)) * 0.6;
+  // 走る向きに体を向ける。速く遠くへ走るほど、はっきりその方向を向く（後ろへ下がるときは横向きで）
+  const sgn = sideSign(p.team), latV = (p.vxs || 0) * sgn, fwdV = -(p.vys || 0) * sgn, spd = Math.hypot(latV, fwdV);
+  const sprint = Math.max(0, Math.min(1, (spd - 1.2) / 1.6));
+  let runYaw = fwdV >= 0 ? Math.atan2(latV, Math.max(0.01, fwdV)) : Math.sign(latV || 1) * Math.min(1.3, 0.9 + Math.abs(Math.atan2(-fwdV, Math.abs(latV) + 0.01)) * 0.3);
+  runYaw = Math.max(-1.35, Math.min(1.35, runYaw));
+  let yaw = Math.max(-1, Math.min(1, latV / 5)) * 0.6 * (1 - sprint) + runYaw * sprint;
   if (state === 'serve' && p === servingPlayer()) yaw = 0.9;
   else if (p.prepType === 'sm' && (p.prep || 0) > 0.03 && (p.st ?? 9) > 0.7) yaw = 0.9 * p.prep; // スマッシュの構えも横向き
   else if (p.shot === 'sm' && (p.st ?? 9) < 0.5) { const st = p.st ?? 9; yaw = 0.9 * Math.max(0, 1 - st / 0.3) - 0.25 * Math.min(1, st / 0.3) * Math.max(0, 1 - (st - 0.3) / 0.2); }
@@ -1247,7 +1278,7 @@ function computePose(p){
   } else if (state === 'serve' && p === servingPlayer() && !tossing && timer < DRIB) {
     // ボールつき：横向きのまま腰から前にかがみ、左手でつく
     const q = dribbleQ(timer);
-    pose = { h: [0.32, 0.2, 0.8], r: [0.05, 0.25, -0.45], l: [-0.25, 0.5, 0.62 + 0.25 * q], tw: 0, cr: 0.12, bend: 0.55 - 0.15 * q };
+    pose = { h: [0.28, -0.12, 1.42], r: [-0.12, -0.28, -0.58], l: [-0.25, 0.5, 0.62 + 0.25 * q], tw: 0.1, cr: 0.12, bend: 0.55 - 0.15 * q }; // ラケットは右肩から背中側に下げる
   } else if (state === 'serve' && p === servingPlayer() && !tossing) {
     // 構え：ボールをラケットのガットに添えて体の前で持ち、少し前かがみ
     pose = SERVE_READY;
@@ -1257,10 +1288,10 @@ function computePose(p){
   } else if ((p.prep || 0) > 0.03 && POSES[p.prepType]) {
     pose = prepPose(p);
   } else if (mv > 0.35) {
-    const a = Math.sin(ph) * mv;
-    pose = { h: [0.38, a * 0.35, 0.85], r: [0.08, 0.2 + a * 0.2, -0.35], l: [-0.38, -a * 0.35, 0.85], tw: 0 };
+    const a = Math.sin(ph) * mv * (1 + 0.7 * sprint); // 全力で走るときは腕を大きく振り、前傾する
+    pose = { h: [0.36, a * 0.4, 0.9 + Math.max(0, a) * 0.15], r: [0.08, 0.2 + a * 0.2, -0.35], l: [-0.36, -a * 0.4, 0.9 + Math.max(0, -a) * 0.15], tw: 0, bend: 0.3 * sprint, cr: 0.05 * sprint };
   } else pose = READY;
-  return { pose, yaw, ph, mv };
+  return { pose, yaw, ph, mv, sprint };
 }
 
 function updateRig(R){
@@ -1334,7 +1365,7 @@ function updateRig(R){
   R.racket.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAx, yAx, zAx));
   R.racket.position.copy(Cp);
   // 脚
-  const stride = Math.sin(ph) * 0.28 * mv, lift = 0.1 * mv;
+  const sprintK = cp.sprint || 0, stride = Math.sin(ph) * 0.28 * mv * (1 + 0.45 * sprintK), lift = 0.1 * mv * (1 + 0.8 * sprintK);
   [[-0.1, 1], [0.1, -1]].forEach(([la, k], i) => {
     const hip = W(la, 0, 0.66);
     const tap = Math.max(0, Math.sin(fw * 0.5 + i * Math.PI)) * 0.045 * idle;

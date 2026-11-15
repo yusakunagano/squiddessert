@@ -15,6 +15,7 @@
   a.back{color:var(--accent);text-decoration:none;font-weight:bold}
   .tabs{display:flex;gap:8px}
   .tabs button,.filters button,.tool button{border:none;border-radius:999px;padding:8px 14px;font-weight:bold;font-size:14px;cursor:pointer;background:#2a4a3a;color:var(--text)}
+  .tool button.on{background:var(--accent);color:#222}
   .tabs button.on,.filters button.on{background:var(--accent);color:#222}
   @media (max-width:600px){header{position:static}}
   main{max-width:1100px;margin:0 auto;padding:16px}
@@ -66,7 +67,7 @@
     <div class="boardwrap">
       <svg id="bsvg" viewBox="-8 -15 16 30"></svg>
       <div class="side">
-        <p class="note">青（A・B）と赤（C・D）の4人と、黄色のボールを指やマウスでドラッグして動かせます。作戦を考えたり、友だちに説明したりするのに使ってください。</p>
+        <p class="note">青（A・B）と赤（C・D）の4人と、黄色のボールを指やマウスでドラッグして動かせます。ボールの軌跡や人の動きを矢印で描くこともできます。作戦を考えたり、友だちに説明したりするのに使ってください。</p>
         <div class="tool">
           <button data-preset="gankou">雁行陣</button>
           <button data-preset="heikou">平行陣</button>
@@ -74,6 +75,13 @@
           <button data-preset="serve">サーブの配置</button>
         </div>
         <div class="tool"><button id="flip">矢印を消す</button></div>
+        <p class="note" style="margin:0">描く：ボタンを選んでからコートをなぞると矢印が描けます。ボールの軌跡は、前の矢印の先から続けて描くとつながります。</p>
+        <div class="tool">
+          <button data-draw="" class="on">動かす</button>
+          <button data-draw="b">✏️ ボールの軌跡</button>
+          <button data-draw="a">✏️ 人の動き</button>
+        </div>
+        <div class="tool"><button id="undo">1つ戻す</button><button id="clearDraw">描いた線を消す</button></div>
         <p class="note" id="bnote">「OK・NG パターン」の各図の「ボードで動かす」を押すと、その配置がここに出ます。</p>
       </div>
     </div>
@@ -217,6 +225,12 @@ function renderPattern(svg, pt, opts = {}){
     const ball = kind === 'b';
     el('line', { x1, y1, x2, y2, stroke: ball ? '#e8ff3a' : '#fff', 'stroke-width': ball ? .12 : .16, 'stroke-dasharray': ball ? '.4 .3' : 'none', 'marker-end': `url(#${id}${ball ? 'b' : 'a'})`, opacity: .95 }, svg);
   }
+  // 作戦ボードで描いた矢印（いつも表示）
+  for (const [kind, x1, y1, x2, y2] of pt.user || []) {
+    const ball = kind === 'b';
+    el('line', { x1, y1, x2, y2, stroke: ball ? '#e8ff3a' : '#ffffff', 'stroke-width': ball ? .14 : .18, 'stroke-dasharray': ball ? '.4 .3' : 'none', 'marker-end': `url(#${id}${ball ? 'b' : 'a'})`, 'stroke-linecap': 'round' }, svg);
+    if (ball) el('circle', { cx: x2, cy: y2, r: .16, fill: 'none', stroke: '#e8ff3a', 'stroke-width': .06 }, svg); // バウンド・打点の印
+  }
   const pieces = {};
   for (const k of ['A', 'B', 'C', 'D']) pieces[k] = drawPiece(svg, k, ...pt.p[k]);
   pieces.ball = drawBall(svg, ...pt.ball);
@@ -248,7 +262,7 @@ const PRESETS = {
   twoback: { p: { A: [2.2, 12.6], B: [-2.2, 12.6], C: [1.6, -4.5], D: [-1.6, -4.0] }, ball: [1.6, -4.5] },
   serve: { p: { A: [1.0, 12.3], B: [-3.2, 3.6], C: [-3.5, -12.3], D: [1.6, -6.4] }, ball: [1.0, 12.0] },
 };
-let current = PRESETS.gankou, showArrows = true;
+let current = JSON.parse(JSON.stringify(PRESETS.gankou)), showArrows = true;
 function loadBoard(pt, title){
   current = JSON.parse(JSON.stringify(pt));
   document.getElementById('bnote').textContent = title ? `「${title}」の配置です。動かしてみてください。` : '';
@@ -265,6 +279,7 @@ function svgPoint(e){
 }
 function enableDrag(g, k){
   g.addEventListener('pointerdown', e => {
+    if (drawMode) return; // 描くモードのときは駒を動かさない（下の描画に任せる）
     e.preventDefault();
     bsvg.appendChild(g); // いちばん上に表示
     const id = e.pointerId;
@@ -278,6 +293,43 @@ function enableDrag(g, k){
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
   });
 }
+// ---- 矢印を描く ----
+let drawMode = '';
+document.querySelectorAll('[data-draw]').forEach(b => b.onclick = () => {
+  drawMode = b.dataset.draw;
+  document.querySelectorAll('[data-draw]').forEach(x => x.classList.toggle('on', x === b));
+});
+bsvg.addEventListener('pointerdown', e => {
+  if (!drawMode) return;
+  e.preventDefault();
+  let p0 = svgPoint(e);
+  const user = current.user || (current.user = []);
+  // ボールの軌跡は、近くにある「前のボール矢印の先」やボールからつなげる
+  if (drawMode === 'b') {
+    const ends = user.filter(u => u[0] === 'b').map(u => [u[3], u[4]]).concat([current.ball]);
+    let best = null, bd = 1.2;
+    for (const q of ends) { const d = Math.hypot(q[0] - p0.x, q[1] - p0.y); if (d < bd) { bd = d; best = q; } }
+    if (best) p0 = { x: best[0], y: best[1] };
+  } else {
+    let best = null, bd = 1.0;
+    for (const k of ['A', 'B', 'C', 'D']) { const q = current.p[k]; const d = Math.hypot(q[0] - p0.x, q[1] - p0.y); if (d < bd) { bd = d; best = q; } }
+    if (best) p0 = { x: best[0], y: best[1] };
+  }
+  const id = e.pointerId;
+  const line = el('line', { x1: p0.x, y1: p0.y, x2: p0.x, y2: p0.y, stroke: drawMode === 'b' ? '#e8ff3a' : '#fff', 'stroke-width': .16, 'stroke-dasharray': drawMode === 'b' ? '.4 .3' : 'none' }, bsvg);
+  let p1 = p0;
+  const move = ev => { if (ev.pointerId !== id) return; p1 = svgPoint(ev); line.setAttribute('x2', p1.x); line.setAttribute('y2', p1.y); };
+  const up = ev => {
+    if (ev.pointerId !== id) return;
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    if (Math.hypot(p1.x - p0.x, p1.y - p0.y) > 0.4) user.push([drawMode, +p0.x.toFixed(2), +p0.y.toFixed(2), +p1.x.toFixed(2), +p1.y.toFixed(2)]);
+    drawBoard();
+  };
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+});
+document.getElementById('undo').onclick = () => { if (current.user && current.user.length) { current.user.pop(); drawBoard(); } };
+document.getElementById('clearDraw').onclick = () => { current.user = []; drawBoard(); };
+
 document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { current = JSON.parse(JSON.stringify(PRESETS[b.dataset.preset])); document.getElementById('bnote').textContent = b.textContent + 'の配置です。'; drawBoard(); });
 document.getElementById('flip').onclick = () => { showArrows = !showArrows; drawBoard(); };
 

@@ -156,24 +156,42 @@ let touch = null, serveRequest = false;
 let actx = null;
 function audio(){ if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } if (actx.state === 'suspended') actx.resume(); return actx; }
 addEventListener('pointerdown', audio, { once: false, passive: true }); addEventListener('keydown', audio, { passive: true });
+// 本物の打球音に近づける：ピッチが動く「ピコッ」ではなく、ガットにボールが当たる短い「ボコッ」という破裂音
+// ＝ 帯域を絞ったノイズの一瞬のアタック ＋ 低い胴鳴り ＋ ごく短いガットの響き ＋ スタジアムの軽い残響
+let noiseBuf = null, verb = null;
+function noise(a){ if (!noiseBuf) { noiseBuf = a.createBuffer(1, a.sampleRate * 0.25, a.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } const n = a.createBufferSource(); n.buffer = noiseBuf; return n; }
+function out(a){
+  if (!verb) { // 軽い残響（短いディレイの繰り返し）
+    const dry = a.createGain(), d1 = a.createDelay(0.5), fb = a.createGain(), lp = a.createBiquadFilter(), wet = a.createGain();
+    d1.delayTime.value = 0.085; fb.gain.value = 0.32; lp.type = 'lowpass'; lp.frequency.value = 2400; wet.gain.value = 0.18;
+    dry.connect(a.destination); dry.connect(d1); d1.connect(lp); lp.connect(fb); fb.connect(d1); lp.connect(wet); wet.connect(a.destination);
+    verb = dry;
+  }
+  return verb;
+}
+function env(a, g, t, peak, dec){ g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.0015); g.gain.exponentialRampToValueAtTime(0.0001, t + dec); }
 function playHit(power = 1){
   const a = actx; if (!a || a.state !== 'running') return;
-  const t = a.currentTime, g = a.createGain();
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * Math.min(1.3, power), t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-  const o = a.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(950 + 250 * power, t); o.frequency.exponentialRampToValueAtTime(380, t + 0.1);
-  // ガットの「パコッ」というアタック音（短いノイズ）
-  const n = a.createBufferSource(), buf = a.createBuffer(1, a.sampleRate * 0.03, a.sampleRate), d = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2;
-  n.buffer = buf; const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 1.2;
-  o.connect(g); n.connect(f); f.connect(g); g.connect(a.destination);
-  o.start(t); o.stop(t + 0.13); n.start(t);
+  const t = a.currentTime, o = out(a), v = Math.min(1.3, power);
+  // アタック：中高域のノイズを数ミリ秒だけ
+  const n = noise(a), bp = a.createBiquadFilter(), gn = a.createGain();
+  bp.type = 'bandpass'; bp.frequency.value = 1100 + 500 * v + Math.random() * 200; bp.Q.value = 0.9;
+  env(a, gn, t, 0.9 * v, 0.035); n.connect(bp); bp.connect(gn); gn.connect(o); n.start(t, Math.random() * 0.2); n.stop(t + 0.05);
+  // 胴鳴り：低い音を一瞬（ボールのつぶれる感じ）
+  const b = a.createOscillator(), gb = a.createGain(); b.type = 'sine'; b.frequency.setValueAtTime(190 + 40 * v, t);
+  env(a, gb, t, 0.35 * v, 0.045); b.connect(gb); gb.connect(o); b.start(t); b.stop(t + 0.06);
+  // ガットの響き：ごく小さく短い
+  const s1 = a.createOscillator(), gs = a.createGain(); s1.type = 'sine'; s1.frequency.value = 520 + Math.random() * 60;
+  env(a, gs, t, 0.08 * v, 0.07); s1.connect(gs); gs.connect(o); s1.start(t); s1.stop(t + 0.08);
 }
 function playBounce(){
   const a = actx; if (!a || a.state !== 'running') return;
-  const t = a.currentTime, g = a.createGain(), o = a.createOscillator();
-  o.type = 'sine'; o.frequency.setValueAtTime(240, t); o.frequency.exponentialRampToValueAtTime(110, t + 0.08);
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
-  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + 0.11);
+  const t = a.currentTime, o = out(a);
+  const n = noise(a), lp = a.createBiquadFilter(), gn = a.createGain();
+  lp.type = 'lowpass'; lp.frequency.value = 900; env(a, gn, t, 0.35, 0.04);
+  n.connect(lp); lp.connect(gn); gn.connect(o); n.start(t, Math.random() * 0.2); n.stop(t + 0.05);
+  const b = a.createOscillator(), gb = a.createGain(); b.type = 'sine'; b.frequency.value = 130;
+  env(a, gb, t, 0.18, 0.05); b.connect(gb); gb.connect(o); b.start(t); b.stop(t + 0.06);
 }
 const NOINP = { mx: 0, my: 0, left: false, right: false, power: false, lob: false, drop: false, slice: false, touch: null };
 // この端末の操作（画面の向きのまま。手前=自分側）
@@ -1132,16 +1150,9 @@ function plane(w, h, mat, x, z, y = 0){
   m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m;
 }
 plane(160, 160, M('#244a2e'), 0, 0);
-// 芝のコート：刈り込みのしま模様
-{
-  const c = document.createElement('canvas'); c.width = 64; c.height = 1024;
-  const g = c.getContext('2d'), n = 16;
-  for (let i = 0; i < n; i++) { g.fillStyle = i % 2 ? '#5f9a3e' : '#6eab47'; g.fillRect(0, i * 1024 / n, 64, 1024 / n); }
-  // ベースライン付近の少しすり減った感じ
-  for (const y0 of [0.13, 0.87]) { const gr = g.createLinearGradient(0, (y0 - 0.06) * 1024, 0, (y0 + 0.06) * 1024); gr.addColorStop(0, 'rgba(160,150,90,0)'); gr.addColorStop(0.5, 'rgba(165,155,95,.45)'); gr.addColorStop(1, 'rgba(160,150,90,0)'); g.fillStyle = gr; g.fillRect(0, (y0 - 0.06) * 1024, 64, 0.12 * 1024); }
-  const tex = new THREE.CanvasTexture(c);
-  plane(DW * 2 + 4.4, HL * 2 + 7.6, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }), 0, 0, 0.02);
-}
+// コート：落ち着いた濃い青のハードコート
+plane(DW * 2 + 4.4, HL * 2 + 7.6, M('#3f7cc4'), 0, 0, 0.02);
+plane(DW * 2, HL * 2, M('#2f66ad'), 0, 0, 0.028);
 const lineMat = M('#ffffff', { roughness: 0.5 });
 const LW = 0.05;
 function cline(x1, z1, x2, z2){
@@ -1286,7 +1297,9 @@ function buildRig(p){
   const g = new THREE.Group(); scene.add(g);
   const skin = M(SKIN, { roughness: 0.6 }), shirt = M(p.color, { roughness: 0.55 });
   const shorts = M(p.team === 0 ? '#1d2b5a' : '#f4f4f4'), shoe = M('#fafafa', { roughness: 0.4 });
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.56, 16), shirt); torso.scale.z = 0.62; torso.castShadow = true;
+  // 胴体はお腹で2つに分ける：上（胸）はひねり・反り・前かがみで大きく動き、下（お腹）は腰に近い動き
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.165, 0.4, 16), shirt); torso.scale.z = 0.62; torso.castShadow = true;
+  const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.168, 0.155, 0.28, 16), shirt); belly.scale.z = 0.64; belly.castShadow = true;
   const chest = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), shirt); chest.scale.set(1, 0.5, 0.62); chest.castShadow = true;
   const hips = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.24, 14), shorts); hips.scale.z = 0.7; hips.castShadow = true;
   const neck = limbMesh(0.05, skin);
@@ -1303,8 +1316,8 @@ function buildRig(p){
   const frame = new THREE.Mesh(new THREE.TorusGeometry(0.125, 0.012, 6, 28), M(p.team === 0 ? '#d23a2a' : '#222', { roughness: 0.4 })); frame.scale.y = 1.3; frame.castShadow = true;
   const strings = new THREE.Mesh(new THREE.CircleGeometry(0.12, 24), new THREE.MeshStandardMaterial({ color: '#eeeeee', transparent: true, opacity: 0.35, side: THREE.DoubleSide })); strings.scale.y = 1.3;
   racket.add(frame, strings);
-  g.add(torso, chest, hips, neck, head, hair, ...ua, ...fa, ...hands, ...elbows, ...shoulders, ...th, ...sh, ...knees, ...shoes, handle, racket);
-  return { p, g, torso, chest, hips, neck, head, hair, ua, fa, hands, elbows, shoulders, th, sh, knees, shoes, handle, racket };
+  g.add(torso, belly, chest, hips, neck, head, hair, ...ua, ...fa, ...hands, ...elbows, ...shoulders, ...th, ...sh, ...knees, ...shoes, handle, racket);
+  return { p, g, torso, belly, chest, hips, neck, head, hair, ua, fa, hands, elbows, shoulders, th, sh, knees, shoes, handle, racket };
 }
 
 function computePose(p){
@@ -1378,8 +1391,10 @@ function updateRig(R){
   const heading = (T) => { const a2 = Math.cos(T + yaw), f2 = -Math.sin(T + yaw); return Math.atan2(-(fz * f2), rx * a2); }; // ローカル右軸の向き
   const twist = pose.tw || 0, twc = Math.cos(twist), tws = Math.sin(twist);
   // 胴体・腰・頭
-  R.torso.position.copy(W(0, 0, 1.0)); R.torso.rotation.set(0, heading(twist * 0.8), 0);
-  R.chest.position.copy(W(0, 0, 1.28)); R.chest.rotation.set(0, heading(twist * 0.8), 0);
+  const tilt = Math.atan(0.55 * (pose.bend || 0)); // ＋で前かがみ、−で背中を反らす
+  R.belly.position.copy(W(0, 0, 0.84)); R.belly.rotation.set(-tilt * 0.35, heading(twist * 0.45), 0, 'YXZ');
+  R.torso.position.copy(W(0, 0, 1.12)); R.torso.rotation.set(-tilt, heading(twist * 0.85), 0, 'YXZ');
+  R.chest.position.copy(W(0, 0, 1.3)); R.chest.rotation.set(-tilt, heading(twist * 0.85), 0, 'YXZ');
   R.hips.position.copy(W(0, 0, 0.7)); R.hips.rotation.set(0, heading(twist * 0.3), 0);
   setLimb(R.neck, W(0, 0, 1.3), W(0, 0, 1.45));
   R.head.position.copy(W(0, 0.0, 1.55));
@@ -1494,8 +1509,8 @@ function render3d(){
 // 体ローカル座標 [a=右, f=ネット方向, u=高さ]。tw=上半身のひねり, cr=ひざの曲げ, sl/sr=左/右足の前後, kr=右足の蹴り上げ
 const SERVE_READY = { h: [0.12, 0.42, 1.0], r: [0.05, 0.45, 0.32], l: [0.05, 0.45, 1.0], cr: 0.06, bend: 0.25 };
 const SERVE_DOWN = { h: [0.3, 0.05, 0.78], r: [0.1, -0.15, -0.45], l: [-0.08, 0.3, 0.85], cr: 0.08, bend: 0.15 };
-const SERVE_TROPHY = { eu: 1, tw: 1.1, h: [0.42, -0.3, 1.5], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.1], cr: 0.22, bend: -0.3 };
-const SERVE_DROP = { eu: 1, tw: 0.9, h: [0.22, -0.18, 1.5], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.9], cr: 0.24, bend: -0.35 };
+const SERVE_TROPHY = { eu: 1, tw: 1.1, h: [0.42, -0.3, 1.5], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.1], cr: 0.24, bend: -0.6 };
+const SERVE_DROP = { eu: 1, tw: 0.9, h: [0.22, -0.18, 1.5], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.9], cr: 0.26, bend: -0.75 };
 const READY = { h: [0.05, 0.38, 0.95], r: [0, 0.45, 0.4], l: 'grip', cr: 0.03 };
 const POSES = {
   // フォアハンド：ラケットを高く引く → 後ろで下に落とす（ループ）→ 前で打つ → 左肩の上に巻きつけて終わる
@@ -1529,7 +1544,7 @@ const POSES = {
         fol:   { tw: -1.15, h: [-0.3, 0.1, 1.7], r: [-0.15, -0.45, -0.3], l: [-0.15, 0.3, 1.4], sl: 0.35, sr: 0.12, kr: 0.0 } },
   sm: { back1: { eu: 1, tw: 1.1, h: [0.45, -0.25, 1.55], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.15], cr: 0.07 },
         back2: { eu: 1, tw: 0.9, h: [0.22, -0.15, 1.5], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.95], cr: 0.1 },
-        hit:   { eu: 0.6, tw: 0.2, h: [0.2, 0.3, 2.3], r: [0.0, 0.25, 0.62], l: [-0.3, 0.2, 1.3], cr: -0.03 },
+        hit:   { eu: 0.6, tw: 0.2, h: [0.2, 0.3, 2.3], r: [0.0, 0.25, 0.62], l: [-0.3, 0.2, 1.3], cr: -0.03, bend: -0.25 },
         mid:   { tw: -0.4, h: [0.0, 0.6, 1.3], r: [-0.1, 0.5, -0.3], l: [-0.35, 0.1, 1.0], cr: 0.05, sl: 0.3, sr: -0.35, kr: 0.32, bend: 0.25 },
         fol:   { tw: -0.7, h: [-0.35, 0.25, 0.75], r: [-0.3, 0.0, -0.55], l: [-0.4, -0.2, 1.0], cr: 0.1, sl: 0.4, sr: -0.4, kr: 0.2, bend: 0.3 } },
 };

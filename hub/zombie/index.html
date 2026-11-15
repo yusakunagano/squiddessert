@@ -50,7 +50,9 @@ button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
 #fire{right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(90px + env(safe-area-inset-bottom,0px))}
 #bossw{position:absolute;top:46px;left:50%;transform:translateX(-50%);width:min(420px,70vw);text-align:center;font-family:var(--disp);color:#ff6b6b;pointer-events:none;text-shadow:0 0 6px #000}#bossbg{height:10px;background:rgba(255,255,255,.15);margin-top:2px}#bossbar{height:100%;width:100%;background:#d8263a}
 #wmenu{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:min(420px,calc(100vw - 32px));padding:14px;background:rgba(8,12,20,.9);border:1px solid rgba(255,255,255,.18);border-radius:10px;z-index:5}
-#wmenu button{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;font-size:16px;background:#1c2738;box-shadow:none;border:2px solid transparent;text-align:left}
+#wmenu button{position:relative;display:flex;flex-direction:row;align-items:center;gap:10px;padding:10px 12px;font-size:16px;background:#1c2738;box-shadow:none;border:2px solid transparent;text-align:left}
+#wmenu button span{display:flex;flex-direction:column;gap:2px;min-width:0;padding-right:14px}#wmenu button b{font-weight:400;font-size:15px;line-height:1.2}
+#wmenu .wi{flex:none;width:44px;height:22px;fill:#cfd8e6}#wmenu button.on .wi{fill:var(--amber)}
 #wmenu button small{font-size:12px;color:var(--dim)}#wmenu button i{position:absolute;right:10px;top:8px;font-style:normal;font-size:12px;color:var(--dim)}
 #wmenu button.on{border-color:var(--amber)}
 #lock{position:absolute;pointer-events:none;transform:translate(-50%,-50%);--c:#ff3d4a;
@@ -553,7 +555,15 @@ const fireB=document.getElementById('fire'),rlB={hidden:true};
 fireB.addEventListener('pointerdown',e=>{e.preventDefault();mouseDown=true});fireB.addEventListener('pointerup',()=>mouseDown=false);fireB.addEventListener('pointerleave',()=>mouseDown=false);
 const swB=document.getElementById('sw'),wmenu=document.getElementById('wmenu');
 function wmText(k){const p=S.p,W=WP[k];return k==='kn'?'近距離・強力':k==='rl'?p.rockets+'発':k==='gr'?p.grenades+'個':k==='fl'?Math.ceil(p.ammo.fl)+'%':p.ammo[k]+' / '+W.mag}
-function openWMenu(){if(!S||!run)return;wmenu.innerHTML=WORDER.map((k,i)=>`<button data-w="${k}" class="${S.p.wp===k?'on':''}"><b>${WP[k].name}</b><small>${wmText(k)}</small><i>${i+1}</i></button>`).join('');wmenu.hidden=false;if(!isTouch){try{document.exitPointerLock()}catch(_){}}}
+const WICON={gun:'M8 10h36v5H28l-3 4h-4l-3 9h-7l3-10H8z',
+ sg:'M2 12h38v3H2zM2 16h38v2H2zM40 11h6l14 3v6l-12 1-5 6h-5l3-7h-1z',
+ rl:'M4 12h46v8H4zM50 10h10v12H50zM18 20h5l-2 8h-5zM28 20h4v6h-4zM20 8h10v4H20z',
+ mg:'M4 12h42v5H4zM46 10h4l10 2v6l-10 2h-4zM20 17h5l-1 11h-5zM30 17h6l-3 7h-5zM14 8h12v4H14z',
+ fl:'M24 10h26v5H24zM50 8h9v9h-9zM6 8h14v18H6zM9 5h8v3H9zM28 15h5l-2 9h-5z',
+ sn:'M2 14h46v3H2zM48 12h8l6 2v5l-8 2-3 6h-4l2-7h-1zM20 8h16v5H20zM14 17h4l-1 5h-4z',
+ gr:'M29 4h6v5h-6zM35 5l10 5-2 3-8-4zM32 9a11 11 0 1 1 0 22a11 11 0 1 1 0-22z',
+ kn:'M4 15L40 10v10L4 17zM40 9h4v12h-4zM44 12h16v6H44z'};
+function openWMenu(){if(!S||!run)return;wmenu.innerHTML=WORDER.map((k,i)=>`<button data-w="${k}" class="${S.p.wp===k?'on':''}"><svg class="wi" viewBox="0 0 64 32" aria-hidden="true"><path d="${WICON[k]}"/></svg><span><b>${WP[k].name}</b><small>${wmText(k)}</small></span><i>${i+1}</i></button>`).join('');wmenu.hidden=false;if(!isTouch){try{document.exitPointerLock()}catch(_){}}}
 function closeWMenu(){wmenu.hidden=true}
 wmenu.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();const b=e.target.closest('button');if(b){setWeapon(b.dataset.w)}closeWMenu()});
 swB.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();wmenu.hidden?openWMenu():closeWMenu()});

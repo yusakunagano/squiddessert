@@ -842,7 +842,10 @@ function fault(reason){
 }
 let pendingSecondServe = false, hitFrom = null, tossing = false, serveQueued = false, tossT = 0;
 const DRIB = 1.5; // ボールつきの時間（0.5秒×3回）
-function dribbleQ(t){ const f = (t % 0.5) / 0.5; return (2 * f - 1) * (2 * f - 1); } // 1=手元, 0=地面
+// ボールつきのリズム：3回ついて少し間をあけ（ボールを持って止まる）、また3回…をくり返す
+const DRIB_CYCLE = DRIB + 0.8;
+function dribblePause(t){ return (t % DRIB_CYCLE) >= DRIB; }
+function dribbleQ(t){ const c = t % DRIB_CYCLE; if (c >= DRIB) return 1; const f = (c % 0.5) / 0.5; return (2 * f - 1) * (2 * f - 1); } // 1=手元, 0=地面
 
 function inCourt(x, y, team){ // does (x,y) lie in team's court half?
   const W = mode === 'doubles' ? DW : SW;
@@ -956,10 +959,10 @@ function update(dt){
       if (sp.isHuman && sp.serveReq) serveQueued = true;
       // サーブを打つまで、ずっとボールをつき続ける
       const q = dribbleQ(timer);
-      ball.x = sp.x + 0.25 * sg; ball.y = sp.y - sg * 0.7; ball.z = 0.78 * q; // かがんだ左手の下
+      ball.x = sp.x + 0.4 * sg; ball.y = sp.y - sg * 0.38; ball.z = 0.06 + 0.5 * q; // 足の前、かがんだ左手の下
       ball.vx = ball.vy = ball.vz = 0;
-      const caught = q > 0.9 && (timer % 0.5) / 0.5 > 0.5; // ボールが手に戻ってきた瞬間だけトスに移る
-      if (timer >= 0.5 && caught && (sp.isHuman ? serveQueued : timer > DRIB + 0.4)) {
+      const caught = dribblePause(timer) || (q > 0.9 && ((timer % DRIB_CYCLE) % 0.5) / 0.5 > 0.5); // ボールが手に戻ってきた瞬間だけトスに移る
+      if (timer >= 0.5 && caught && (sp.isHuman ? serveQueued : timer > DRIB + 0.5)) {
         serveQueued = false;
         // トス：右肩の少し前へ真上に投げ上げる
         tossing = true; tossT = 0; showMsg('', 0); ball.vz = 6.2; ball.vx = (-0.05 * sg) / 0.63; ball.vy = 0;
@@ -1343,7 +1346,9 @@ function computePose(p){
     // ボールつき：横向きのまま腰から前にかがみ、左手でつく
     const q = dribbleQ(timer);
     // ボールつきの構え：大きく前かがみ。右手は頭の横で肘を上げ、ラケットは背中側へ垂らす。左手は体の前の低い所でつく
-    pose = { h: [0.2, 0.05, 1.5], r: [0.05, -0.38, -0.55], l: [-0.15, 0.55, 0.5 + 0.25 * q], tw: 0.15, cr: 0.12, bend: 0.8 - 0.12 * q, eu: 0.8 };
+    // ボールつき：腰から深く前にかがみ、右手のラケットは体の前で下に垂らし、左手で足の前にボールをつく（間をあけるときは少し体を起こす）
+    const pz = dribblePause(timer);
+    pose = { h: [0.22, 0.32, 0.98], r: [0.02, 0.12, -0.65], l: [-0.05, 0.55, 0.32 + 0.22 * q], tw: 0.1, cr: 0.16, bend: pz ? 0.6 : 0.95 - 0.1 * q };
   } else if (state === 'serve' && p === servingPlayer() && tossing) {
     // トス：両腕をいっしょに下ろす → 左手を上へ伸ばしひざを深く曲げ背中を反らす（トロフィー）→ ラケットを背中に落とす
     pose = tossT < 0.15 ? lerpPose(SERVE_READY, SERVE_DOWN, tossT / 0.15) : tossT < 0.45 ? lerpPose(SERVE_DOWN, SERVE_TROPHY, (tossT - 0.15) / 0.3) : lerpPose(SERVE_TROPHY, SERVE_DROP, (tossT - 0.45) / 0.18);
@@ -1443,8 +1448,10 @@ function updateRig(R){
     const ff = stride * k + (i === 0 ? (pose.sl || 0) : (pose.sr || 0)), fu = Math.max(0, Math.sin(ph) * k) * lift + tap + (i === 1 ? (pose.kr || 0) : 0);
     const wide = 1.15 + 0.5 * idle + (receiving ? 0.9 : 0);
     const lstep = lean && Math.sign(la) === Math.sign(lean) ? Math.abs(lean) * 0.45 : 0; // 傾けた側の足を大きく踏み出す
-    const foot = W(la * wide + Math.sign(la) * lstep, ff + lstep * 0.3, 0.05 + fu, true);
-    const knee = W(la * (1.1 + 0.45 * idle), ff * 0.5 + 0.1 + 0.06 * idle + (pose.cr || 0) * 0.6 - (i === 1 ? (pose.kr || 0) * 0.8 : 0), 0.42 + fu * 0.5 + bob * 0.5, true);
+    // サーブの構え：前足（左）をネット側に、後ろ足（右）を左後ろに置く
+    const stance = state === 'serve' && p === servingPlayer() ? (i === 0 ? [0.1, 0.15] : [-0.1, -0.35]) : null;
+    const foot = stance ? W(stance[0], stance[1], 0.05 + fu, true) : W(la * wide + Math.sign(la) * lstep, ff + lstep * 0.3, 0.05 + fu, true);
+    const knee = stance ? W(stance[0] * 0.8 + la * 0.3, stance[1] * 0.5 + 0.12 + (pose.cr || 0) * 0.6, 0.42 + bob * 0.5, true) : W(la * (1.1 + 0.45 * idle), ff * 0.5 + 0.1 + 0.06 * idle + (pose.cr || 0) * 0.6 - (i === 1 ? (pose.kr || 0) * 0.8 : 0), 0.42 + fu * 0.5 + bob * 0.5, true);
     setLimb(R.th[i], hip, knee); setLimb(R.sh[i], knee, foot);
     R.knees[i].position.copy(knee);
     R.shoes[i].position.copy(foot).add(new V3(0, -0.01, 0)); R.shoes[i].position.addScaledVector(new V3(0, 0, fz), 0.04);

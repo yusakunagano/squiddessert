@@ -954,12 +954,12 @@ function update(dt){
     if (!tossing) {
       // サーブ前に左手でボールを地面に3回つく。そのあと横向きに構える
       if (sp.isHuman && sp.serveReq) serveQueued = true;
-      if (timer < DRIB) {
-        const q = dribbleQ(timer);
-        ball.x = sp.x + 0.25 * sg; ball.y = sp.y - sg * 0.62; ball.z = 0.8 * q; // かがんだ左手の下
-      } else { ball.x = sp.x + 0.38 * sg; ball.y = sp.y - sg * 0.3; ball.z = 1.0; } // ラケットに添えて体の前
+      // サーブを打つまで、ずっとボールをつき続ける
+      const q = dribbleQ(timer);
+      ball.x = sp.x + 0.25 * sg; ball.y = sp.y - sg * 0.7; ball.z = 0.78 * q; // かがんだ左手の下
       ball.vx = ball.vy = ball.vz = 0;
-      if (timer >= DRIB + 0.35 && (sp.isHuman ? serveQueued : timer > DRIB + 0.9)) {
+      const caught = q > 0.9 && (timer % 0.5) / 0.5 > 0.5; // ボールが手に戻ってきた瞬間だけトスに移る
+      if (timer >= 0.5 && caught && (sp.isHuman ? serveQueued : timer > DRIB + 0.4)) {
         serveQueued = false;
         // トス：右肩の少し前へ真上に投げ上げる
         tossing = true; tossT = 0; showMsg('', 0); ball.vz = 6.2; ball.vx = (-0.05 * sg) / 0.63; ball.vy = 0;
@@ -1339,13 +1339,11 @@ function computePose(p){
     pose = k < 0.12 ? lerpPose(from, P0.hit, k / 0.12) : k < 0.45 ? lerpPose(P0.hit, P0.mid, (k - 0.12) / 0.33) : lerpPose(P0.mid, P0.fol, (k - 0.45) / 0.55);
   } else if (st < D + 0.35 && POSES[p.shot]) {
     pose = lerpPose(POSES[p.shot].fol, READY, (st - D) / 0.35);
-  } else if (state === 'serve' && p === servingPlayer() && !tossing && timer < DRIB) {
+  } else if (state === 'serve' && p === servingPlayer() && !tossing) {
     // ボールつき：横向きのまま腰から前にかがみ、左手でつく
     const q = dribbleQ(timer);
-    pose = { h: [0.28, -0.12, 1.42], r: [-0.12, -0.28, -0.58], l: [-0.25, 0.5, 0.62 + 0.25 * q], tw: 0.1, cr: 0.12, bend: 0.55 - 0.15 * q }; // ラケットは右肩から背中側に下げる
-  } else if (state === 'serve' && p === servingPlayer() && !tossing) {
-    // 構え：ボールをラケットのガットに添えて体の前で持ち、少し前かがみ
-    pose = SERVE_READY;
+    // ボールつきの構え：大きく前かがみ。右手は頭の横で肘を上げ、ラケットは背中側へ垂らす。左手は体の前の低い所でつく
+    pose = { h: [0.2, 0.05, 1.5], r: [0.05, -0.38, -0.55], l: [-0.15, 0.55, 0.5 + 0.25 * q], tw: 0.15, cr: 0.12, bend: 0.8 - 0.12 * q, eu: 0.8 };
   } else if (state === 'serve' && p === servingPlayer() && tossing) {
     // トス：両腕をいっしょに下ろす → 左手を上へ伸ばしひざを深く曲げ背中を反らす（トロフィー）→ ラケットを背中に落とす
     pose = tossT < 0.15 ? lerpPose(SERVE_READY, SERVE_DOWN, tossT / 0.15) : tossT < 0.45 ? lerpPose(SERVE_DOWN, SERVE_TROPHY, (tossT - 0.15) / 0.3) : lerpPose(SERVE_TROPHY, SERVE_DROP, (tossT - 0.45) / 0.18);
@@ -1391,7 +1389,8 @@ function updateRig(R){
   // 体勢を崩したとき：ボールの方へ上半身を大きく傾け、腰を落とす
   const lt = p.lungeT ?? 9, lean = lt < 0.8 ? Math.sin(Math.PI * Math.min(1, lt / 0.8)) * (p.lungeDir || 1) : 0;
   const bendV = pose.bend || 0;
-  const W = (a, f, u, noBob) => { if (!noBob && bendV) { const hgt = Math.max(0, u - 0.66); f += bendV * 0.55 * hgt; u -= Math.abs(bendV) * 0.25 * hgt * Math.abs(bendV); } if (!noBob && lean) { a += lean * 0.32 * Math.max(0, u - 0.3); u -= Math.abs(lean) * 0.14 * Math.min(1, u); } const a2 = a * yc + f * ys, f2 = -a * ys + f * yc; return new V3(p.x + rx * a2, u + (noBob ? 0 : bob) + jumpH, p.y + fz * f2); };
+  const LEG = 0.12; // 脚を長くした分だけ上半身を持ち上げる
+  const W = (a, f, u, noBob) => { if (!noBob) u += LEG; if (!noBob && bendV) { const hgt = Math.max(0, u - 0.66 - LEG); f += bendV * 0.55 * hgt; u -= Math.abs(bendV) * 0.25 * hgt * Math.abs(bendV); } if (!noBob && lean) { a += lean * 0.32 * Math.max(0, u - 0.3); u -= Math.abs(lean) * 0.14 * Math.min(1, u); } const a2 = a * yc + f * ys, f2 = -a * ys + f * yc; return new V3(p.x + rx * a2, u + (noBob ? 0 : bob) + jumpH, p.y + fz * f2); };
   const heading = (T) => { const a2 = Math.cos(T + yaw), f2 = -Math.sin(T + yaw); return Math.atan2(-(fz * f2), rx * a2); }; // ローカル右軸の向き
   const twist = pose.tw || 0, twc = Math.cos(twist), tws = Math.sin(twist);
   // 胴体・腰・頭
@@ -1407,7 +1406,7 @@ function updateRig(R){
   // 腕
   const lh = pose.l === 'grip' ? [pose.h[0] - 0.02, pose.h[1] - 0.04, pose.h[2] - 0.1] : pose.l;
   // 肩→肘→手首を2本の骨として解く（IK）。肘は外側・下・後ろ寄りに自然に曲がる
-  const L1 = 0.31, L2 = 0.3;
+  const L1 = 0.36, L2 = 0.35;
   const handsW = [];
   [[0.24, pose.h], [-0.24, lh]].forEach(([sa, hand], i) => {
     const s = [sa * twc, -sa * tws, 1.25];
@@ -1445,7 +1444,7 @@ function updateRig(R){
     const wide = 1.15 + 0.5 * idle + (receiving ? 0.9 : 0);
     const lstep = lean && Math.sign(la) === Math.sign(lean) ? Math.abs(lean) * 0.45 : 0; // 傾けた側の足を大きく踏み出す
     const foot = W(la * wide + Math.sign(la) * lstep, ff + lstep * 0.3, 0.05 + fu, true);
-    const knee = W(la * (1.1 + 0.45 * idle), ff * 0.5 + 0.09 + 0.06 * idle + (pose.cr || 0) * 0.6 - (i === 1 ? (pose.kr || 0) * 0.8 : 0), 0.36 + fu * 0.5 + bob * 0.5, true);
+    const knee = W(la * (1.1 + 0.45 * idle), ff * 0.5 + 0.1 + 0.06 * idle + (pose.cr || 0) * 0.6 - (i === 1 ? (pose.kr || 0) * 0.8 : 0), 0.42 + fu * 0.5 + bob * 0.5, true);
     setLimb(R.th[i], hip, knee); setLimb(R.sh[i], knee, foot);
     R.knees[i].position.copy(knee);
     R.shoes[i].position.copy(foot).add(new V3(0, -0.01, 0)); R.shoes[i].position.addScaledVector(new V3(0, 0, fz), 0.04);

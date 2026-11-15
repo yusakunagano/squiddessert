@@ -740,13 +740,13 @@ function serve(p){
   const W = SW;
   let tx = boxX * (0.6 + Math.random() * (W - 1.2));
   let ty = -s * (SL - 0.7 - Math.random() * 2.2);
-  if (!p.isHuman && Math.random() < [0.3, 0.2, 0.12][level]) ty -= s * 1.0; // fault chance
   // サーブは内側（センター方向）へ曲がる。内側の矢印を押すと大きく曲がる
   let curveAmt = 2.2, sv = 30;
   const kind = p.isHuman ? p.serveKind : ['flat', 'slice', 'kick'][Math.floor(Math.random() * 3)];
-  if (kind === 'flat') { curveAmt = 0.5; sv = 35; }        // フラット：速く、ほぼまっすぐ
-  else if (kind === 'slice') { curveAmt = 6; sv = 27; }    // スライス：遅めで大きく内側に曲がる
-  else if (kind === 'kick') { curveAmt = -1.8; sv = 22; }  // キック：山なりで、弾んでから高く跳ねて外へ逃げる
+  // サーブの3種類：フラット＝いちばん速いが入りにくい／スライス＝大きく曲がり遅いがよく入る／キック＝山なりでよく跳ねる
+  if (kind === 'flat') { curveAmt = 0.4; sv = 41; }        // フラット：速く、ほぼまっすぐ
+  else if (kind === 'slice') { curveAmt = 7; sv = 25; }    // スライス：遅めで大きく内側に曲がる
+  else if (kind === 'kick') { curveAmt = -1.6; sv = 21; }  // キック：山なりで、弾んでから高く跳ねて外へ逃げる
   p.serveKind = null;
   if (p.isHuman) {
     const L = (p.inp || NOINP).left, Rk = (p.inp || NOINP).right;
@@ -754,8 +754,10 @@ function serve(p){
     const outward = (boxX > 0 && Rk) || (boxX < 0 && L);
     if (inward) { curveAmt = Math.max(curveAmt, 6); tx = boxX * (W * 0.55); }
     else if (outward) tx = boxX * (W - 0.5);
-    if (Math.random() < 0.12) ty -= s * 0.9;
   }
+  // 入る確率：フラットは入りにくく（約2倍）、スライスはよく入る（約3分の1）
+  const faultMul = kind === 'flat' ? 1.9 : kind === 'slice' ? 0.35 : kind === 'kick' ? 0.7 : 1;
+  if (Math.random() < (p.isHuman ? 0.12 : [0.3, 0.2, 0.12][level]) * faultMul) ty -= s * (0.7 + Math.random() * 0.6);
   const ax = -Math.sign(boxX) * curveAmt;
   ball.z = Math.max(ball.z, 2.4);
   const dist = Math.hypot(tx - ball.x, ty - ball.y);
@@ -765,7 +767,7 @@ function serve(p){
   Object.assign(ball, v);
   ball.curve = ax;
   ball.live = true; lastHitter = p; hitFrom = { x: p.x, y: p.y }; bounces = 0; isServe = true;
-  p.swing = 0.3; p.cool = 0.5; p.shot = 'sm'; p.prepType = 'sm'; p.fromPose = SERVE_DROP; p.st = 0; p.prep = 0; ball.smash = false; ball.volley = false; p.serveSwing = true; ball.spin = kind === 'kick' ? 'kick' : kind === 'slice' ? 'slice' : null; p.jumpT = 0; p.jumpAmp = 0.22;
+  p.swing = 0.3; p.cool = 0.5; p.shot = 'sm'; p.prepType = 'sm'; p.fromPose = SERVE_DROP; p.st = 0; p.prep = 0; ball.smash = false; ball.volley = false; p.serveSwing = true; ball.spin = kind === 'kick' ? 'kick' : kind === 'slice' ? 'slice' : null; p.label = 1.1; p.tag = kind === 'flat' ? 'フラットサーブ' : kind === 'slice' ? 'スライスサーブ' : kind === 'kick' ? 'キックサーブ' : 'サーブ'; p.jumpT = 0; p.jumpAmp = 0.22;
   state = 'rally'; showMsg('', 0);
 }
 
@@ -975,7 +977,7 @@ function stepBall(dt, dead){
     }
   }
   if (ball.z <= 0) {
-    ball.z = 0; ball.curve = 0; const bz = ball.spin === 'kick' ? 0.82 : ball.spin === 'slice' ? 0.42 : 0.62; ball.vz = -ball.vz * bz; const keep = ball.spin === 'slice' ? 0.8 : ball.spin === 'kick' ? 0.72 : ball.volley ? 0.55 : 0.68; ball.vx *= keep; ball.vy *= keep; ball.spin = null;
+    ball.z = 0; ball.curve = 0; const bz = ball.spin === 'kick' ? 1.05 : ball.spin === 'slice' ? 0.42 : 0.62; ball.vz = -ball.vz * bz; const keep = ball.spin === 'slice' ? 0.8 : ball.spin === 'kick' ? 0.72 : ball.volley ? 0.55 : 0.68; ball.vx *= keep; ball.vy *= keep; ball.spin = null;
     bounces++;
     const opp = 1 - lastHitter.team;
     if (bounces === 1) {
@@ -1407,7 +1409,7 @@ function render3d(){
     let html = '';
     if (p.label > 0) {
       const col = p.tag === '詰まった！' ? '#ff6b6b' : p.tag === '正面…' ? '#c9c9c9' : p.tag ? '#ff9f1c' : p.shot === 'jk' ? '#ff3b3b' : p.shot === 'sm' ? '#ff5fd2' : p.shot && p.shot[0] === 'b' ? '#5fd0ff' : '#ffd23f';
-      html += `<div style="color:${col};opacity:${Math.min(1, p.label * 2)};transform:translateY(${-(0.9 - p.label) * 20}px)">${(SHOT_NAME[p.shot] || '') + (p.tag ? ' ' + p.tag : '')}</div>`;
+      html += `<div style="color:${col};opacity:${Math.min(1, p.label * 2)};transform:translateY(${-(0.9 - p.label) * 20}px)">${p.serveSwing && (p.st ?? 9) < 1.2 ? p.tag : (SHOT_NAME[p.shot] || '') + (p.tag ? ' ' + p.tag : '')}</div>`;
     }
     if (p === human) html += '<div style="color:#fff;font-size:16px">▼</div>';
     else if (online && p.isHuman) html += `<div style="color:#fff;font-size:12px;opacity:.85">P${p.seat + 1}</div>`;

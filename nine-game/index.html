@@ -442,9 +442,6 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     const LEGS = [['.X.X....X.X..'], ['..X.X..X.X...']];
     // Each animal: body rows (without legs), two leg poses, where the eyes are (holes punched by code),
     // where the arm nubs go (null = no arms), and a lying-down pose with the head on the left.
-    // もふ: an original fluffy creature with a sprout on its head, drawn smooth (not pixels) by drawReal.
-    // w is its width in stage pixels, used for spacing the hearts around it.
-    const MOFU = { name: 'もふ', real: true, w: 17 };
     const ANIMALS = [
       {
         name: 'ねこ',
@@ -593,9 +590,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     const slow = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const WALK_SPEED = 14;                     // pixels per second
 
-    // The earlier animals stay in ANIMALS so they can come back; for now もふ dances every game.
-    const ROSTER = [MOFU];
-    let animal = ROSTER[0];
+    let animal = ANIMALS[randInt(0, ANIMALS.length - 1)];
     let cx = 12;                               // horizontal centre of the animal
     let face = 1;
     let mood = { name: 'dance', t0: 0, dur: 4000 };
@@ -604,16 +599,13 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
     const clampX = x => Math.max(10, Math.min(W - 10, x));
     const flip = rows => rows.map(r => [...r].reverse().join(''));
-    const width = () => (animal.real ? animal.w : animal.body[0].length);
+    const width = () => animal.body[0].length;
     const napRows = () => animal.nap || flip(animal.body);
 
-    // Drawn at the screen's pixel density so the smooth character stays sharp; pixel art is unaffected.
-    const DPR = Math.min(3, window.devicePixelRatio || 1);
     function resize() {
       W = Math.max(30, Math.floor(canvas.parentElement.clientWidth / PX));
-      canvas.width = W * PX * DPR;
-      canvas.height = H * PX * DPR;
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      canvas.width = W * PX;
+      canvas.height = H * PX;
       canvas.style.width = W * PX + 'px';
       canvas.style.height = H * PX + 'px';
       cx = clampX(cx);
@@ -664,216 +656,10 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       }
     }
 
-    // ---- もふ, drawn smooth: fur, soft light, glossy eyes. Sprites are rendered once, then moved. ----
-    function rng(seed) {
-      return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-    }
-    const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
-    const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
-    // A furry oval: soft-lit base, then many short hairs (lighter up-left), then a fuzzy rim.
-    function furBall(rx, ry, light, dark, seed, face) {
-      const SS = DPR * 1.5, pad = 10;
-      const c = document.createElement('canvas');
-      c.width = Math.ceil((rx + pad) * 2 * SS); c.height = Math.ceil((ry + pad) * 2 * SS);
-      const g = c.getContext('2d');
-      g.scale(SS, SS);
-      const ox = rx + pad, oy = ry + pad, rand = rng(seed);
-      const k = Math.min(1, .35 + Math.max(rx, ry) / 60);      // smaller balls get shorter hair
-      const shade = (x, y) => Math.max(0, Math.min(1, .2 + .55 * ((y - oy) / ry + 1) / 2 + .25 * ((x - ox) / rx + 1) / 2));
-      const base = g.createRadialGradient(ox - rx * .35, oy - ry * .4, 2, ox, oy, Math.max(rx, ry) * 1.1);
-      base.addColorStop(0, rgba(light, 1)); base.addColorStop(1, rgba(dark, 1));
-      g.fillStyle = base;
-      g.beginPath(); g.ellipse(ox, oy, rx, ry, 0, 0, Math.PI * 2); g.fill();
-      g.lineCap = 'round';
-      const hair = (x, y, ang, len, col, a, wd) => {
-        g.strokeStyle = rgba(col, a); g.lineWidth = wd;
-        g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len); g.stroke();
-      };
-      const n = Math.round(rx * ry * 1.4);
-      for (let i = 0; i < n; i++) {
-        const r = Math.sqrt(rand()), a = rand() * Math.PI * 2;
-        const x = ox + Math.cos(a) * r * rx, y = oy + Math.sin(a) * r * ry;
-        const out = Math.atan2((y - oy) / ry, (x - ox) / rx) + (rand() - .5) * 1.2 + .25;
-        const t = shade(x, y) + (rand() - .5) * .25;
-        hair(x, y, out, (1.5 + rand() * 3 * (.4 + r)) * k, mix(light, dark, Math.max(0, Math.min(1, t))), .45, .8);
-      }
-      const rim = Math.round((rx + ry) * 7);
-      for (let i = 0; i < rim; i++) {
-        const a = rand() * Math.PI * 2, r = .9 + rand() * .1;
-        const x = ox + Math.cos(a) * r * rx, y = oy + Math.sin(a) * r * ry;
-        const t = shade(x, y) + .1 + (rand() - .5) * .2;
-        hair(x, y, a + (rand() - .5) * .9, (2 + rand() * 3.5) * k, mix(light, dark, Math.max(0, Math.min(1, t))), .55, 1);
-      }
-      if (face) {
-        // the smooth face, blended into the fur with short hairs around its edge
-        const fx = ox + face.x, fy = oy + face.y;
-        const skin = g.createRadialGradient(fx - face.rx * .3, fy - face.ry * .4, 1, fx, fy, face.rx * 1.05);
-        skin.addColorStop(0, '#fff6ee'); skin.addColorStop(.75, '#f7e3d3'); skin.addColorStop(1, '#ecd2bf');
-        g.fillStyle = skin;
-        g.beginPath(); g.ellipse(fx, fy, face.rx, face.ry, 0, 0, Math.PI * 2); g.fill();
-        for (let i = 0; i < 260; i++) {
-          const a = rand() * Math.PI * 2, x = fx + Math.cos(a) * face.rx * 1.02, y = fy + Math.sin(a) * face.ry * 1.02;
-          const t = shade(x, y) + (rand() - .5) * .2;
-          hair(x, y, a + Math.PI + (rand() - .5) * .8, 2 + rand() * 3, mix(light, dark, Math.max(0, Math.min(1, t))), .8, 1);
-        }
-      }
-      return { c, w: (rx + pad) * 2, h: (ry + pad) * 2 };
-    }
-    let sprites = null;
-    const FUR_LIGHT = [255, 249, 238], FUR_DARK = [196, 172, 140];
-    function makeSprites() {
-      sprites = {
-        body: furBall(44, 47, FUR_LIGHT, FUR_DARK, 7, { x: 0, y: 4, rx: 27, ry: 22 }),
-        arm: furBall(8, 12, FUR_LIGHT, FUR_DARK, 11),
-        foot: furBall(10, 7, [242, 232, 216], [170, 146, 116], 13)
-      };
-    }
-    const put = (sp, x, y) => ctx.drawImage(sp.c, x - sp.w / 2, y - sp.h / 2, sp.w, sp.h);
-    function heart(x, y, s) {
-      const g = ctx.createLinearGradient(x, y - s, x, y + s);
-      g.addColorStop(0, '#ff6b7d'); g.addColorStop(1, '#be2a3c');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.moveTo(x, y + s * .9);
-      ctx.bezierCurveTo(x - s * 1.4, y - s * .1, x - s * .6, y - s * 1.1, x, y - s * .35);
-      ctx.bezierCurveTo(x + s * .6, y - s * 1.1, x + s * 1.4, y - s * .1, x, y + s * .9);
-      ctx.fill();
-    }
-    function sparkle(x, y, s) {
-      ctx.fillStyle = '#f5d76e';
-      ctx.beginPath();
-      for (let i = 0; i < 8; i++) {
-        const r = i % 2 ? s * .3 : s, a = i * Math.PI / 4;
-        ctx.lineTo(x + Math.sin(a) * r, y - Math.cos(a) * r);
-      }
-      ctx.fill();
-    }
-    function drawReal(now, happy) {
-      if (!sprites) makeSprites();
-      ctx.clearRect(0, 0, W * PX, H * PX);
-      const ground = H * PX - 4;
-      let lift = 0, rot = 0, sx = 1, sy = 1, arms = ['down', 'down'], eyes = 'open', look = 0, step = 0;
-      const ph = now / 1000 * Math.PI * 2;
-      if (happy) {
-        lift = slow ? 0 : Math.abs(Math.sin((now - happyStart) / 1000 * Math.PI * 3)) * 18;
-        arms = ['up', 'up']; eyes = 'happy';
-      } else if (mood.name === 'walk') {
-        const p = Math.min(1, (now - mood.t0) / mood.dur);
-        cx = mood.from + (mood.target - mood.from) * p;
-        step = Math.sin(now / 140 * Math.PI);
-        lift = Math.abs(step) * 4; rot = step * .05; look = face;
-      } else if (mood.name === 'hop') {
-        const t = (now - mood.t0) % 650;
-        if (t < 130) { sx = 1.08; sy = .9; } else lift = Math.sin((t - 130) / 520 * Math.PI) * 22;
-        if (lift > 2) arms = ['up', 'up'];
-      } else if (mood.name === 'nap') {
-        eyes = 'closed'; rot = -.12 * face; sy = 1 + Math.sin(now / 700) * .02;
-      } else {
-        const beat = Math.floor(now / (slow ? 600 : 250)) % 4;
-        if (!slow) { lift = Math.abs(Math.sin(ph * 2)) * 5; rot = Math.sin(ph) * .09; }
-        arms = [beat === 0 ? 'up' : 'down', beat === 2 ? 'up' : 'down'];
-        if (now % 3400 < 130) eyes = 'blink';
-      }
-      const X = cx * PX;
-      // soft shadow on the floor, smaller while in the air
-      const sh = ctx.createRadialGradient(X, ground, 1, X, ground, 46);
-      sh.addColorStop(0, `rgba(0,0,0,${.45 - lift / 80})`); sh.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = sh;
-      ctx.beginPath(); ctx.ellipse(X, ground, 46 * (1 - lift / 70), 8, 0, 0, Math.PI * 2); ctx.fill();
-
-      ctx.save();
-      ctx.translate(X, ground - lift);
-      ctx.rotate(rot);
-      ctx.scale(sx, sy);
-      // feet, arms behind when down, body, then the face on top
-      put(sprites.foot, -17, -6 - Math.max(0, step) * 3);
-      put(sprites.foot, 17, -6 - Math.max(0, -step) * 3);
-      const arm = (side, up) => {
-        ctx.save();
-        ctx.translate(side * 38, -58);
-        ctx.rotate(side * (up ? -2.5 : -.45));
-        put(sprites.arm, 0, 11);
-        ctx.restore();
-      };
-      put(sprites.body, 0, -57);
-      arm(-1, arms[0] === 'up');
-      arm(1, arms[1] === 'up');
-      // sprout, swaying a little
-      const sway = Math.sin(ph * .8) * .15;
-      ctx.save();
-      ctx.translate(0, -101); ctx.rotate(sway);
-      ctx.strokeStyle = '#6f9e4f'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(0, 2); ctx.quadraticCurveTo(-1, -6, 1, -12); ctx.stroke();
-      [[-1, -.5], [1, .6]].forEach(([d, a]) => {
-        const lg = ctx.createLinearGradient(0, -12, d * 12, -18);
-        lg.addColorStop(0, '#9fd47a'); lg.addColorStop(1, '#5f9443');
-        ctx.fillStyle = lg;
-        ctx.save(); ctx.translate(1, -12); ctx.rotate(a);
-        ctx.beginPath(); ctx.ellipse(d * 7, 0, 7.5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = .8;
-        ctx.beginPath(); ctx.moveTo(d * 1.5, 0); ctx.lineTo(d * 12, 0); ctx.stroke();
-        ctx.restore();
-      });
-      ctx.restore();
-      // face: blush, eyes, mouth
-      const fx = look * 3, fy = -53;
-      [-1, 1].forEach(d => {
-        const b = ctx.createRadialGradient(fx + d * 17, fy + 7, 1, fx + d * 17, fy + 7, 8);
-        b.addColorStop(0, 'rgba(244,140,140,.7)'); b.addColorStop(1, 'rgba(244,140,140,0)');
-        ctx.fillStyle = b;
-        ctx.beginPath(); ctx.arc(fx + d * 17, fy + 7, 8, 0, Math.PI * 2); ctx.fill();
-        const ex = fx + d * 10, ey = fy - 2;
-        if (eyes === 'open') {
-          const eg = ctx.createRadialGradient(ex - 1, ey - 2, .5, ex, ey, 5.5);
-          eg.addColorStop(0, '#4a3a33'); eg.addColorStop(1, '#1b1411');
-          ctx.fillStyle = eg;
-          ctx.beginPath(); ctx.ellipse(ex, ey, 3.8, 4.8, 0, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = '#fff';
-          ctx.beginPath(); ctx.arc(ex + 1.2, ey - 1.8, 1.4, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = 'rgba(255,255,255,.6)';
-          ctx.beginPath(); ctx.arc(ex - 1.3, ey + 1.8, .7, 0, Math.PI * 2); ctx.fill();
-        } else {
-          ctx.strokeStyle = '#2b201b'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
-          ctx.beginPath();
-          if (eyes === 'happy') ctx.arc(ex, ey + 2, 3.6, Math.PI * 1.15, Math.PI * 1.85);
-          else ctx.arc(ex, ey - 1, 3.6, Math.PI * .15, Math.PI * .85);
-          ctx.stroke();
-        }
-      });
-      ctx.strokeStyle = '#8a5f4d'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
-      ctx.beginPath();
-      if (eyes === 'happy') { ctx.fillStyle = '#c4626a'; ctx.ellipse(fx, fy + 6, 2.6, 2, 0, 0, Math.PI); ctx.fill(); }
-      else { ctx.arc(fx - 1.8, fy + 4.5, 1.8, .2, Math.PI - .2); ctx.moveTo(fx + 3.4, fy + 5.1); ctx.arc(fx + 1.8, fy + 4.5, 1.8, .2, Math.PI - .2); ctx.stroke(); }
-      ctx.restore();
-
-      if (mood.name === 'nap' && !happy) {
-        ctx.fillStyle = '#9b9b96'; ctx.font = '700 15px sans-serif';
-        for (let i = 0; i < 3; i++) {
-          const age = (now - mood.t0) / 1000 - i * .7;
-          if (age < 0) continue;
-          const t = age % 2.1;
-          ctx.globalAlpha = Math.max(0, 1 - t / 2.1);
-          ctx.fillText('z', X + face * (40 + t * 12), ground - 92 - t * 18);
-        }
-        ctx.globalAlpha = 1;
-      }
-      bursts = bursts.filter(b => now - b.t0 < b.life);
-      bursts.forEach(b => {
-        const t = (now - b.t0) / 1000;
-        if (t < 0) return;
-        const x = (b.x + Math.sin(t * 6 + b.y) * .6) * PX + 14, y = (b.y - t * b.vy) * PX;
-        ctx.globalAlpha = Math.max(0, 1 - t / (b.life / 1000));
-        if (b.heart) heart(x, y, 9); else sparkle(x, y, 7);
-        ctx.globalAlpha = 1;
-      });
-    }
-
     function draw(now) {
       const happy = now < happyUntil;
       if (!happy && now - mood.t0 > mood.dur) pickMood(now);
-      if (animal.real) { drawReal(now, happy); return; }
-      ctx.clearRect(0, 0, W * PX, H * PX);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       const w = width();
       const x0 = Math.round(cx) - Math.floor(w / 2);
       const standH = animal.body.length + animal.legs[0].length;
@@ -931,10 +717,10 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     window.addEventListener('resize', resize);
     requestAnimationFrame(loop);
 
-    // A different dancer for the next game (when the roster has more than one).
+    // A different animal for the next game.
     function randomize() {
-      const others = ROSTER.filter(a => a !== animal);
-      if (others.length) animal = others[randInt(0, others.length - 1)];
+      const others = ANIMALS.filter(a => a !== animal);
+      animal = others[randInt(0, others.length - 1)];
       mood = { name: 'dance', t0: performance.now(), dur: 3000 };
     }
 
@@ -957,7 +743,7 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
         });
       }
     }
-    return { cheer, randomize, names: ROSTER.map(a => a.name) };
+    return { cheer, randomize, names: ANIMALS.map(a => a.name) };
   })();
 
   // ---- sound: little chiptune effects made with Web Audio (no audio files). Off by default. ----

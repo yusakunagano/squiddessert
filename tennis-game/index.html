@@ -636,7 +636,7 @@ function hit(p, reach = 1.5){
   const side = (ball.x - p.x) * s >= 0 ? 'f' : 'b';
   const isAirK = !isSmash && !isVolley && p.akPlanned && (p.jumpT ?? 9) < 0.8;
   p.akPlanned = false;
-  p.shot = isSmash ? 'sm' : isAirK ? 'jk' : side + (isVolley ? 'v' : 's');
+  p.shot = isSmash ? 'sm' : isAirK ? (side === 'f' ? 'jk' : 'bjk') : side + (isVolley ? 'v' : 's');
   const err = [1.6, 1.1, 0.7][level];
   if (p.isHuman) {
     let aim = 0;
@@ -653,7 +653,7 @@ function hit(p, reach = 1.5){
     if (power) { tx += (Math.random() - .5) * 1.6; ty -= s * (Math.random() - .3) * 2.2; }
     drop = !lob && !power && !!I.drop;
     slice = !lob && !power && !drop && !!I.slice;
-    if (slice) ty = -s * (HL - 2.2 - Math.random() * 3);
+    if (slice) ty = -s * (6.5 + Math.random() * 3.5); // スライスは少し手前に落ちやすい
     if (drop) { ty = -s * (1.3 + Math.random() * 2.2); tx *= 0.7; }
   } else {
     const W = mode === 'doubles' ? DW : SW;
@@ -764,6 +764,7 @@ function hit(p, reach = 1.5){
   Object.assign(ball, v); ball.z = z;
   if (netMiss) ball.vz *= 0.35;
   ball.smash = isSmash && !mishit; ball.curve = 0;
+  if (slice && !isSmash && !lob && !mishit) ball.curve = (side === 'f' ? -1 : 1) * s * 1.4; // スライスは少し曲がる（フォアは打った人の左へ、バックは右へ）
   ball.volley = isVolley; ball.spin = slice && !isSmash ? 'slice' : null;
   p.tag = lunge ? 'ギリギリ…' : slice && !isSmash ? 'スライス' : close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
   lastHitter = p; bounces = 0; isServe = false; rallyHits++;
@@ -785,7 +786,7 @@ function serve(p){
   let ty = -s * (SL - 0.7 - Math.random() * 2.2);
   // サーブは内側（センター方向）へ曲がる。内側の矢印を押すと大きく曲がる
   let curveAmt = 2.2, sv = 30;
-  const kind = p.isHuman ? p.serveKind : ['flat', 'slice', 'kick'][Math.floor(Math.random() * 3)];
+  const kind = p.serveKind || (p.isHuman ? null : ['flat', 'slice', 'kick'][Math.floor(Math.random() * 3)]);
   // サーブの3種類：フラット＝いちばん速いが入りにくい／スライス＝大きく曲がり遅いがよく入る／キック＝山なりでよく跳ねる
   if (kind === 'flat') { curveAmt = 0.4; sv = 41; }        // フラット：速く、ほぼまっすぐ
   else if (kind === 'slice') { curveAmt = 7; sv = 25; }    // スライス：遅めで大きく内側に曲がる
@@ -939,9 +940,13 @@ function update(dt){
         p.prepType = ball.z > 2.8 && ball.vz < 3 && bounces === 0 ? 'sm' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
         // エアK：バウンド後に肩の高さへ弾んだフォア側の球が良い位置に来たら、跳び上がって打つ
         const lat = Math.abs(ball.x - p.x);
-        if (bounces === 1 && sd === 'f' && ball.z > 1.0 && d < 2.0 && lat > 0.35 && lat < 1.4 && (p.jumpT ?? 9) > 1.2 && p.akDecided !== rallyHits) {
+        // 跳んでから少し遅れて（頂点を過ぎたあたりで）打てるよう、ボールが届く約0.4秒前に跳ぶ
+        const vc = -((ball.x - p.x) * ball.vx + (ball.y - p.y) * ball.vy) / Math.max(0.1, d), tti = (d - 1.2) / Math.max(0.5, vc);
+        const approach = Math.abs(p.y) < HL - 2.5 || -(p.vys || 0) * sideSign(p.team) > 1.0; // 前に出て打つ（アプローチ）
+        if (bounces === 1 && ball.z > (approach ? 0.8 : 1.0) && d < 4 && tti < 0.42 && lat > 0.3 && lat < 1.5 && (p.jumpT ?? 9) > 1.2 && p.akDecided !== rallyHits) {
           p.akDecided = rallyHits;
-          if (Math.random() < (p.isHuman ? 0.85 : [0.2, 0.35, 0.5][level])) { p.jumpT = 0; p.jumpAmp = 0.9; p.akPlanned = true; }
+          const chance = p.isHuman ? (approach ? 0.95 : 0.8) : [0.2, 0.35, 0.5][level] * (approach ? 1.8 : 1);
+          if (Math.random() < chance) { p.jumpT = 0; p.jumpAmp = 0.9; p.akPlanned = true; p.akSide = sd; }
         }
       }
     }
@@ -965,10 +970,13 @@ function update(dt){
       if (timer >= 0.5 && caught && (sp.isHuman ? serveQueued : timer > DRIB + 0.5)) {
         serveQueued = false;
         // トス：右肩の少し前へ真上に投げ上げる
-        tossing = true; tossT = 0; showMsg('', 0); ball.vz = 6.2; ball.vx = (-0.05 * sg) / 0.63; ball.vy = 0;
+        // サーブの種類でトスの位置を変える：キック＝頭の真上、フラット＝少し前、スライス＝今までどおり右前
+        if (!sp.isHuman) sp.serveKind = ['flat', 'slice', 'kick'][Math.floor(Math.random() * 3)];
+        const k2 = sp.serveKind, off = k2 === 'kick' ? [0.0, 0.0] : k2 === 'flat' ? [0.18, 0.22] : k2 === 'slice' ? [0.35, 0.38] : [0.25, 0.3];
+        tossing = true; tossT = 0; showMsg('', 0); ball.vz = 6.2; ball.vx = (sp.x + off[0] * sg - ball.x) / 0.63; ball.vy = (sp.y - sg * off[1] - ball.y) / 0.63;
       }
     } else {
-      tossT += dt; ball.x += ball.vx * dt; ball.vz -= G * dt; ball.z += ball.vz * dt;
+      tossT += dt; ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.vz -= G * dt; ball.z += ball.vz * dt;
       if (ball.vz <= 0) { tossing = false; serve(sp); }
     }
     serveRequest = false; for (const q of players) q.serveReq = false;
@@ -1301,8 +1309,8 @@ function buildRig(p){
   const skin = M(SKIN, { roughness: 0.6 }), shirt = M(p.color, { roughness: 0.55 });
   const shorts = M(p.team === 0 ? '#1d2b5a' : '#f4f4f4'), shoe = M('#fafafa', { roughness: 0.4 });
   // 胴体はお腹で2つに分ける：上（胸）はひねり・反り・前かがみで大きく動き、下（お腹）は腰に近い動き
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.165, 0.4, 16), shirt); torso.scale.z = 0.62; torso.castShadow = true;
-  const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.168, 0.155, 0.28, 16), shirt); belly.scale.z = 0.64; belly.castShadow = true;
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.165, 0.32, 16), shirt); torso.scale.z = 0.62; torso.castShadow = true;
+  const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.168, 0.155, 0.22, 16), shirt); belly.scale.z = 0.64; belly.castShadow = true;
   const chest = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), shirt); chest.scale.set(1, 0.5, 0.62); chest.castShadow = true;
   const hips = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.24, 14), shorts); hips.scale.z = 0.7; hips.castShadow = true;
   const neck = limbMesh(0.05, skin);
@@ -1371,13 +1379,13 @@ function updateRig(R){
   const tgt = cp.pose, inSwing = (p.st ?? 9) < 0.5;
   const kk = 1 - Math.exp(-frameDt * (inSwing ? 30 : 16));
   const tl = tgt.l === 'grip' ? null : tgt.l;
-  if (!R.sm) R.sm = { h: tgt.h.slice(), r: tgt.r.slice(), l: (tl || [tgt.h[0] - 0.02, tgt.h[1] - 0.04, tgt.h[2] - 0.1]).slice(), tw: 0, cr: 0, sl: 0, sr: 0, kr: 0, bend: 0, eu: 0, yaw: cp.yaw };
+  if (!R.sm) R.sm = { h: tgt.h.slice(), r: tgt.r.slice(), l: (tl || [tgt.h[0] - 0.02, tgt.h[1] - 0.04, tgt.h[2] - 0.1]).slice(), tw: 0, cr: 0, sl: 0, sr: 0, kr: 0, kl: 0, bend: 0, eu: 0, yaw: cp.yaw };
   const sm = R.sm, ap = (a, b) => { for (let i = 0; i < 3; i++) a[i] += (b[i] - a[i]) * kk; };
   ap(sm.h, tgt.h); ap(sm.r, tgt.r);
   ap(sm.l, tl || [sm.h[0] - 0.02, sm.h[1] - 0.04, sm.h[2] - 0.1]);
-  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'bend', 'eu']) sm[k] += ((tgt[k] || 0) - sm[k]) * kk;
+  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'kl', 'bend', 'eu']) sm[k] += ((tgt[k] || 0) - sm[k]) * kk;
   sm.yaw += (cp.yaw - sm.yaw) * (1 - Math.exp(-frameDt * 12));
-  const pose = { h: sm.h, r: sm.r, l: tl ? sm.l : 'grip', tw: sm.tw, cr: sm.cr, sl: sm.sl, sr: sm.sr, kr: sm.kr, bend: sm.bend, eu: sm.eu };
+  const pose = { h: sm.h, r: sm.r, l: tl ? sm.l : 'grip', tw: sm.tw, cr: sm.cr, sl: sm.sl, sr: sm.sr, kr: sm.kr, kl: sm.kl, bend: sm.bend, eu: sm.eu };
   if (!tl) sm.l = [sm.h[0] - 0.02, sm.h[1] - 0.04, sm.h[2] - 0.1];
   const yaw = sm.yaw;
   const st0 = p.st ?? 9;
@@ -1400,13 +1408,13 @@ function updateRig(R){
   const twist = pose.tw || 0, twc = Math.cos(twist), tws = Math.sin(twist);
   // 胴体・腰・頭
   const tilt = Math.atan(0.55 * (pose.bend || 0)); // ＋で前かがみ、−で背中を反らす
-  R.belly.position.copy(W(0, 0, 0.84)); R.belly.rotation.set(-tilt * 0.35, heading(twist * 0.45), 0, 'YXZ');
-  R.torso.position.copy(W(0, 0, 1.12)); R.torso.rotation.set(-tilt, heading(twist * 0.85), 0, 'YXZ');
-  R.chest.position.copy(W(0, 0, 1.3)); R.chest.rotation.set(-tilt, heading(twist * 0.85), 0, 'YXZ');
+  R.belly.position.copy(W(0, 0, 0.81)); R.belly.rotation.set(-tilt * 0.35, heading(twist * 0.45), 0, 'YXZ');
+  R.torso.position.copy(W(0, 0, 1.06)); R.torso.rotation.set(-tilt, heading(twist * 0.85), 0, 'YXZ');
+  R.chest.position.copy(W(0, 0, 1.21)); R.chest.rotation.set(-tilt, heading(twist * 0.85), 0, 'YXZ');
   R.hips.position.copy(W(0, 0, 0.7)); R.hips.rotation.set(0, heading(twist * 0.3), 0);
-  setLimb(R.neck, W(0, 0, 1.3), W(0, 0, 1.45));
-  R.head.position.copy(W(0, 0.0, 1.55));
-  R.hair.position.copy(W(0, -0.015, 1.565)); R.hair.rotation.set(0, heading(twist * 0.5), 0);
+  setLimb(R.neck, W(0, 0, 1.22), W(0, 0, 1.36));
+  R.head.position.copy(W(0, 0.0, 1.46));
+  R.hair.position.copy(W(0, -0.015, 1.475)); R.hair.rotation.set(0, heading(twist * 0.5), 0);
   R.hair.rotateX(-0.35 * (1)); // 後頭部側を厚く
   // 腕
   const lh = pose.l === 'grip' ? [pose.h[0] - 0.02, pose.h[1] - 0.04, pose.h[2] - 0.1] : pose.l;
@@ -1414,7 +1422,7 @@ function updateRig(R){
   const L1 = 0.36, L2 = 0.35;
   const handsW = [];
   [[0.24, pose.h], [-0.24, lh]].forEach(([sa, hand], i) => {
-    const s = [sa * twc, -sa * tws, 1.25];
+    const s = [sa * twc, -sa * tws, 1.17];
     const S0 = W(...s), Ht = W(...hand);
     const dir = new V3().subVectors(Ht, S0); let d = dir.length(); dir.normalize();
     d = Math.min(d, L1 + L2 - 0.002); d = Math.max(d, 0.12);
@@ -1445,13 +1453,13 @@ function updateRig(R){
   [[-0.1, 1], [0.1, -1]].forEach(([la, k], i) => {
     const hip = W(la, 0, 0.66);
     const tap = Math.max(0, Math.sin(fw * 0.5 + i * Math.PI)) * 0.045 * idle;
-    const ff = stride * k + (i === 0 ? (pose.sl || 0) : (pose.sr || 0)), fu = Math.max(0, Math.sin(ph) * k) * lift + tap + (i === 1 ? (pose.kr || 0) : 0);
-    const wide = 1.15 + 0.5 * idle + (receiving ? 0.9 : 0);
+    const ff = stride * k + (i === 0 ? (pose.sl || 0) : (pose.sr || 0)), fu = Math.max(0, Math.sin(ph) * k) * lift + tap + (i === 1 ? (pose.kr || 0) : (pose.kl || 0));
+    const wide = 1.15 + 1.1 * idle + (receiving ? 0.9 : 0); // 構えるときはスタンスを広く
     const lstep = lean && Math.sign(la) === Math.sign(lean) ? Math.abs(lean) * 0.45 : 0; // 傾けた側の足を大きく踏み出す
     // サーブの構え：前足（左）をネット側に、後ろ足（右）を左後ろに置く
     const stance = state === 'serve' && p === servingPlayer() ? (i === 0 ? [0.1, 0.15] : [-0.1, -0.35]) : null;
     const foot = stance ? W(stance[0], stance[1], 0.05 + fu, true) : W(la * wide + Math.sign(la) * lstep, ff + lstep * 0.3, 0.05 + fu, true);
-    const knee = stance ? W(stance[0] * 0.8 + la * 0.3, stance[1] * 0.5 + 0.12 + (pose.cr || 0) * 0.6, 0.42 + bob * 0.5, true) : W(la * (1.1 + 0.45 * idle), ff * 0.5 + 0.1 + 0.06 * idle + (pose.cr || 0) * 0.6 - (i === 1 ? (pose.kr || 0) * 0.8 : 0), 0.42 + fu * 0.5 + bob * 0.5, true);
+    const knee = stance ? W(stance[0] * 0.8 + la * 0.3, stance[1] * 0.5 + 0.12 + (pose.cr || 0) * 0.6, 0.42 + bob * 0.5, true) : W(la * (1.1 + 0.45 * idle), ff * 0.5 + 0.1 + 0.06 * idle + (pose.cr || 0) * 0.6 - (i === 1 ? (pose.kr || 0) * 0.8 : (pose.kl || 0) * 0.8), 0.42 + fu * 0.5 + bob * 0.5, true);
     setLimb(R.th[i], hip, knee); setLimb(R.sh[i], knee, foot);
     R.knees[i].position.copy(knee);
     R.shoes[i].position.copy(foot).add(new V3(0, -0.01, 0)); R.shoes[i].position.addScaledVector(new V3(0, 0, fz), 0.04);
@@ -1484,7 +1492,7 @@ function render3d(){
     const sx = (tmpV.x + 1) / 2 * innerWidth, sy = (1 - tmpV.y) / 2 * innerHeight;
     let html = '';
     if (p.label > 0) {
-      const col = p.tag === '詰まった！' ? '#ff6b6b' : p.tag === '正面…' ? '#c9c9c9' : p.tag ? '#ff9f1c' : p.shot === 'jk' ? '#ff3b3b' : p.shot === 'sm' ? '#ff5fd2' : p.shot && p.shot[0] === 'b' ? '#5fd0ff' : '#ffd23f';
+      const col = p.tag === '詰まった！' ? '#ff6b6b' : p.tag === '正面…' ? '#c9c9c9' : p.tag ? '#ff9f1c' : (p.shot === 'jk' || p.shot === 'bjk') ? '#ff3b3b' : p.shot === 'sm' ? '#ff5fd2' : p.shot && p.shot[0] === 'b' ? '#5fd0ff' : '#ffd23f';
       html += `<div style="color:${col};opacity:${Math.min(1, p.label * 2)};transform:translateY(${-(0.9 - p.label) * 20}px)">${p.serveSwing && (p.st ?? 9) < 1.2 ? p.tag : (SHOT_NAME[p.shot] || '') + (p.tag ? ' ' + p.tag : '')}</div>`;
     }
     if (p === human) html += '<div style="color:#fff;font-size:16px">▼</div>';
@@ -1519,8 +1527,8 @@ function render3d(){
 // 体ローカル座標 [a=右, f=ネット方向, u=高さ]。tw=上半身のひねり, cr=ひざの曲げ, sl/sr=左/右足の前後, kr=右足の蹴り上げ
 const SERVE_READY = { h: [0.12, 0.42, 1.0], r: [0.05, 0.45, 0.32], l: [0.05, 0.45, 1.0], cr: 0.06, bend: 0.25 };
 const SERVE_DOWN = { h: [0.3, 0.05, 0.78], r: [0.1, -0.15, -0.45], l: [-0.08, 0.3, 0.85], cr: 0.08, bend: 0.15 };
-const SERVE_TROPHY = { eu: 1, tw: 1.1, h: [0.42, -0.3, 1.5], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.1], cr: 0.24, bend: -0.6 };
-const SERVE_DROP = { eu: 1, tw: 0.9, h: [0.22, -0.18, 1.5], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.9], cr: 0.26, bend: -0.75 };
+const SERVE_TROPHY = { eu: 1, tw: 1.1, h: [0.42, -0.3, 1.5], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.1], cr: 0.24, bend: -0.9 };
+const SERVE_DROP = { eu: 1, tw: 0.9, h: [0.22, -0.18, 1.5], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.9], cr: 0.26, bend: -1.05 };
 const READY = { h: [0.05, 0.38, 0.95], r: [0, 0.45, 0.4], l: 'grip', cr: 0.03 };
 const POSES = {
   // フォアハンド：ラケットを高く引く → 後ろで下に落とす（ループ）→ 前で打つ → 左肩の上に巻きつけて終わる
@@ -1547,25 +1555,32 @@ const POSES = {
         fol:   { tw: 0.0, h: [-0.35, 0.6, 1.05], r: [-0.2, 0.4, 0.4], l: [0.3, -0.15, 0.95], cr: 0.08, sr: 0.3 } },
   // サーブ／スマッシュ：トロフィーポーズ → ラケットを背中に落とす → 伸び上がって打つ → 右足を後ろに蹴り上げ、体の左下へ振り抜く
   // エアK：跳び上がり、肩の高さで叩き、空中で脚を入れ替える（シザーズ）
-  jk: { back1: { tw: 1.3, h: [0.6, -0.55, 1.6], r: [0.1, -0.3, 0.55], l: [0.0, 0.55, 1.5], cr: 0.1 },
-        back2: { tw: 1.4, h: [0.68, -0.6, 1.25], r: [0.25, -0.5, -0.2], l: [0.05, 0.5, 1.45], cr: 0.08, kr: 0.2, sr: -0.15 },
+  // フォアのエアK：左足で踏み切り左足で着地（右足は後ろに上げる）
+  jk: { back1: { tw: 1.3, h: [0.6, -0.55, 1.6], r: [0.1, -0.3, 0.55], l: [0.0, 0.55, 1.5], cr: 0.1, kr: 0.25 },
+        back2: { tw: 1.4, h: [0.68, -0.6, 1.25], r: [0.25, -0.5, -0.2], l: [0.05, 0.5, 1.45], cr: 0.08, kr: 0.35, sr: -0.2 },
         hit:   { tw: 0.0, h: [0.5, 0.45, 1.45], r: [0.65, 0.2, 0.15], l: [-0.4, 0.2, 1.3], sl: 0.05, sr: -0.35, kr: 0.5 },
         mid:   { tw: -0.7, h: [0.0, 0.5, 1.75], r: [-0.45, 0.15, 0.35], l: [-0.4, 0.0, 1.2], sl: 0.25, sr: 0.0, kr: 0.15 },
-        fol:   { tw: -1.15, h: [-0.3, 0.1, 1.7], r: [-0.15, -0.45, -0.3], l: [-0.15, 0.3, 1.4], sl: 0.35, sr: 0.12, kr: 0.0 } },
+        fol:   { tw: -1.15, h: [-0.3, 0.1, 1.7], r: [-0.15, -0.45, -0.3], l: [-0.15, 0.3, 1.4], sl: 0.1, sr: -0.1, kr: 0.25 } },
+  // バックのエアK（両手）：右足で踏み切り右足で着地（左足は後ろに上げる）
+  bjk: { back1: { tw: -1.5, h: [-0.55, -0.5, 1.6], r: [-0.05, -0.3, 0.55], l: 'grip', cr: 0.1, kl: 0.25 },
+        back2: { tw: -1.6, h: [-0.66, -0.6, 1.25], r: [-0.2, -0.5, -0.2], l: 'grip', cr: 0.08, kl: 0.35, sl: -0.2 },
+        hit:   { tw: -0.1, h: [-0.25, 0.5, 1.45], r: [-0.6, 0.25, 0.15], l: 'grip', sr: 0.05, sl: -0.35, kl: 0.5 },
+        mid:   { tw: 0.6, h: [0.25, 0.45, 1.75], r: [0.4, 0.1, 0.4], l: 'grip', sr: 0.2, kl: 0.4 },
+        fol:   { tw: 1.0, h: [0.32, 0.0, 1.7], r: [0.2, -0.45, -0.25], l: 'grip', sr: 0.1, sl: -0.1, kl: 0.25 } },
   sm: { back1: { eu: 1, tw: 1.1, h: [0.45, -0.25, 1.55], r: [0.05, -0.2, 0.6], l: [-0.05, 0.25, 2.15], cr: 0.07 },
         back2: { eu: 1, tw: 0.9, h: [0.22, -0.15, 1.5], r: [0.0, -0.25, -0.6], l: [-0.1, 0.3, 1.95], cr: 0.1 },
-        hit:   { eu: 0.6, tw: 0.2, h: [0.2, 0.3, 2.3], r: [0.0, 0.25, 0.62], l: [-0.3, 0.2, 1.3], cr: -0.03, bend: -0.25 },
+        hit:   { eu: 0.6, tw: 0.2, h: [0.2, 0.3, 2.3], r: [0.0, 0.25, 0.62], l: [-0.3, 0.2, 1.3], cr: -0.03, bend: -0.4 },
         mid:   { tw: -0.4, h: [0.0, 0.6, 1.3], r: [-0.1, 0.5, -0.3], l: [-0.35, 0.1, 1.0], cr: 0.05, sl: 0.3, sr: -0.35, kr: 0.32, bend: 0.25 },
         fol:   { tw: -0.7, h: [-0.35, 0.25, 0.75], r: [-0.3, 0.0, -0.55], l: [-0.4, -0.2, 1.0], cr: 0.1, sl: 0.4, sr: -0.4, kr: 0.2, bend: 0.3 } },
 };
-const SHOT_NAME = { jk: 'エアK！', fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
+const SHOT_NAME = { jk: 'エアK！', bjk: 'ジャンプバック！', fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
 function lerp3(a, b, t){ return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 function lerpPose(A, B, t){
   t = Math.max(0, Math.min(1, t)); t = t * t * (3 - 2 * t);
   const gl = (P0) => P0.l === 'grip' ? [P0.h[0] - 0.02, P0.h[1] - 0.04, P0.h[2] - 0.1] : P0.l;
   const l = (A.l === 'grip' && B.l === 'grip') ? 'grip' : lerp3(gl(A), gl(B), t);
   const o = { h: lerp3(A.h, B.h, t), r: lerp3(A.r, B.r, t), l };
-  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'bend', 'eu']) o[k] = (A[k] || 0) + ((B[k] || 0) - (A[k] || 0)) * t;
+  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'kl', 'bend', 'eu']) o[k] = (A[k] || 0) + ((B[k] || 0) - (A[k] || 0)) * t;
   return o;
 }
 // 準備動作：構え → 高く引く(back1) → ラケットを落とす(back2)

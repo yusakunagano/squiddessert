@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>テニスの動き方</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<meta name="description" content="ダブルスのストローカー（後衛）と前衛の動き方を、OK・NGの22パターンで解説。コートに4人とボールを置いて動かせる作戦ボード付き。">
+<meta name="description" content="ダブルスのストローカー（後衛）と前衛の動き方を、OK・NGの30パターンで解説。コートに4人とボールを置いて動かせる作戦ボード付き。">
 <style>
   :root{--bg:#10241a;--card:#173326;--line:#2c5a43;--text:#eef5f0;--muted:#a9c2b4;--ok:#35c27a;--ng:#ff5a5a;--accent:#f2d43d;--court:#3b77c0;--court2:#4a8cd2}
   *{box-sizing:border-box}
@@ -61,6 +61,7 @@
       <span><i class="dot" style="background:rgba(53,194,122,.6)"></i>守れている所</span>
     </div>
     <div class="filters"><button data-f="all" class="on">すべて</button><button data-f="ok">OKだけ</button><button data-f="ng">NGだけ</button></div>
+    <div class="filters"><span style="align-self:center;color:var(--muted);font-size:14px">並び順：</span><button data-s="num" class="on">番号順</button><button data-s="ok">OKが先</button><button data-s="ng">NGが先</button></div>
     <div class="grid" id="grid"></div>
   </section>
   <section id="board">
@@ -90,7 +91,7 @@
 <script>
 // ---- コートの寸法（m）。x：右が＋、y：下（自分たちのベースライン）が＋ ----
 const HL = 11.885, DW = 5.485, SW = 4.115, SL = 6.4;
-// 22パターン。p：選手の位置 {A,B,C,D}、ball：ボール、moves：矢印 [種類, x1, y1, x2, y2]（b=ボール、a/b2=人）、zones：塗る範囲 [色, x1, y1, x2, y2]
+// 30パターン。p：選手の位置 {A,B,C,D}、ball：ボール、moves：矢印 [種類, x1, y1, x2, y2]（b=ボール、a/b2=人）、zones：塗る範囲 [色, x1, y1, x2, y2]
 const PATTERNS = [
   { ok: true, t: '基本の雁行陣（クロスのラリー）', p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [-2.8, -12], moves: [['b', 2.8, 12, -2.8, -12]],
     zones: [['g', -5.5, 0.8, -0.6, 5.2]],
@@ -180,6 +181,38 @@ const PATTERNS = [
     zones: [['r', -1.6, -4, 2.4, -0.5]],
     d: '相手前衛がセンター寄りに構えてポーチを狙っているのに、同じクロスへ打ち続けると、つかまってセンターに決められます。ロブやストレートで相手前衛を動かします。',
     k: '同じコースばかりは読まれる' },
+  { ok: true, t: 'ストレートロブで相手前衛の頭を越す', p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [2.8, 12], moves: [['b', 2.8, 12, 3.4, -10], ['a', 2.4, -3.0, 2.4, -6.5]],
+    zones: [['g', 1.5, -11.9, 5.2, -7]],
+    d: '相手前衛（D）がネットに詰めているときは、その頭の上を越すストレートロブが効きます。相手前衛は下がりながら打つことになり、相手後衛も走らされて陣形が崩れます。',
+    k: '詰めてくる前衛には、頭の上' },
+  { ok: false, t: '浅いロブを上げてスマッシュされる', p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [2.3, -3.6] }, ball: [2.3, -4.2], moves: [['b', 2.8, 12, 2.3, -4.2], ['b', 2.3, -4.2, -0.8, 8.5]],
+    zones: [['r', 0.8, -6, 4, -2]],
+    d: '高さや深さが足りないロブは、相手前衛にとって絶好のスマッシュのチャンスです。ロブは「高く・深く」が基本。中途半端なら、無理にロブを上げない方が安全です。',
+    k: 'ロブは高く、深く' },
+  { ok: true, t: '相手がスマッシュする時は前衛も下がる', p: { A: [2.4, 12.6], B: [-2.2, 7.0], C: [-2.6, -12.0], D: [1.0, -3.4] }, ball: [1.0, -3.6], moves: [['a', -2.4, 3.0, -2.2, 7.0], ['b', 2.8, 12, 1.0, -3.6]],
+    zones: [['g', -5, 6, 5, 13]],
+    d: '味方のロブが浅くて相手がスマッシュの体勢に入ったら、前衛はネットから離れてサービスライン付近まで下がり、守りの形を作ります。距離があるほど、スマッシュに反応できます。',
+    k: 'スマッシュには距離をとって守る' },
+  { ok: false, t: '相手スマッシュでも前衛がネットに張りつく', p: { A: [2.4, 12.6], B: [-1.6, 1.6], C: [-2.6, -12.0], D: [1.0, -3.4] }, ball: [1.0, -3.6], moves: [['b', 1.0, -3.6, -1.5, 2.3]],
+    zones: [['r', -3, 0.5, 0, 3.2]],
+    d: '相手がスマッシュするのに前衛がネットのすぐ近くに残ると、至近距離から体や足元に打ち込まれて、ほとんど反応できません。危ないうえに、ポイントも取られます。',
+    k: 'スマッシュの的にならない' },
+  { ok: true, t: '浅いチャンスボールは前に出て平行陣へ', p: { A: [1.4, 6.8], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [1.2, 7.2], moves: [['b', -2.8, -12, 1.2, 7.2], ['a', 2.8, 12.4, 1.4, 6.8], ['b', 1.4, 6.8, -3.5, -9]],
+    zones: [['g', -4.5, 2, 4.5, 7.5]],
+    d: '相手の球が浅く短くなったら、後衛（A）は前に入って打ち、そのままネットへ出て2人で平行陣を作ります。前で打つほど相手の時間を奪え、ボレーで決めやすくなります。',
+    k: '浅い球は前へ、そのままネットへ' },
+  { ok: false, t: 'チャンスボールなのにベースラインに残る', p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [1.2, 6.6], moves: [['b', -2.8, -12, 1.2, 6.6]],
+    zones: [['r', -1, 4.5, 3.5, 8.5]],
+    d: '短い球が来たのに後衛がベースラインから動かないと、ボールは2回バウンドしてしまうか、低い打点から苦しく打つことになります。せっかくのチャンスを逃します。',
+    k: '短い球を待たない' },
+  { ok: true, t: '相手2人の間（センター）を狙う', p: { A: [2.8, 12.4], B: [-2.4, 3.0], C: [-2.5, -4.6], D: [2.5, -4.2] }, ball: [2.8, 12], moves: [['b', 2.8, 12, 0.0, -9]],
+    zones: [['g', -1.3, -11.9, 1.3, -2]],
+    d: '相手が2人ともネットに出ているときは、2人の間（センター）を狙うのが基本です。どちらが取るか迷わせることができ、ラケット同士がぶつかることもあります。',
+    k: '迷ったら真ん中（センターセオリー）' },
+  { ok: false, t: 'ボレーを相手前衛の正面に返す', p: { A: [2.8, 12.4], B: [-1.0, 2.5], C: [-2.8, -12.4], D: [2.4, -3.0] }, ball: [2.3, -2.8], moves: [['b', -1.0, 2.5, 2.3, -2.8], ['b', 2.3, -2.8, -0.9, 3.2]],
+    zones: [['r', 1, -4.5, 3.8, -1.5]],
+    d: '前衛のボレーを相手前衛の正面に返すと、すぐに打ち返されます。ボレーは相手前衛から遠い所（相手後衛の前や2人の間）か、相手前衛の足元へ打ちます。',
+    k: 'ボレーは相手前衛から遠くへ' },
 ];
 
 // ---- SVG で描く ----
@@ -240,7 +273,7 @@ function renderPattern(svg, pt, opts = {}){
 // ---- パターン一覧 ----
 const grid = document.getElementById('grid');
 PATTERNS.forEach((pt, i) => {
-  const c = document.createElement('article'); c.className = 'card'; c.dataset.ok = pt.ok ? 'ok' : 'ng';
+  const c = document.createElement('article'); c.className = 'card'; c.dataset.ok = pt.ok ? 'ok' : 'ng'; c.dataset.n = i;
   c.innerHTML = `<h3><span class="badge ${pt.ok ? 'ok' : 'ng'}">${pt.ok ? 'OK' : 'NG'}</span>${i + 1}. ${pt.t}</h3>`;
   const svg = el('svg', { viewBox: '-8 -15 16 30', role: 'img', 'aria-label': pt.t }); c.appendChild(svg);
   renderPattern(svg, pt);
@@ -248,6 +281,15 @@ PATTERNS.forEach((pt, i) => {
   const k = document.createElement('p'); k.className = 'point'; k.textContent = '💡 ' + pt.k; c.appendChild(k);
   const b = document.createElement('button'); b.className = 'open'; b.textContent = 'ボードで動かす →'; b.onclick = () => loadBoard(pt, `${i + 1}. ${pt.t}`); c.appendChild(b);
   grid.appendChild(c);
+});
+// 並び替え：番号順／OKが先／NGが先（同じグループの中は番号順）
+document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === b));
+  const cards = [...grid.children], key = b.dataset.s;
+  cards.sort((x, y) => {
+    if (key !== 'num' && x.dataset.ok !== y.dataset.ok) return x.dataset.ok === key ? -1 : 1;
+    return x.dataset.n - y.dataset.n;
+  }).forEach(c => grid.appendChild(c));
 });
 document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => {
   document.querySelectorAll('[data-f]').forEach(x => x.classList.toggle('on', x === b));

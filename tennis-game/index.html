@@ -946,7 +946,7 @@ function update(dt){
         if (bounces === 1 && ball.z > (approach ? 0.8 : 1.0) && d < 4 && tti < 0.42 && lat > 0.3 && lat < 1.5 && (p.jumpT ?? 9) > 1.2 && p.akDecided !== rallyHits) {
           p.akDecided = rallyHits;
           const chance = p.isHuman ? (approach ? 0.95 : 0.8) : [0.2, 0.35, 0.5][level] * (approach ? 1.8 : 1);
-          if (Math.random() < chance) { p.jumpT = 0; p.jumpAmp = 0.9; p.akPlanned = true; p.akSide = sd; }
+          if (Math.random() < chance) { p.jumpT = 0; p.jumpAmp = 0.6; p.akPlanned = true; p.akSide = sd; }
         }
       }
     }
@@ -973,7 +973,7 @@ function update(dt){
         // サーブの種類でトスの位置を変える：キック＝頭の真上、フラット＝少し前、スライス＝今までどおり右前
         if (!sp.isHuman) sp.serveKind = ['flat', 'slice', 'kick'][Math.floor(Math.random() * 3)];
         const k2 = sp.serveKind, off = k2 === 'kick' ? [0.0, 0.0] : k2 === 'flat' ? [0.18, 0.22] : k2 === 'slice' ? [0.35, 0.38] : [0.25, 0.3];
-        tossing = true; tossT = 0; showMsg('', 0); ball.vz = 6.2; ball.vx = (sp.x + off[0] * sg - ball.x) / 0.63; ball.vy = (sp.y - sg * off[1] - ball.y) / 0.63;
+        tossing = true; tossT = 0; showMsg('', 0); ball.vz = 7.6; ball.vx = (sp.x + off[0] * sg - ball.x) / 0.78; ball.vy = (sp.y - sg * off[1] - ball.y) / 0.78; // 高く上げる（頂点まで約0.78秒）
       }
     } else {
       tossT += dt; ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.vz -= G * dt; ball.z += ball.vz * dt;
@@ -1359,7 +1359,8 @@ function computePose(p){
     pose = { h: [0.22, 0.32, 0.98], r: [0.02, 0.12, -0.65], l: [-0.05, 0.55, 0.32 + 0.22 * q], tw: 0.1, cr: 0.16, bend: pz ? 0.6 : 0.95 - 0.1 * q };
   } else if (state === 'serve' && p === servingPlayer() && tossing) {
     // トス：両腕をいっしょに下ろす → 左手を上へ伸ばしひざを深く曲げ背中を反らす（トロフィー）→ ラケットを背中に落とす
-    pose = tossT < 0.15 ? lerpPose(SERVE_READY, SERVE_DOWN, tossT / 0.15) : tossT < 0.45 ? lerpPose(SERVE_DOWN, SERVE_TROPHY, (tossT - 0.15) / 0.3) : lerpPose(SERVE_TROPHY, SERVE_DROP, (tossT - 0.45) / 0.18);
+    // 高いトスの間、トロフィーポーズでしっかり止まってから、打つ直前にラケットを背中に落とす
+    pose = tossT < 0.15 ? lerpPose(SERVE_READY, SERVE_DOWN, tossT / 0.15) : tossT < 0.4 ? lerpPose(SERVE_DOWN, SERVE_TROPHY, (tossT - 0.15) / 0.25) : tossT < 0.6 ? SERVE_TROPHY : lerpPose(SERVE_TROPHY, SERVE_DROP, (tossT - 0.6) / 0.18);
   } else if ((p.prep || 0) > 0.03 && POSES[p.prepType]) {
     pose = prepPose(p);
   } else if (mv > 0.35) {

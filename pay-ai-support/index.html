@@ -85,7 +85,7 @@
   <div class="banner"><span style="font-size:30px;color:var(--brand);display:grid" data-ic="ai"></span><div><b>AIアシスタントに聞いてみよう</b>アプリやカードの使い方、残高・ご利用額・請求のことまで答えます。</div></div>
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
-<script src="icons.js?v=20261137"></script>
+<script src="icons.js?v=20261144"></script>
 <script src="chat.js?v=20261142"></script>
 <script src="agent.js?v=20261136"></script>
 <script src="card.js?v=20261143"></script>
@@ -156,6 +156,7 @@ const DEFAULT_CHIPS = [...BASE_CHIPS];
 document.addEventListener('cardarea', (e) => {
   DEFAULT_CHIPS.splice(0, DEFAULT_CHIPS.length, ...(e.detail ? [...cardAll().slice(0, 3), CARD_MORE] : BASE_CHIPS));
   chat.resetGreeting(); // まだ会話していなければ、次に開いたときに、メニューを作り直す
+  const fab = document.querySelector('.ai-fab'); if (fab) fab.innerHTML = ic(e.detail ? 'aicard' : 'ai'); // AIボタンのアイコンも替える
 });
 
 // General questions: answered from public product info, no account data needed.

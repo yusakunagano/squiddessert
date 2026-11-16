@@ -3,6 +3,7 @@
 const IC_PATHS = {
   // AIの印：四角い枠（右上が開いている）に「AI」、右上にキラキラ
   ai: '<path d="M28 9H16a7 7 0 0 0-7 7v16a7 7 0 0 0 7 7h16a7 7 0 0 0 7-7v-3"/><path d="M14.5 32 21 16.5 27.5 32M16.8 26.5h8.4"/><path d="M32.5 16.5v15.5"/><g fill="currentColor" stroke="none"><path d="M34 3q0 6 6 6-6 0-6 6 0-6-6-6 6 0 6-6z"/><path d="M43 8q0 3 3 3-3 0-3 3 0-3-3-3 3 0 3-3z"/><path d="M41 19q0 3.4 3.4 3.4-3.4 0-3.4 3.4 0-3.4-3.4-3.4 3.4 0 3.4-3.4z"/></g>',
+  aicard: '<rect x="5" y="13" width="32" height="24" rx="4.5"/><path d="M5 20.5h32"/><path d="M11.5 33l3.5-7 3.5 7M12.8 30.5h4.4"/><path d="M23 26v7"/><g fill="currentColor" stroke="none"><path d="M35 3q0 6 6 6-6 0-6 6 0-6-6-6 6 0 6-6z"/><path d="M44 11q0 3 3 3-3 0-3 3 0-3-3-3 3 0 3-3z"/></g>',
   bank: '<path d="M3 9.5 12 4l9 5.5"/><path d="M5 10v8M9.7 10v8M14.3 10v8M19 10v8M3 20.5h18"/>',
   gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M5 12v8.5h14V12"/><path d="M12 8C9.5 8 8 6.8 8 5.5S9.3 3.8 10.5 4.5 12 6.5 12 8c0-1.5.3-2.8 1.5-3.5S16 4.2 16 5.5 14.5 8 12 8z"/>',
   receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
@@ -23,7 +24,7 @@ const IC_PATHS = {
 };
 // 「ai」だけは、座標が 48 の大きさ。ほかは 24
 function ic(name, cls = '') {
-  const big = name === 'ai';
+  const big = name === 'ai' || name === 'aicard';
   return `<svg class="icon ${cls}" viewBox="0 0 ${big ? 48 : 24} ${big ? 48 : 24}" fill="none" stroke="currentColor" stroke-width="${big ? 3.6 : 2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC_PATHS[name] || ''}</svg>`;
 }
 // HTMLの <span data-ic="名前"> に、アイコンを入れる

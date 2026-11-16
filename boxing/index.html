@@ -79,15 +79,27 @@ const hg=new R.Mesh(new R.SphereGeometry(.215,16,16,0,6.28,0,1.5),M(0xcc1111));h
 [-.07,.07].forEach(x=>{const e=new R.Mesh(new R.SphereGeometry(.025,8,8),black);e.position.set(x,.03,.18);head.add(e)});
 const mouth=new R.Mesh(new R.BoxGeometry(.08,.015,.01),black);mouth.position.set(0,-.08,.19);head.add(mouth);
 function makeArm(side){const sh=new R.Group();sh.position.set(side*.38,1.52,0);opp.add(sh);
- const up=new R.Mesh(new R.CylinderGeometry(.07,.06,.35,8),skin);sh.add(up);
+ sh.add(new R.Mesh(new R.SphereGeometry(.085,10,10),skin));
+ const up=new R.Mesh(new R.CylinderGeometry(.075,.065,1,10),skin);up.castShadow=true;sh.add(up);
+ const elbow=new R.Mesh(new R.SphereGeometry(.065,10,10),skin);sh.add(elbow);
+ const lo=new R.Mesh(new R.CylinderGeometry(.065,.055,1,10),skin);lo.castShadow=true;sh.add(lo);
  const fist=new R.Group();sh.add(fist);
  const gm=M(0xcc1111,{emissive:0x000000});const g=new R.Mesh(new R.SphereGeometry(.13,14,14),gm);g.scale.set(1,1,1.2);g.castShadow=true;fist.add(g);
- return{sh,up,fist,gm,side}}
+ return{sh,up,lo,elbow,fist,gm,side}}
 const oArms=[makeArm(-1),makeArm(1)];
+const UPV=new R.Vector3(0,1,0),L1=.5,L2=.5;
+function seg(m,A,B){const d=B.clone().sub(A);m.position.copy(A).add(B).multiplyScalar(.5);m.quaternion.setFromUnitVectors(UPV,d.clone().normalize());m.scale.y=d.length()}
 function setOppArm(a,ext,high,lift){ // ext 0..1 punch extension
  const rest=new R.Vector3(a.side*.2,.15+lift,.35),hit=new R.Vector3(a.side*.05,.25+high,1.05);
- const p=rest.clone().lerp(hit,ext);a.fist.position.copy(p);
- const mid=p.clone().multiplyScalar(.5);a.up.position.copy(mid);a.up.lookAt(a.sh.localToWorld(p.clone()));a.up.rotateX(Math.PI/2);a.up.scale.y=p.length()/.35;
+ const p=rest.clone().lerp(hit,ext);
+ let d=p.length();const maxd=L1+L2-.005;if(d>maxd){p.multiplyScalar(maxd/d);d=maxd}
+ a.fist.position.copy(p);
+ // two-bone IK: elbow bends outward and down
+ const dir=p.clone().normalize(),pole=new R.Vector3(a.side,-.8,-.2);
+ pole.sub(dir.clone().multiplyScalar(pole.dot(dir))).normalize();
+ const along=(L1*L1-L2*L2+d*d)/(2*d),h=Math.sqrt(Math.max(0,L1*L1-along*along));
+ const e=dir.multiplyScalar(along).add(pole.multiplyScalar(h));
+ a.elbow.position.copy(e);seg(a.up,new R.Vector3(),e);seg(a.lo,e,p);
 }
 
 // player gloves (attached to camera)

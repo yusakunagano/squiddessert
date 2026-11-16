@@ -1350,10 +1350,15 @@ function buildRig(p){
   shoes.forEach(s => s.castShadow = true);
   // ラケット
   const racket = new THREE.Group();
-  const handle = limbMesh(0.016, M('#222'));
+  const handle = limbMesh(0.017, M('#e8e8e8', { roughness: 0.8 })); // グリップ（白いテープ）
   const frame = new THREE.Mesh(new THREE.TorusGeometry(0.125, 0.012, 6, 28), M(p.team === 0 ? '#d23a2a' : '#222', { roughness: 0.4 })); frame.scale.y = 1.3; frame.castShadow = true;
   const strings = new THREE.Mesh(new THREE.CircleGeometry(0.12, 24), new THREE.MeshStandardMaterial({ color: '#eeeeee', transparent: true, opacity: 0.35, side: THREE.DoubleSide })); strings.scale.y = 1.3;
   racket.add(frame, strings);
+  // スロート：柄の先が二股に広がってフレームにつながる形（真ん中に横のブリッジ）
+  { const fm = frame.material, seg = (a, b, rad) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 1, 8), fm); const d = new V3().subVectors(b, a); m.position.copy(a).addScaledVector(d, 0.5); m.scale.y = d.length(); m.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize()); m.castShadow = true; racket.add(m); };
+    const top = new V3(0, -0.29, 0);
+    for (const sx of [-1, 1]) seg(top, new V3(sx * 0.075, -0.145, 0), 0.011);
+    seg(new V3(-0.05, -0.19, 0), new V3(0.05, -0.19, 0), 0.008); }
   g.add(...fists, torso, belly, chest, hips, neck, head, hair, ...ua, ...fa, ...hands, ...elbows, ...shoulders, ...th, ...sh, ...knees, ...shoes, handle, racket);
   return { p, g, fists, torso, belly, chest, hips, neck, head, hair, ua, fa, hands, elbows, shoulders, th, sh, knees, shoes, handle, racket };
 }
@@ -1432,7 +1437,11 @@ function updateRig(R){
   const idle = Math.max(0, 1 - mv / 0.35);
   const fw = gtime * 9 + p.x * 0.7 + p.team * 1.3;
   const crouch = 0.035 * idle;
-  const bob = Math.abs(Math.sin(ph)) * 0.04 * mv + Math.abs(Math.sin(fw)) * 0.03 * idle * (st0 > 0.85 ? 1 : 0) - crouch - (wideOK ? 0.06 : 0) * idle - (pose.cr || 0) - (receiving ? 0.07 : 0);
+  // エアKのジャンプ：空中では脚をピンと伸ばし、着地でひざを深く曲げて衝撃を受ける
+  const jt0 = p.jumpT ?? 9, bigJump = (p.jumpAmp ?? 0.5) >= 0.45;
+  const airStraight = bigJump && jt0 > 0.05 && jt0 < 0.63;
+  const landK = bigJump && jt0 >= 0.63 && jt0 < 1.0 ? Math.sin(Math.PI * (jt0 - 0.63) / 0.37) * 0.3 : 0;
+  const bob = -landK + Math.abs(Math.sin(ph)) * 0.04 * mv + Math.abs(Math.sin(fw)) * 0.03 * idle * (st0 > 0.85 ? 1 : 0) - crouch - (wideOK ? 0.06 : 0) * idle - (pose.cr || 0) - (receiving ? 0.07 : 0);
   const jt = p.jumpT ?? 9, jumpH = jt < 0.7 ? Math.sin(Math.PI * jt / 0.7) * (p.jumpAmp ?? 0.5) : 0; // エアKのジャンプ
   // 体勢を崩したとき：ボールの方へ上半身を大きく傾け、腰を落とす
   const lt = p.lungeT ?? 9, lean = lt < 0.8 ? Math.sin(Math.PI * Math.min(1, lt / 0.8)) * (p.lungeDir || 1) : 0;
@@ -1484,12 +1493,13 @@ function updateRig(R){
   const base = W(...h), Hp = handsW[0];
   const off = (k) => new V3().subVectors(W(h[0] + rv[0] * k, h[1] + rv[1] * k, h[2] + rv[2] * k), base).add(Hp);
   const Np = off(0.42), Cp = off(0.75);
-  setLimb(R.handle, Hp, Np);
+
   const yAx = new V3().subVectors(Cp, Np).normalize();
   let hint = new V3(0, 0, fz); if (Math.abs(yAx.dot(hint)) > 0.9) hint = new V3(0, 1, 0);
   const xAx = new V3().crossVectors(yAx, hint).normalize(), zAx = new V3().crossVectors(xAx, yAx);
   R.racket.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAx, yAx, zAx));
   R.racket.position.copy(Cp);
+  setLimb(R.handle, Hp, Cp.clone().addScaledVector(yAx, -0.29)); // 柄はスロートの付け根まで
   // 脚
   const sprintK = cp.sprint || 0, stride = cp.sideStep ? 0 : Math.sin(ph) * 0.28 * mv * (1 + 0.45 * sprintK), lift = 0.1 * mv * (1 + 0.8 * sprintK);
   [[-0.1, 1], [0.1, -1]].forEach(([la, k], i) => {
@@ -1503,6 +1513,8 @@ function updateRig(R){
     const stance = state === 'serve' && p === servingPlayer() ? (i === 0 ? [0.1, 0.15] : [-0.1, -0.35]) : null;
     const foot = stance ? W(stance[0], stance[1], 0.05 + fu, true) : W(la * wide + Math.sign(la) * lstep, ff + lstep * 0.3, 0.05 + fu, true);
     const knee = stance ? W(stance[0] * 0.8 + la * 0.3, stance[1] * 0.5 + 0.12 + (pose.cr || 0) * 0.6, 0.42 + bob * 0.5, true) : W(la * (1.1 + (wideOK ? 2.4 : 0.45) * idle + (cp.sideStep ? 1.2 + 0.7 * Math.sin(ph) : 0)), ff * 0.5 + 0.1 + 0.06 * idle + (pose.cr || 0) * 0.6 - (i === 1 ? (pose.kr || 0) * 0.8 : (pose.kl || 0) * 0.8), 0.42 + fu * 0.5 + bob * 0.5, true);
+    if (airStraight) knee.copy(hip).lerp(foot, 0.5); // 空中ではひざを伸ばす
+    else if (landK) { knee.z += fz * landK * 0.9; knee.y -= landK * 0.2; } // 着地でひざを前に出して曲げる
     setLimb(R.th[i], hip, knee); setLimb(R.sh[i], knee, foot);
     R.knees[i].position.copy(knee);
     R.shoes[i].position.copy(foot).add(new V3(0, -0.01, 0)); R.shoes[i].position.addScaledVector(new V3(0, 0, fz), 0.04);

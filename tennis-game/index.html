@@ -29,6 +29,8 @@
   #vwPanel button{font-size:13px;padding:6px 10px;border-radius:8px;background:#cfd8d3}
   #vwPanel button.on{background:#f2d43d;outline:2px solid #fff}
   #vwPanel .vwNote{font-size:12px;opacity:.8}
+  #vwPanel.folded .vwBody{display:none}
+  #vwPanel .vwBody{display:flex;flex-direction:column;gap:8px}
   .online{margin-top:6px;padding:12px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:440px}
   .online h2{margin:0}
   a.lbtn{font-size:16px;padding:11px 18px;border-radius:10px;background:#f2d43d;color:#222;font-weight:bold;text-decoration:none}
@@ -1639,21 +1641,25 @@ const vw = { az: 0.6, el: 0.25, dist: 5.5, act: 'ready', t: 0, speed: 1, loop: t
 const VW_ACTS = [
   ['ready', '構え（後ろ）'], ['net', '構え（ネット前）'], ['runR', '右へ走る'], ['runL', '左へ走る'], ['runF', '前へ走る'],
   ['side', 'サイドステップ'], ['fs', 'フォアストローク'], ['bs', 'バックストローク'], ['fv', 'フォアボレー'], ['bv', 'バックボレー'],
-  ['sm', 'スマッシュ'], ['jk', 'エアK'], ['bjk', 'ジャンプバック'], ['serve', 'サーブ（ボールつき→トス→打つ）'],
+  ['sm', 'スマッシュ'], ['jk', 'エアK'], ['bjk', 'ジャンプバック'], ['serveF', 'フラットサーブ'], ['serveS', 'スライスサーブ'], ['serveK', 'キックサーブ'],
   ['reach', 'ギリギリで返す'], ['whiff', '届かない（空振り）'], ['fall', '転ぶ'],
 ];
-const VW_LEN = { ready: 2, net: 2, runR: 2, runL: 2, runF: 2, side: 2, fs: 1.8, bs: 1.8, fv: 1.6, bv: 1.6, sm: 1.8, jk: 1.9, bjk: 1.9, serve: 5.2, reach: 1.6, whiff: 1.6, fall: 2.2 };
+const VW_LEN = { ready: 2, net: 2, runR: 2, runL: 2, runF: 2, side: 2, fs: 1.8, bs: 1.8, fv: 1.6, bv: 1.6, sm: 1.8, jk: 1.9, bjk: 1.9, serveF: 5.2, serveS: 5.2, serveK: 5.2, reach: 1.6, whiff: 1.6, fall: 2.2 };
 function viewerSetup(){
   document.getElementById('menu').classList.add('hidden');
   hud.classList.add('hidden');
   const box = document.createElement('div'); box.id = 'vwPanel';
-  box.innerHTML = '<div class="vwHead"><b>モーション確認</b><a href="?">← ゲームに戻る</a></div>' +
-    '<div class="vwBtns">' + VW_ACTS.map(([k, n]) => `<button data-act="${k}">${n}</button>`).join('') + '</div>' +
+  box.innerHTML = '<div class="vwHead"><b>モーション確認</b><button id="vwFold">▲ たたむ</button><a href="?">← ゲームに戻る</a></div>' +
+    '<div class="vwBody"><div class="vwBtns">' + VW_ACTS.map(([k, n]) => `<button data-act="${k}">${n}</button>`).join('') + '</div>' +
     '<div class="vwBtns"><span>速さ</span><button data-sp="1" class="on">等速</button><button data-sp="0.5">1/2</button><button data-sp="0.25">1/4</button><button id="vwLoop" class="on">くり返し</button></div>' +
-    '<div class="vwNote">画面をドラッグで回転、ホイール／2本指で拡大・縮小</div>';
+    '<div class="vwNote">画面をドラッグで回転、ホイール／2本指で拡大・縮小</div></div>';
   document.getElementById('wrap').appendChild(box);
   box.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { vwStart(b.dataset.act); box.querySelectorAll('[data-act]').forEach(x => x.classList.toggle('on', x === b)); });
   box.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { vw.speed = +b.dataset.sp; box.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', x === b)); });
+  // ボタンをたためるように（スマホでは最初からたたんでおく）
+  const fold = document.getElementById('vwFold'), setFold = f => { box.classList.toggle('folded', f); fold.textContent = f ? '▼ ボタンを表示' : '▲ たたむ'; };
+  fold.onclick = () => setFold(!box.classList.contains('folded'));
+  setFold(innerWidth < 600);
   document.getElementById('vwLoop').onclick = e => { vw.loop = !vw.loop; e.target.classList.toggle('on', vw.loop); };
   // 1人だけ（サーブの確認のため後衛・自分のサーブ）
   mode = 'singles';
@@ -1708,7 +1714,10 @@ function viewerUpdate(dt){
     case 'reach': if (t >= 0.3 && vwOnce('hit')) { p.shot = 'fs'; p.fromPose = POSES.fs.back2; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.label = 1.1; p.tag = 'ギリギリ…'; } break;
     case 'whiff': if (t >= 0.3 && vwOnce('hit')) { p.shot = 'fs'; p.fromPose = POSES.fs.back2; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.label = 1.1; p.tag = '届かない…'; } break;
     case 'fall': if (t >= 0.2 && vwOnce('hit')) { p.shot = 'fs'; p.fromPose = POSES.fs.back2; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.fallT = 0; p.label = 1.1; p.tag = 'コケた！'; } break;
-    case 'serve': {
+    case 'serveF': case 'serveS': case 'serveK': {
+      // サーブの種類でトスの位置が変わる（キック＝頭の真上、フラット＝少し前、スライス＝右前）
+      const off = a === 'serveK' ? [0.0, 0.0] : a === 'serveF' ? [0.18, 0.22] : [0.35, 0.38];
+      const nm = a === 'serveK' ? 'キックサーブ' : a === 'serveF' ? 'フラットサーブ' : 'スライスサーブ';
       // ボールつき（3回）→ トス → 落ちてきたところで打つ
       const sg = 1;
       if (!tossing && p.st > 5) {
@@ -1718,13 +1727,13 @@ function viewerUpdate(dt){
         if (t >= DRIB + 0.3 && vwOnce('toss')) {
           tossing = true; tossT = 0; ball.vz = 8.8;
           tossTc = 8.8 / G + Math.sqrt(2 * Math.max(0, ball.z + 8.8 * 8.8 / (2 * G) - SERVE_HIT_Z) / G);
-          ball.vx = (p.x + 0.25 * sg - ball.x) / tossTc; ball.vy = (p.y - sg * 0.3 - ball.y) / tossTc;
+          ball.vx = (p.x + off[0] * sg - ball.x) / tossTc; ball.vy = (p.y - sg * off[1] - ball.y) / tossTc;
         }
       } else if (tossing) {
         tossT += dt; ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.vz -= G * dt; ball.z += ball.vz * dt;
         if (ball.vz < 0 && ball.z <= SERVE_HIT_Z) {
           tossing = false; state = 'rally';
-          p.shot = 'sm'; p.prepType = 'sm'; p.fromPose = SERVE_DROP; p.st = 0; p.serveSwing = true; p.jumpT = 0; p.jumpAmp = 0.22; p.label = 1.1; p.tag = 'サーブ';
+          p.shot = 'sm'; p.prepType = 'sm'; p.fromPose = SERVE_DROP; p.st = 0; p.serveSwing = true; p.jumpT = 0; p.jumpAmp = 0.22; p.label = 1.1; p.tag = nm;
           ball.vx = 0; ball.vy = -28; ball.vz = -3;
         }
       } else { ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.vz -= G * dt; ball.z = Math.max(0, ball.z + ball.vz * dt); }

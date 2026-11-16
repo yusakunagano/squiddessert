@@ -88,7 +88,10 @@ const TEL_FIELD = { key: 'tel', label: 'ご連絡先の電話番号', type: 'tel
 
 // 最後：手続き・設定（入力 → 確認 → 実行（デモ）→ 完了のお知らせ）
 // fields があるときは、先に入力フォームを出す。done は、文字、または、入力内容を受け取る関数
-function doAct(chat, { ask, yes = 'はい', run, done, fields, formTitle }) {
+function doAct(chat, opts) {
+  // verify があるときは、先にSMSの本人確認を挟む
+  if (opts.verify) return verifyIdentity(chat, () => doAct(chat, { ...opts, verify: null }), opts.verify);
+  const { ask, yes = 'はい', run, done, fields, formTitle } = opts;
   if (fields) {
     return askForm(chat, { title: formTitle, fields }, (vals, lines) => doAct(chat, { ask: ask + '\n\n【入力内容】\n' + lines.join('\n'), yes, run: () => run && run(vals), done: typeof done === 'function' ? done(vals) : done }));
   }
@@ -181,10 +184,10 @@ const CARD_FLOWS = {
   }), '一時停止'),
 
   switch: (chat) => hear(chat, '上位のカードから、下位（一般）のカードへの切り替えですね。どちらの方法にしますか？', ['アプリで今すぐ切り替える', '郵送の書類で手続きする'], (a) => (a.startsWith('アプリ')
-    ? doAct(chat, { ask: 'カードを、一般に切り替えます。特典や年会費が変わります。よろしいですか？', run: () => setCardRank('normal'), done: 'カードを一般に切り替えました（デモ）。ホームのカードの券面も、一般に戻っています。' })
-    : doAct(chat, { ask: '切り替えの申込書を、郵送で請求します。よろしいですか？', done: '申込書を請求しました（デモ）。数日でお届けします。記入して、返信用封筒で返送してください。' }))),
+    ? doAct(chat, { verify: '切り替え', ask: 'カードを、一般に切り替えます。特典や年会費が変わります。よろしいですか？', run: () => setCardRank('normal'), done: 'カードを一般に切り替えました（デモ）。ホームのカードの券面も、一般に戻っています。' })
+    : doAct(chat, { verify: '切り替え', ask: '切り替えの申込書を、郵送で請求します。よろしいですか？', done: '申込書を請求しました（デモ）。数日でお届けします。記入して、返信用封筒で返送してください。' }))),
 
-  reship: (chat) => hear(chat, '預かり中のカードの発送ですね。受け取りの希望を選んでください。', ['明日の午前', '明日の午後', '今週末'], (a) => doAct(chat, { ask: `${a}に、ご本人の住所へ発送します（本人限定の受け取りです）。よろしいですか？`, done: `発送を依頼しました（デモ）。${a}に、お届けします。` })),
+  reship: (chat) => hear(chat, '預かり中のカードの発送ですね。受け取りの希望を選んでください。', ['明日の午前', '明日の午後', '今週末'], (a) => doAct(chat, { verify: '預かりカードの発送', ask: `${a}に、ご本人の住所へ発送します（本人限定の受け取りです）。よろしいですか？`, done: `発送を依頼しました（デモ）。${a}に、お届けします。` })),
 
   applepay: (chat) => hear(chat, 'Apple Payには、すでにカードを登録しましたか？', ['登録した', 'これから登録する'], (a) => {
     if (a !== '登録した') return toQA(chat, 'applepay', 'まず、Apple Payのウォレットで、カードを登録してください。そのあと、電話での認証が必要です。');

@@ -30,6 +30,19 @@
   #vwPanel button.on{background:#f2d43d;outline:2px solid #fff}
   #vwPanel .vwNote{font-size:12px;opacity:.8}
   #vwPanel.folded .vwBody{display:none}
+  #edPanel{position:absolute;right:8px;top:8px;width:min(360px,calc(100% - 16px));background:rgba(10,30,20,.88);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;font-size:13px;max-height:calc(100% - 16px);overflow-y:auto}
+  #edPanel .vwHead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  #edPanel a{color:#f2d43d;font-weight:bold;text-decoration:none}
+  #edPanel button{font-size:13px;padding:6px 10px;border-radius:8px;background:#cfd8d3}
+  #edPanel select{font-size:15px;padding:6px;border-radius:8px;width:100%}
+  #edPanel .edBody{display:flex;flex-direction:column;gap:6px}
+  #edPanel.folded .edBody{display:none}
+  #edPanel .edRow{display:grid;grid-template-columns:1fr 120px 38px;align-items:center;gap:6px}
+  #edPanel .edRow input{width:100%}
+  #edPanel .edChk{display:flex;gap:6px;align-items:center}
+  #edPanel textarea{width:100%;box-sizing:border-box;font-size:11px;background:#0d1f16;color:#cfe;border:1px solid #2c5a43;border-radius:6px}
+  #edPanel .vwBtns{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  #edPanel .vwNote{font-size:12px;opacity:.8}
   #vwPanel .vwBody{display:flex;flex-direction:column;gap:8px}
   .online{margin-top:6px;padding:12px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:440px}
   .online h2{margin:0}
@@ -134,7 +147,8 @@
 <script>
 (() => {
 const cv = document.getElementById('c');
-const VIEWER = /[?&]viewer/.test(location.search); // モーション確認モード
+const EDITOR = /[?&]editor/.test(location.search); // ポーズ編集モード
+const VIEWER = EDITOR || /[?&]viewer/.test(location.search); // モーション確認モード（ポーズ編集もこの仕組みを使う）
 const hud = document.getElementById('hud'), msgEl = document.getElementById('msg');
 const menu = document.getElementById('menu');
 
@@ -1364,6 +1378,7 @@ function buildRig(p){
 }
 
 function computePose(p){
+  if (EDITOR && edPose && p === human) return { pose: edPose, yaw: 0, ph: 0, mv: 0, sprint: 0, sideStep: false };
   const ph = p.walk || 0, mv = p.mv || 0;
   // 走る向きに体を向ける。速く遠くへ走るほど、はっきりその方向を向く（後ろへ下がるときは横向きで）
   const sgn = sideSign(p.team), latV = (p.vxs || 0) * sgn, fwdV = -(p.vys || 0) * sgn, spd = Math.hypot(latV, fwdV);
@@ -1661,11 +1676,12 @@ const VW_LEN = { ready: 2, net: 2, runR: 2, runL: 2, runF: 2, side: 2, fs: 1.8, 
 function viewerSetup(){
   document.getElementById('menu').classList.add('hidden');
   hud.classList.add('hidden');
+  if (!EDITOR) {
   const box = document.createElement('div'); box.id = 'vwPanel';
   box.innerHTML = '<div class="vwHead"><b>モーション確認</b><button id="vwFold">▲ たたむ</button><a href="?">← ゲームに戻る</a></div>' +
     '<div class="vwBody"><div class="vwBtns">' + VW_ACTS.map(([k, n]) => `<button data-act="${k}">${n}</button>`).join('') + '</div>' +
     '<div class="vwBtns"><span>速さ</span><button data-sp="1" class="on">等速</button><button data-sp="0.5">1/2</button><button data-sp="0.25">1/4</button><button id="vwLoop" class="on">くり返し</button></div>' +
-    '<div class="vwNote">画面をドラッグで回転、ホイール／2本指で拡大・縮小</div></div>';
+    '<div class="vwNote">画面をドラッグで回転、ホイール／2本指で拡大・縮小</div><a href="?editor">ポーズを細かく直す（パーツごとに調整）→</a></div>';
   document.getElementById('wrap').appendChild(box);
   box.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { vwStart(b.dataset.act); box.querySelectorAll('[data-act]').forEach(x => x.classList.toggle('on', x === b)); });
   box.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { vw.speed = +b.dataset.sp; box.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', x === b)); });
@@ -1674,6 +1690,7 @@ function viewerSetup(){
   fold.onclick = () => setFold(!box.classList.contains('folded'));
   setFold(innerWidth < 600);
   document.getElementById('vwLoop').onclick = e => { vw.loop = !vw.loop; e.target.classList.toggle('on', vw.loop); };
+  }
   // 1人だけ（サーブの確認のため後衛・自分のサーブ）
   mode = 'singles';
   players = [mkPlayer(0, 'back', true, '#2f7cf6')]; human = players[0];
@@ -1692,6 +1709,7 @@ function viewerSetup(){
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('wheel', e => { e.preventDefault(); vw.dist = Math.max(2, Math.min(14, vw.dist * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
   vwStart('ready');
+  if (EDITOR) editorSetup();
   window.__vwReady = true;
 }
 function vwReset(p){
@@ -1701,6 +1719,7 @@ function vwReset(p){
 function vwStart(act){ vw.act = act; vw.t = 0; vw.fired = {}; vwReset(human); if (act === 'net' || act === 'side' || act === 'fv' || act === 'bv') human.y = 3.2; }
 function vwOnce(key){ if (vw.fired[key]) return false; vw.fired[key] = true; return true; }
 function viewerUpdate(dt){
+  if (EDITOR) return; // ポーズ編集中は止めたまま
   const p = human, a = vw.act; dt *= vw.speed; vw.t += dt; const t = vw.t;
   if (t > VW_LEN[a]) { if (vw.loop) vwStart(a); return; }
   p.st += dt; p.jumpT += dt; p.lungeT += dt; p.fallT += dt; p.label -= dt;
@@ -1759,6 +1778,90 @@ function viewerCamera(){
   const p = human || { x: 0, y: HL - 2 }, cx = p.x, cz = p.y, cy = 1.0;
   camera.position.set(cx + Math.sin(vw.az) * Math.cos(vw.el) * vw.dist, cy + Math.sin(vw.el) * vw.dist, cz + Math.cos(vw.az) * Math.cos(vw.el) * vw.dist);
   camera.lookAt(cx, cy, cz);
+}
+
+// ---- ポーズの登録簿と、ポーズ編集（index.html?editor）----
+// どの画面でも：保存した手直し（localStorage）をポーズに反映する。ゲームにもそのまま効く
+const POSE_PHASES = ['back1', 'back2', 'hit', 'mid', 'fol'];
+const PHASE_NAME = { back1: '①テイクバック（高く引く）', back2: '②テイクバック（落とす）', hit: '③打点', mid: '④振り抜き途中', fol: '⑤フィニッシュ' };
+const POSE_GROUP = { fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'サーブ・スマッシュ（打つ）', jk: 'エアK', bjk: 'ジャンプバック' };
+const POSE_REG = {};
+POSE_REG['READY'] = { name: '構え（後ろ）', pose: READY };
+POSE_REG['READY_NET'] = { name: '構え（ネット前）', pose: READY_NET };
+POSE_REG['SERVE_DOWN'] = { name: 'サーブ：腕を下ろす', pose: SERVE_DOWN };
+POSE_REG['SERVE_TROPHY'] = { name: 'サーブ：トロフィーポーズ', pose: SERVE_TROPHY };
+POSE_REG['SERVE_DROP'] = { name: 'サーブ：ラケットを背中に落とす', pose: SERVE_DROP };
+for (const k of Object.keys(POSE_GROUP)) for (const ph of POSE_PHASES) if (POSES[k] && POSES[k][ph]) POSE_REG[k + '.' + ph] = { name: POSE_GROUP[k] + ' ' + PHASE_NAME[ph], pose: POSES[k][ph] };
+const POSE_KEYS_ALL = ['h', 'r', 'l', 'tw', 'bend', 'cr', 'sl', 'sr', 'kl', 'kr', 'eu'];
+const clonePose = (o) => JSON.parse(JSON.stringify(o));
+const POSE_DEFAULT = {}; for (const k in POSE_REG) POSE_DEFAULT[k] = clonePose(POSE_REG[k].pose);
+function applyPoseData(target, data){ for (const key of POSE_KEYS_ALL) { if (key in data) target[key] = Array.isArray(data[key]) ? data[key].slice() : data[key]; else if (!['h', 'r', 'l'].includes(key)) delete target[key]; } }
+let poseEdits = {};
+try { poseEdits = JSON.parse(localStorage.getItem('tennisPoseEdits') || '{}') || {}; } catch (e) { poseEdits = {}; }
+for (const k in poseEdits) if (POSE_REG[k]) applyPoseData(POSE_REG[k].pose, poseEdits[k]);
+function savePoseEdits(){ try { localStorage.setItem('tennisPoseEdits', JSON.stringify(poseEdits)); } catch (e) {} }
+
+let edPose = null, edKey = 'READY';
+const ED_SLIDERS = [
+  ['h', 0, '右手：左右（＋が右）', -1, 1], ['h', 1, '右手：前後（＋が前）', -1, 1], ['h', 2, '右手：高さ', 0.2, 2.5],
+  ['r', 0, 'ラケットの向き：左右', -1, 1], ['r', 1, 'ラケットの向き：前後', -1, 1], ['r', 2, 'ラケットの向き：上下', -1, 1],
+  ['l', 0, '左手：左右', -1, 1], ['l', 1, '左手：前後', -1, 1], ['l', 2, '左手：高さ', 0.2, 2.5],
+  ['tw', -1, '体のひねり（＋で右を向く）', -2, 2], ['bend', -1, '前かがみ（＋）／反り（−）', -1.2, 1.2], ['cr', -1, 'ひざの曲げ（腰を落とす）', -0.1, 0.4],
+  ['sl', -1, '左足の前後', -0.6, 0.6], ['sr', -1, '右足の前後', -0.6, 0.6], ['kl', -1, '左足を上げる', 0, 0.7], ['kr', -1, '右足を上げる', 0, 0.7], ['eu', -1, '右ひじを上げる', 0, 1],
+];
+function editorSetup(){
+  const box = document.createElement('div'); box.id = 'edPanel';
+  let opts = ''; for (const k in POSE_REG) opts += `<option value="${k}">${POSE_REG[k].name}</option>`;
+  box.innerHTML = `<div class="vwHead"><b>ポーズを直す</b><button id="edFold">▲ たたむ</button><a href="?viewer">← モーション確認へ</a></div>
+    <div class="edBody">
+      <select id="edSel">${opts}</select>
+      <div id="edSliders"></div>
+      <label class="edChk"><input type="checkbox" id="edGrip"> 左手をラケットに添える（両手で持つ）</label>
+      <div class="vwBtns"><button id="edReset">このポーズを元に戻す</button><button id="edResetAll">全部元に戻す</button></div>
+      <div class="vwNote">直した内容はこのブラウザに保存され、ゲームやモーション確認にもすぐ反映されます。下の「コピー」でまとめて写し、チャットに貼り付けて教えてください。</div>
+      <div class="vwBtns"><button id="edCopy">直した内容をコピー</button><span id="edMsg"></span></div>
+      <textarea id="edOut" readonly rows="4"></textarea>
+    </div>`;
+  document.getElementById('wrap').appendChild(box);
+  const fold = document.getElementById('edFold'), setFold = f => { box.classList.toggle('folded', f); fold.textContent = f ? '▼ 開く' : '▲ たたむ'; };
+  fold.onclick = () => setFold(!box.classList.contains('folded'));
+  const sliders = document.getElementById('edSliders');
+  sliders.innerHTML = ED_SLIDERS.map(([k, i, n, mn, mx], j) => `<label class="edRow" data-k="${k}"><span>${n}</span><input type="range" min="${mn}" max="${mx}" step="0.01" data-j="${j}"><b></b></label>`).join('');
+  const grip = document.getElementById('edGrip');
+  const vecOf = (k) => { if (k === 'l' && edPose.l === 'grip') return [edPose.h[0] - 0.02, edPose.h[1] - 0.04, edPose.h[2] - 0.1]; return edPose[k]; };
+  const refresh = () => {
+    sliders.querySelectorAll('input').forEach(inp => {
+      const [k, i] = ED_SLIDERS[+inp.dataset.j];
+      const v = i >= 0 ? vecOf(k)[i] : (edPose[k] || 0);
+      inp.value = v; inp.nextElementSibling.textContent = (+v).toFixed(2);
+      inp.disabled = k === 'l' && edPose.l === 'grip';
+    });
+    grip.checked = edPose.l === 'grip';
+    document.getElementById('edOut').value = JSON.stringify(poseEdits, null, 1);
+  };
+  const markEdited = () => {
+    const d = {}; for (const key of POSE_KEYS_ALL) if (key in edPose) d[key] = Array.isArray(edPose[key]) ? edPose[key].map(v => +(+v).toFixed(2)) : (typeof edPose[key] === 'number' ? +edPose[key].toFixed(2) : edPose[key]);
+    poseEdits[edKey] = d; savePoseEdits(); refresh();
+  };
+  sliders.addEventListener('input', e => {
+    const inp = e.target; if (!inp.dataset.j) return;
+    const [k, i] = ED_SLIDERS[+inp.dataset.j], v = +inp.value;
+    if (i >= 0) { if (k === 'l' && edPose.l === 'grip') return; edPose[k][i] = v; } else edPose[k] = v;
+    inp.nextElementSibling.textContent = v.toFixed(2); markEdited();
+  });
+  grip.onchange = () => { edPose.l = grip.checked ? 'grip' : [edPose.h[0] - 0.02, edPose.h[1] - 0.04, edPose.h[2] - 0.1]; markEdited(); };
+  const select = (k) => { edKey = k; edPose = POSE_REG[k].pose; human.sm = null; refresh(); };
+  document.getElementById('edSel').onchange = e => select(e.target.value);
+  document.getElementById('edReset').onclick = () => { applyPoseData(edPose, POSE_DEFAULT[edKey]); delete poseEdits[edKey]; savePoseEdits(); refresh(); };
+  document.getElementById('edResetAll').onclick = () => { if (!confirm('直したポーズを全部元に戻しますか？')) return; for (const k in poseEdits) if (POSE_REG[k]) applyPoseData(POSE_REG[k].pose, POSE_DEFAULT[k]); poseEdits = {}; savePoseEdits(); refresh(); };
+  document.getElementById('edCopy').onclick = async () => {
+    const txt = 'テニスゲームのポーズの手直し：\n' + JSON.stringify(poseEdits, null, 1);
+    try { await navigator.clipboard.writeText(txt); document.getElementById('edMsg').textContent = 'コピーしました'; }
+    catch (e) { const t = document.getElementById('edOut'); t.select(); document.execCommand('copy'); document.getElementById('edMsg').textContent = 'コピーしました'; }
+  };
+  setFold(false);
+  select('READY');
+  vw.dist = 4.2; vw.el = 0.2;
 }
 
 if (VIEWER) viewerSetup();

@@ -228,15 +228,15 @@ const CARD_FLOWS = {
 
   lost: (chat) => { chat.ai('カードをなくされたのですね。悪用を防ぐため、すぐにカードを一時停止しましょう。'); CARD_FLOWS.stop(chat, '紛失した'); },
 
-  unlock: (chat) => doAct(chat, {
-    formTitle: '暗証番号のロック解除（本人確認）',
+  unlock: (chat) => verifyIdentity(chat, () => doAct(chat, {
+    formTitle: '暗証番号のロック解除（入力）',
     fields: [
       { key: 'birth', label: '生年月日（8桁）', type: 'tel', max: 8, pattern: /^\d{8}$/, msg: '西暦8桁の数字', placeholder: '19900101' },
       { key: 'pin', cls: 'pin', label: '新しい暗証番号（4桁）', type: 'password', max: 4, pattern: /^\d{4}$/, msg: '数字4桁', hint: '推測されやすい番号（1234など）は避けてください。' },
     ],
     ask: '本人確認のうえ、暗証番号のロックを解除します。よろしいですか？', yes: '解除する',
     done: 'ロックを解除し、新しい暗証番号を設定しました（デモ）。',
-  }),
+  }), '暗証番号のロック解除'),
 };
 // 項目 → 会話の流れ（「不正利用のおそれがあるカードを停止したい」は、一時停止の手続きへ）
 const flowOf = (id) => CARD_FLOWS[id];

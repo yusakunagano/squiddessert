@@ -215,7 +215,7 @@ const CARD_FLOWS = {
     chat.launch('open_services_ai');
   }),
 
-  address: (chat) => hear(chat, 'ご住所について、近いものを選んでください。', ['引っ越した', '番地・部屋番号が抜けている'], (a) => doAct(chat, {
+  address: (chat) => hear(chat, 'ご住所について、近いものを選んでください。', ['引っ越した', '番地・部屋番号が抜けている'], (a) => verifyIdentity(chat, () => doAct(chat, {
     formTitle: 'ご登録の住所の変更（入力）',
     fields: [
       { key: 'zip', label: '郵便番号', type: 'tel', max: 7, pattern: /^\d{7}$/, msg: 'ハイフンなしの7桁の数字', placeholder: '1000001' },
@@ -224,7 +224,7 @@ const CARD_FLOWS = {
     ],
     ask: `ご登録の住所の変更（${a}）を、手続きします。よろしいですか？`, yes: '手続きする',
     done: (v) => `住所の変更を受け付けました（デモ）。\n新しいご住所：〒${v.zip} ${v.addr} ${v.bld}\n戻ってきているカードや書類は、あらためて発送します。`,
-  })),
+  }), '住所変更')),
 
   lost: (chat) => { chat.ai('カードをなくされたのですね。悪用を防ぐため、すぐにカードを一時停止しましょう。'); CARD_FLOWS.stop(chat, '紛失した'); },
 

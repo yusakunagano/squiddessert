@@ -66,7 +66,7 @@
 <div class="detail" id="detail"><div class="panel" id="panel"></div></div>
 
 <script src="icons.js?v=20261137"></script>
-<script src="chat.js?v=20261138"></script>
+<script src="chat.js?v=20261142"></script>
 <script>
 const MONTH_TOTAL = 47140;
 
@@ -133,7 +133,7 @@ document.querySelectorAll('.row').forEach(r => r.onclick = () => {
 });
 
 // ---------- AI: how to raise the rate ----------
-const DEFAULT_CHIPS = ['倍率を上げるには？', 'いちばん簡単に上げる方法は？', '15.5%にするには？', '上限で頭打ちになっていない？'];
+const DEFAULT_CHIPS = ['倍率を上げるには？', 'ポイント上限について知りたい', '細かい情報を知りたい'];
 document.getElementById('gap').textContent = `+${fmt(potMax - nowMax)}%`;
 
 function explain(b, chat) {
@@ -155,37 +155,38 @@ function bankSteps(hasAccount) {
   return [!hasAccount && '提携銀行の口座を開設（アプリから最短即日）', 'アカウント連携（提携銀行アプリで「連携する」）', 'Payカードの引き落とし口座を提携銀行に変更', '次回の引き落としが完了すると、その月から＋2%（12か月）'].filter(Boolean);
 }
 
-// The AI hears what it can't know from account data, then ranks the actions by gain.
-function rateUpPlan(chat, focus) {
-  hear(chat, '① 提携銀行の口座はお持ちですか？', ['持っている', '持っていない'], acc => {
-    // 口座がないと、この特典は使えない。まず、銀行口座の登録へ進む
-    if (acc === '持っていない') {
-      chat.ai('提携銀行の口座がないと、この特典（＋2%）は使えません。まず、銀行口座の登録に進みましょう。下のボタンから、登録の画面へ進めます。\n（口座をこれから作る場合は、開設してからの登録になります）');
-      return chat.later(() => chat.launch('open_register'), 500);
-    }
-    hear(chat, '② ふだんの1か月のご利用額は？', ['2万円くらい', '5万円くらい', '10万円以上'], amt => {
-      const spend = { '2万円くらい': 20000, '5万円くらい': MONTH_TOTAL, '10万円以上': 100000 }[amt];
-      const now = eff(spend), withBank = eff(spend, ['bank']);
-      chat.card(`<div class="data">
-        <div class="h"><span>あなたの倍率（月${yen(spend)}の場合）</span></div>
-        <div><span>表示上の最大</span><b>${fmt(nowMax)}%</b></div>
-        <div><span>上限を考えた実質</span><b>${now}%</b></div>
-        <div class="h"><span>提携銀行の特典をつけると</span><b style="color:var(--brand)">${withBank}%</b></div>
-        <div><span>増えるポイント</span><b>＋${pt(calc(spend, ['bank']) - calc(spend))}／月</b></div></div>`);
-      const steps = bankSteps(acc === '持っている');
-      chat.ai(`いちばん効くのは「Payカード×提携銀行」です（＋2%）。\n${acc === '持っている' ? '口座はお持ちなので、あと' : 'やることは'}${steps.length}ステップです。\n\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`);
-      const tips = [];
-      if (spend > 20000) tips.push(`ランク特典は月200ptが上限なので、月2万円を超えた分には付きません（表示の${fmt(nowMax)}%より実質が低いのはこのためです）。`);
-      tips.push('ポイ活プランは、対象のお店や期間に使うと5%→10%になります。キャンペーン情報をチェックしましょう。');
-      if (focus !== 'bank') chat.later(() => { chat.ai('ほかにできること：\n\n' + tips.map(t => '・' + t).join('\n')); chat.chips(['手続きを始める', ...DEFAULT_CHIPS.slice(2)]); }, 700);
-      else chat.chips(['手続きを始める', ...DEFAULT_CHIPS.slice(2)]);
-    });
+// チェックが、1つずつ動く（確認中 → 完了）
+function checkSteps(chat, steps, done) {
+  const box = chat.card('<div class="agent-steps"></div>').firstChild;
+  steps.forEach(st => { const d = document.createElement('div'); d.textContent = st.label; box.appendChild(d); });
+  let i = 0;
+  const next = () => {
+    const rows = box.children;
+    if (i > 0) { rows[i - 1].className = 'done'; rows[i - 1].textContent = steps[i - 1].result; }
+    if (i >= steps.length) return done();
+    rows[i].className = 'run'; i++; setTimeout(next, 800);
+  };
+  next();
+}
+
+// 「倍率を上げるには？」：連携したアカウントの情報を、1つずつ確認して、足りないもの（提携銀行の口座）を案内する
+function rateUpPlan(chat) {
+  chat.ai('連携したアカウントの情報を、確認します。');
+  checkSteps(chat, [
+    { label: 'アカウント連携を確認', result: 'アカウント連携：済み' },
+    { label: '提携銀行の口座を確認', result: '提携銀行の口座：ありません' },
+    { label: 'Payカードの引き落とし口座を確認', result: '引き落とし口座：提携銀行ではありません' },
+    { label: '適用中の特典と、月の上限を確認', result: `適用中の特典：${BENEFITS.filter(b => b.on).length}件（最大${fmt(nowMax)}%）` },
+  ], () => {
+    chat.ai('提携銀行の口座をお持ちでないため、いちばん効く「Payカード×提携銀行」（＋2%）が、まだ使えません。\n銀行口座を登録しますか？\n（口座をこれから作る場合は、開設してからの登録になります）');
+    chat.chips(['口座を登録する', 'あとで']);
   });
 }
 
 // 質問候補のボタンはルールで即答し、入力した質問・音声は、いまの特典の状態をもとにAIが答える
 const chat = createChat({
   title: '倍率アップAI',
+  jumps: [{ re: /細かい|詳しい情報|FAQ|ＦＡＱ/, action: 'open_faq' }],
   ai: { free: { page: 'services', facts: () => [
     `表示：最大${fmt(nowMax)}%（適用中の特典の合計）／${fmt(potMax)}%（未適用の特典とポイ活プランの最大10%を含む最大）。今月の利用総額 ${MONTH_TOTAL}円。`,
     ...BENEFITS.map(b => `【${b.name}】${b.on ? '適用中' : '未適用'}・${b.rate}%${b.rate2 ? '（最大' + b.rate2 + '%）' : ''}${b.cap ? '・上限 月' + b.cap + 'pt' : ''}${b.unverified ? '・条件は目安' : ''}：${b.fine}`),
@@ -193,12 +194,17 @@ const chat = createChat({
   greet: () => ({ text: `いまのあなたは最大${fmt(nowMax)}%還元です。\nあと +${fmt(potMax - nowMax)}% 上げられます。何をすれば上がるか、あなたに合わせてご案内します。`, chips: DEFAULT_CHIPS }),
   handle(q, chat) {
     const b = BENEFITS.find(b => q.includes(b.name));
+    if (q === '口座を登録する') {
+      chat.ai('銀行口座の登録の画面へ進みます。登録が終わったら、カードの引き落とし口座を提携銀行に変えると、特典が付きます。');
+      return chat.later(() => chat.launch('open_register'), 400);
+    }
+    if (q === 'あとで') { chat.ai('わかりました。登録したくなったら、いつでも「倍率を上げるには？」と聞いてください。'); return chat.chips(DEFAULT_CHIPS); }
     if (/上げ|簡単|アップ|増や/.test(q) && !/15\.5/.test(q)) {
-      return withConsent(chat, ['card'], () => rateUpPlan(chat, b && b.id));
+      return withConsent(chat, ['card'], () => rateUpPlan(chat));
     }
     if (/15\.5|最大/.test(q)) {
       chat.ai(`15.5%にするには、次の2つが必要です。\n\n1. 「Payカード×提携銀行」を適用（＋2%）\n2. ポイ活プランを対象のお店・期間で使う（5%→10%、＋5%）\n\n注意：ただし特典ごとに月の上限があるので、15.5%はあくまで「表示上の最大」です。実際に何%になるかは「倍率を上げるには？」で計算できます。`);
-    } else if (/頭打ち|上限/.test(q)) {
+    } else if (/頭打ち|上限/.test(q)) { // 「ポイント上限について知りたい」
       chat.ai(`月の上限がある特典：\n${BENEFITS.filter(b => b.cap).map(b => `・${b.name}：月${b.cap.toLocaleString()}pt（月${Math.round(b.cap / b.rate * 100).toLocaleString()}円で到達）`).join('\n')}\n\n今月のご利用（${yen(MONTH_TOTAL)}）では「ランク特典」が上限に届いています。これ以上使っても、ランク特典のポイントは増えません。`);
     } else if (/手続き|始める/.test(q)) {
       chat.ai('下のボタンから、銀行口座の登録の画面へ進めます。登録が終わったら、カードの引き落とし口座を提携銀行に変えると、特典が付きます。\n途中で分からないことがあれば、いつでも聞いてください。');

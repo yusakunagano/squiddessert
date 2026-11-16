@@ -20,11 +20,11 @@ body{background:#000;overflow:hidden;font-family:system-ui,sans-serif;color:#fff
 #msg button{font-size:20px;padding:12px 32px;border:0;border-radius:30px;background:#e44;color:#fff;font-weight:700;cursor:pointer}
 #flash{position:fixed;inset:0;background:#f00;opacity:0;pointer-events:none;transition:opacity .25s}
 #pad{position:fixed;bottom:12px;left:0;right:0;display:flex;justify-content:space-between;padding:0 12px;pointer-events:none}
-#pad div{display:grid;grid-template-columns:repeat(2,64px);gap:8px}
-#pad button{pointer-events:auto;width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:rgba(255,255,255,.15);color:#fff;font-weight:700;font-size:13px}
+#pad div{display:grid;grid-template-columns:repeat(2,72px);gap:8px}
+#pad button{pointer-events:auto;width:72px;height:72px;cursor:pointer;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:rgba(255,255,255,.15);color:#fff;font-weight:700;font-size:13px}
 #pad button:active{background:rgba(255,255,255,.4)}
-@media (hover:hover) and (pointer:fine){#pad{display:none}#help{bottom:20px!important}}
-#help{position:fixed;bottom:160px;width:100%;text-align:center;font-size:12px;opacity:.7;pointer-events:none}
+
+#help{display:none}
 #combo{position:fixed;top:40%;width:100%;text-align:center;font-size:32px;font-weight:900;color:#fc3;opacity:0;transition:opacity .3s;pointer-events:none;text-shadow:0 2px 6px #000}
 </style>
 </head>

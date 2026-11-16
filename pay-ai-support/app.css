@@ -195,3 +195,4 @@ header h1 { font-size: 18px; margin: 0; flex: 1; text-align: center; }
 
 /* 暗証番号の枠：横を縮めて、縦を広げる（4桁を、大きく並べる） */
 .qform .fld input.pin { width: 168px; height: 68px; padding: 0 0 0 .5em; box-sizing: border-box; font-size: 30px; letter-spacing: .5em; text-align: center; border: 1px solid var(--line); border-radius: 12px; }
+.qform .fld input.pin.code { width: 270px; }

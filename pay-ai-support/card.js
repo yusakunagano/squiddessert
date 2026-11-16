@@ -73,6 +73,7 @@ function askForm(chat, { title, fields, submit = '入力内容の確認へ' }, o
       const v = f.type === 'check' ? input.checked : input.value.trim();
       if (f.type === 'check') { if (!v) { err.textContent = '「' + f.label.slice(0, 18) + '…」にチェックしてください。'; input.focus(); return; } continue; }
       if (!v && f.required !== false) { err.textContent = f.label + 'を入力してください。'; input.focus(); return; }
+      if (v && f.check) { const m = f.check(v); if (m) { err.textContent = m; input.focus(); return; } }
       if (v && f.pattern && !f.pattern.test(v)) { err.textContent = f.label + 'を、' + (f.msg || '正しい形式') + 'で入力してください。'; input.focus(); return; }
       vals[f.key] = v;
       lines.push('・' + f.label + '：' + (f.type === 'password' ? '••••' : v || '（なし）'));
@@ -106,9 +107,22 @@ function doAct(chat, { ask, yes = 'はい', run, done, fields, formTitle }) {
   });
 }
 
+// 本人確認：ご登録の電話番号にSMSで認証コードを送り、入力してもらう（デモの認証コードは 123456）
+function verifyIdentity(chat, next) {
+  chat.ai('解約のお手続きの前に、ご本人確認をします。\nご登録の電話番号（090-****-1234）に、SMSで認証コードを送りました。\n（デモ：認証コードは 123456 です）');
+  askForm(chat, {
+    title: '本人確認：SMSの認証コード',
+    submit: '認証する',
+    fields: [{ key: 'code', cls: 'pin code', label: '認証コード（6桁）', type: 'tel', max: 6, pattern: /^\d{6}$/, msg: '数字6桁', hint: 'SMSに届いた6桁の数字です。届かないときは、少し待ってからやり直してください。', check: (v) => (v === '123456' ? '' : '認証コードが違います。もう一度、入力してください。（デモ：123456）') }],
+  }, () => {
+    const el = chat.card('<div class="authing ok">✓ 本人確認ができました</div>');
+    chat.later(next, 400);
+  });
+}
+
 const CARD_FLOWS = {
   cancel: (chat) => hear(chat, '解約をお考えなのですね。差し支えなければ、理由を教えてください。', ['年会費が高い', 'あまり使わなくなった', '別のカードにしたい', '不正利用が心配'], (a) => {
-    const cancelAct = () => doAct(chat, {
+    const cancelAct = () => verifyIdentity(chat, () => doAct(chat, {
       formTitle: 'カードの解約のお手続き（入力）',
       fields: [
         { key: 'reason', label: '解約の理由', type: 'select', options: ['年会費が高い', 'あまり使わなくなった', '別のカードにする', 'そのほか'], value: a === '別のカードにしたい' ? '別のカードにする' : a === '年会費が高い' ? '年会費が高い' : a === 'あまり使わなくなった' ? 'あまり使わなくなった' : 'そのほか' },
@@ -118,7 +132,7 @@ const CARD_FLOWS = {
       ],
       ask: 'カードの解約を申し込みます。よろしいですか？', yes: '解約を申し込む',
       done: (v) => `解約の申込を受け付けました（デモ）。\n手続き完了のお知らせは、${v.tel} にSMSでお送りします。\nポイントは「${v.point}」で承りました。`,
-    });
+    }));
     if (a === '年会費が高い') {
       return hear(chat, '一般のカードに切り替えると、年会費を抑えられます（ポイントは引き継がれます）。どうしますか？', ['一般に切り替える', 'それでも解約したい', 'QAを見る'], (b) => {
         if (b === '一般に切り替える') return doAct(chat, { ask: 'カードを、一般に切り替えます。よろしいですか？', run: () => setCardRank('normal'), done: 'カードを一般に切り替えました（デモ）。ホームのカードの券面も、一般に戻っています。' });

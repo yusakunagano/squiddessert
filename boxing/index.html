@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>3D ボクシング</title>
+<meta name="description" content="一人称視点で戦う3Dボクシングゲーム。">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none;touch-action:none}
+body{background:#000;overflow:hidden;font-family:system-ui,sans-serif;color:#fff}
+#hud{position:fixed;top:0;left:0;right:0;padding:12px 16px;display:flex;gap:12px;align-items:center;pointer-events:none}
+.bar{flex:1}.bar label{font-size:12px;font-weight:700}
+.bar .o{height:14px;background:#333;border:2px solid #fff;border-radius:7px;overflow:hidden;margin-top:3px}
+.bar .i{height:100%;width:100%;transition:width .15s}
+#php .i{background:#3c9}#ohp .i{background:#e44}#pst .i{background:#fc3}
+#round{font-weight:900;font-size:18px;text-align:center;min-width:80px}
+#msg{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(0,0,0,.6);padding:16px}
+#msg h1{font-size:44px;margin-bottom:10px}#msg p{line-height:1.7;margin-bottom:16px;max-width:460px}
+#msg button{font-size:20px;padding:12px 32px;border:0;border-radius:30px;background:#e44;color:#fff;font-weight:700;cursor:pointer}
+#flash{position:fixed;inset:0;background:#f00;opacity:0;pointer-events:none;transition:opacity .25s}
+#pad{position:fixed;bottom:12px;left:0;right:0;display:flex;justify-content:space-between;padding:0 12px;pointer-events:none}
+#pad div{display:grid;grid-template-columns:repeat(2,64px);gap:8px}
+#pad button{pointer-events:auto;width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:rgba(255,255,255,.15);color:#fff;font-weight:700;font-size:13px}
+#pad button:active{background:rgba(255,255,255,.4)}
+@media (hover:hover) and (pointer:fine){#pad{display:none}#help{bottom:20px!important}}
+#help{position:fixed;bottom:160px;width:100%;text-align:center;font-size:12px;opacity:.7;pointer-events:none}
+#combo{position:fixed;top:40%;width:100%;text-align:center;font-size:32px;font-weight:900;color:#fc3;opacity:0;transition:opacity .3s;pointer-events:none;text-shadow:0 2px 6px #000}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="bar" id="php"><label>あなた</label><div class="o"><div class="i"></div></div></div>
+  <div id="round">R1<br><span id="time">60</span></div>
+  <div class="bar" id="ohp"><label style="float:right">相手</label><div class="o" style="clear:both"><div class="i" style="margin-left:auto"></div></div></div>
+</div>
+<div id="hud2" style="position:fixed;top:56px;left:16px;width:30%;pointer-events:none"><div class="bar" id="pst"><label>スタミナ</label><div class="o" style="height:8px"><div class="i"></div></div></div></div>
+<div id="flash"></div><div id="combo"></div>
+<div id="help">J/←クリック:左ジャブ K/右クリック:右ストレート I:アッパー スペース:ガード A/D:スウェー</div>
+<div id="pad">
+  <div><button data-k="dodgeL">←避</button><button data-k="dodgeR">避→</button><button data-k="guard">ガード</button></div>
+  <div><button data-k="jab">ジャブ</button><button data-k="straight">ストレート</button><button data-k="upper">アッパー</button></div>
+</div>
+<div id="msg"><h1>🥊 3D BOXING</h1><p>相手のグローブが<b style="color:#fc3">光ったら</b>パンチが来る合図！<br>ガードかスウェーでかわして反撃しよう。<br>3ラウンドで相手をKOしろ！</p><button id="start">ファイト！</button></div>
+
+<script>
+const R=THREE;
+const renderer=new R.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;document.body.prepend(renderer.domElement);
+const scene=new R.Scene();scene.background=new R.Color(0x0a0a14);scene.fog=new R.Fog(0x0a0a14,8,30);
+const camera=new R.PerspectiveCamera(70,innerWidth/innerHeight,0.05,100);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+
+// lights
+scene.add(new R.HemisphereLight(0x8899ff,0x221111,0.5));
+const spot=new R.SpotLight(0xffffff,1.4,30,0.7,0.5);spot.position.set(0,10,0);spot.castShadow=true;scene.add(spot);scene.add(spot.target);const fl=new R.DirectionalLight(0xffeedd,.6);fl.position.set(0,3,4);scene.add(fl);
+const M=(c,o={})=>new R.MeshStandardMaterial(Object.assign({color:c,roughness:.6},o));
+
+// ring
+const floor=new R.Mesh(new R.BoxGeometry(7,0.4,7),M(0x2255aa));floor.position.y=-0.2;floor.receiveShadow=true;scene.add(floor);
+const apron=new R.Mesh(new R.BoxGeometry(7.6,1,7.6),M(0x111111));apron.position.y=-0.75;scene.add(apron);
+const crowd=new R.Mesh(new R.CylinderGeometry(16,16,1,40,1,true),M(0x221a22,{side:R.BackSide}));crowd.position.y=-1;scene.add(crowd);
+for(let i=0;i<300;i++){const a=Math.random()*6.28,r=9+Math.random()*6;const h=new R.Mesh(new R.SphereGeometry(.25,6,6),M(new R.Color().setHSL(Math.random(),.4,.3)));h.position.set(Math.cos(a)*r,-0.4+(r-9)*.35,Math.sin(a)*r);scene.add(h)}
+[[3.4,3.4],[-3.4,3.4],[3.4,-3.4],[-3.4,-3.4]].forEach(([x,z],i)=>{const p=new R.Mesh(new R.CylinderGeometry(.1,.1,1.6),M(i%2?0xcc2222:0x2244cc));p.position.set(x,.8,z);scene.add(p)});
+const ropeM=M(0xeeeeee);
+[0.5,0.9,1.3].forEach(y=>{for(let s=0;s<4;s++){const r=new R.Mesh(new R.CylinderGeometry(.03,.03,6.8),ropeM);r.rotation.z=Math.PI/2;
+ if(s<2){r.position.set(0,y,s?3.4:-3.4)}else{r.rotation.y=Math.PI/2;r.position.set(s==2?3.4:-3.4,y,0)}scene.add(r)}});
+
+// opponent
+const opp=new R.Group();scene.add(opp);opp.position.set(0,0,-1.4);
+const skin=M(0xc68863),red=M(0xcc1111),black=M(0x111111);
+const body=new R.Mesh(new R.CylinderGeometry(.32,.26,.75,12),skin);body.position.y=1.25;body.castShadow=true;opp.add(body);
+const shorts=new R.Mesh(new R.CylinderGeometry(.28,.3,.35,12),M(0x222299));shorts.position.y=.75;opp.add(shorts);
+[-.13,.13].forEach(x=>{const l=new R.Mesh(new R.CylinderGeometry(.09,.08,.6,8),skin);l.position.set(x,.3,0);opp.add(l)});
+const head=new R.Group();head.position.y=1.85;opp.add(head);
+head.add(new R.Mesh(new R.SphereGeometry(.2,16,16),skin));
+const hg=new R.Mesh(new R.SphereGeometry(.215,16,16,0,6.28,0,1.5),M(0xcc1111));head.add(hg);
+[-.07,.07].forEach(x=>{const e=new R.Mesh(new R.SphereGeometry(.025,8,8),black);e.position.set(x,.03,.18);head.add(e)});
+const mouth=new R.Mesh(new R.BoxGeometry(.08,.015,.01),black);mouth.position.set(0,-.08,.19);head.add(mouth);
+function makeArm(side){const sh=new R.Group();sh.position.set(side*.38,1.52,0);opp.add(sh);
+ const up=new R.Mesh(new R.CylinderGeometry(.07,.06,.35,8),skin);sh.add(up);
+ const fist=new R.Group();sh.add(fist);
+ const gm=M(0xcc1111,{emissive:0x000000});const g=new R.Mesh(new R.SphereGeometry(.13,14,14),gm);g.scale.set(1,1,1.2);g.castShadow=true;fist.add(g);
+ return{sh,up,fist,gm,side}}
+const oArms=[makeArm(-1),makeArm(1)];
+function setOppArm(a,ext,high,lift){ // ext 0..1 punch extension
+ const rest=new R.Vector3(a.side*.2,.15+lift,.35),hit=new R.Vector3(a.side*.05,.25+high,1.05);
+ const p=rest.clone().lerp(hit,ext);a.fist.position.copy(p);
+ const mid=p.clone().multiplyScalar(.5);a.up.position.copy(mid);a.up.lookAt(a.sh.localToWorld(p.clone()));a.up.rotateX(Math.PI/2);a.up.scale.y=p.length()/.35;
+}
+
+// player gloves (attached to camera)
+scene.add(camera);
+const pG=[-1,1].map(s=>{const g=new R.Group();const m=new R.Mesh(new R.SphereGeometry(.08,16,16),M(s<0?0x2266ee:0x2266ee));m.scale.set(1,1,1.25);g.add(m);
+ const cuff=new R.Mesh(new R.CylinderGeometry(.05,.055,.07,12),M(0xffffff));cuff.rotation.x=Math.PI/2;cuff.position.z=.11;g.add(cuff);camera.add(g);return{g,s,t:0,type:null}});
+
+// state
+const S={php:100,ohp:100,st:100,round:1,time:60,running:false,guard:false,dodge:0,dodgeT:0,combo:0,comboT:0,ko:0,oppKD:0};
+const O={state:'idle',t:0,arm:0,next:1.5,stun:0,guard:0,sway:0,hitT:0,dmg:8,kind:'jab'};
+const $=id=>document.getElementById(id);
+function hud(){$('php').querySelector('.i').style.width=S.php+'%';$('ohp').querySelector('.i').style.width=S.ohp+'%';$('pst').querySelector('.i').style.width=S.st+'%';$('round').firstChild.textContent='R'+S.round;$('time').textContent=Math.ceil(S.time)}
+function flash(c,a){const f=$('flash');f.style.background=c;f.style.transition='none';f.style.opacity=a;requestAnimationFrame(()=>{f.style.transition='opacity .35s';f.style.opacity=0})}
+function pop(t){const c=$('combo');c.textContent=t;c.style.opacity=1;clearTimeout(pop.h);pop.h=setTimeout(()=>c.style.opacity=0,700)}
+let shake=0;
+
+// audio
+let ac;function snd(f,d=.08,type='square',v=.2){if(!ac)return;const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
+function thud(v=.4){if(!ac)return;const b=ac.createBuffer(1,ac.sampleRate*.12,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);const s=ac.createBufferSource(),g=ac.createGain(),f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=900;g.gain.value=v;s.buffer=b;s.connect(f).connect(g).connect(ac.destination);s.start()}
+function bell(){[0,.5,1].forEach(t=>setTimeout(()=>snd(1200,.6,'sine',.25),t*300))}
+
+// player actions
+const PUNCH={jab:{g:0,dmg:3,st:8,dur:.25},straight:{g:1,dmg:6,st:14,dur:.35},upper:{g:1,dmg:10,st:22,dur:.45}};
+function punch(type){if(!S.running||S.guard)return;const p=PUNCH[type],g=pG[p.g];if(g.type||S.st<p.st*.5)return;
+ S.st=Math.max(0,S.st-p.st);g.type=type;g.t=0;g.hit=false;snd(200,.05,'sawtooth',.06)}
+function resolvePunch(type){const p=PUNCH[type];
+ if(O.state==='down')return;
+ const blocked=O.guard>0&&!(type==='upper'&&Math.random()<.6), swayed=O.sway!==0;
+ if(swayed){pop('MISS');return}
+ if(blocked){thud(.15);O.guard-=.15;pop('BLOCK');return}
+ let d=p.dmg*(O.state==='windup'?1.6:1)*(O.stun>0?1.3:1)*(S.st<15?.6:1);
+ if(O.state==='windup'){pop('COUNTER!');O.state='recover';O.t=0;O.arm&&0}
+ S.combo++;S.comboT=1;if(S.combo>=3)pop(S.combo+' HIT COMBO!');
+ S.ohp=Math.max(0,S.ohp-d);O.hitT=.25;O.hitDir=type==='jab'?-1:type==='straight'?1:0;O.upper=type==='upper';thud(.5);snd(90,.1,'sine',.3);
+ if(Math.random()<.12||O.state==='windup')O.stun=.6;
+ if(S.ohp<=0)knockdown();
+}
+function knockdown(){O.state='down';O.t=0;S.oppKD++;bell();pop(S.oppKD>=2||S.round>=3&&false?'K.O.!!':'DOWN!');}
+
+// keyboard
+const act={jab:()=>punch('jab'),straight:()=>punch('straight'),upper:()=>punch('upper'),
+ dodgeL:()=>dodge(-1),dodgeR:()=>dodge(1),guard:v=>S.guard=v};
+function dodge(d){if(!S.running||S.dodgeT>0||S.st<10)return;S.dodge=d;S.dodgeT=.5;S.st-=10;snd(400,.05,'sine',.05)}
+addEventListener('keydown',e=>{if(e.repeat)return;const k=e.key.toLowerCase();
+ if(k==='j'||k==='arrowleft')act.jab();if(k==='k'||k==='arrowright')act.straight();if(k==='i'||k==='arrowup')act.upper();
+ if(k==='a')act.dodgeL();if(k==='d')act.dodgeR();if(k===' '||k==='s'||k==='arrowdown'){act.guard(true);e.preventDefault()}});
+addEventListener('keyup',e=>{const k=e.key.toLowerCase();if(k===' '||k==='s'||k==='arrowdown')act.guard(false)});
+renderer.domElement.addEventListener('mousedown',e=>{e.button===0?act.jab():e.button===2?act.straight():0});
+addEventListener('contextmenu',e=>e.preventDefault());
+document.querySelectorAll('#pad button').forEach(b=>{const k=b.dataset.k;
+ b.addEventListener('pointerdown',e=>{e.preventDefault();k==='guard'?act.guard(true):act[k]()});
+ if(k==='guard'){b.addEventListener('pointerup',()=>act.guard(false));b.addEventListener('pointerleave',()=>act.guard(false))}});
+
+$('start').onclick=()=>{ac=ac||new (window.AudioContext||window.webkitAudioContext)();startMatch()};
+function startMatch(){Object.assign(S,{php:100,ohp:100,st:100,round:1,time:60,combo:0,oppKD:0,ko:0});startRound()}
+function startRound(){S.running=true;S.time=60;Object.assign(O,{state:'idle',t:0,next:1.5,stun:0});$('msg').style.display='none';bell();hud()}
+function endScreen(title,txt,btn,fn){S.running=false;const m=$('msg');m.style.display='flex';m.innerHTML=`<h1>${title}</h1><p>${txt}</p><button>${btn}</button>`;m.querySelector('button').onclick=fn}
+
+// opponent AI
+const KINDS={jab:{wind:.55,dmg:8,high:0},hook:{wind:.8,dmg:13,high:0},straight:{wind:.7,dmg:11,high:-.05},upper:{wind:1,dmg:18,high:-.25}};
+function oppAI(dt){
+ const diff=1+(S.round-1)*.25;
+ O.t+=dt;O.hitT=Math.max(0,O.hitT-dt);O.stun=Math.max(0,O.stun-dt);
+ if(O.state==='down'){if(O.t>2.5){if(S.oppKD>=2||Math.random()<.3+S.oppKD*.2){endScreen('🏆 K.O. 勝利！',`第${S.round}ラウンドで相手をノックアウト！`,'もう一度',startMatch)}else{S.ohp=40;O.state='idle';O.t=0;O.next=1.5;pop('立ち上がった！')}}return}
+ if(O.stun>0){O.guard=0;O.sway=0;return}
+ if(O.state==='idle'){
+  O.next-=dt*diff;O.guard=Math.max(0,O.guard-dt);
+  if(O.guard<=0&&Math.random()<dt*(1.5+S.combo*.8))O.guard=.6+Math.random();
+  if(O.sway===0&&Math.random()<dt*.25*diff){O.sway=Math.random()<.5?-1:1;O.swayT=.4}
+  if(O.next<=0){const ks=Object.keys(KINDS),k=ks[Math.floor(Math.random()*(S.round>1?4:3))];O.kind=k;O.arm=Math.random()<.5?0:1;if(k==='jab')O.arm=0;O.state='windup';O.t=0;O.guard=0}
+ }else if(O.state==='windup'){if(O.t>KINDS[O.kind].wind/diff){O.state='punch';O.t=0;O.resolved=false}}
+ else if(O.state==='punch'){if(!O.resolved&&O.t>.1){O.resolved=true;oppHit()}if(O.t>.25){O.state='recover';O.t=0}}
+ else if(O.state==='recover'){if(O.t>.5){O.state='idle';O.t=0;O.next=(.6+Math.random()*1.6)}}
+ if(O.sway){O.swayT-=dt;if(O.swayT<=0)O.sway=0}
+}
+function oppHit(){const k=KINDS[O.kind];
+ const dodgeOk=S.dodgeT>0&&(O.kind!=='hook'||(O.arm===0?S.dodge>0:S.dodge<0)||true);
+ if(S.dodgeT>0&&dodgeOk){pop('NICE DODGE!');snd(800,.1,'sine',.1);O.stun=.7;return}
+ if(S.guard){S.php=Math.max(0,S.php-k.dmg*.15);S.st=Math.max(0,S.st-10);thud(.2);shake=.1;pop('GUARD');return}
+ S.php=Math.max(0,S.php-k.dmg*(1+(S.round-1)*.15));S.combo=0;shake=.35;thud(.6);flash('#f00',.45);
+ if(S.php<=0){S.running=false;flash('#000',1);setTimeout(()=>endScreen('💫 K.O. 負け…','相手のパンチに沈んだ…','リベンジ',startMatch),800)}
+}
+
+// animate
+const clock=new R.Clock();let tt=0;
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);tt+=dt;
+ if(S.running){
+  S.time-=dt;if(S.time<=0){S.running=false;bell();
+   if(S.round>=3){const w=S.php>S.ohp;endScreen(w?'🏆 判定勝ち！':S.php===S.ohp?'ドロー':'判定負け…',`あなた ${Math.round(S.php)} - 相手 ${Math.round(S.ohp)}`,'もう一度',startMatch)}
+   else endScreen(`ラウンド${S.round} 終了`,'少し休憩。体力が少し回復します。','次のラウンドへ',()=>{S.round++;S.php=Math.min(100,S.php+20);S.ohp=Math.min(100,S.ohp+15);S.st=100;startRound()})}
+  oppAI(dt);
+  S.st=Math.min(100,S.st+dt*(S.guard?6:14));S.dodgeT=Math.max(0,S.dodgeT-dt);if(S.dodgeT<=0)S.dodge=0;
+  S.comboT-=dt;if(S.comboT<=0)S.combo=0;
+  hud();
+ }
+ // camera
+ const bob=Math.sin(tt*3)*.02;shake=Math.max(0,shake-dt);
+ const dx=S.dodge*Math.sin(Math.min(1,S.dodgeT/.5)*Math.PI)*.45;
+ camera.position.set(dx+(Math.random()-.5)*shake*.3,1.7+bob-(S.guard?.05:0)-Math.abs(dx)*.3+(Math.random()-.5)*shake*.3,1.1);
+ camera.rotation.set(0,0,-dx*.3);camera.lookAt(dx*.5,1.6,-1.4);camera.rotation.z+=-dx*.4;
+ // player gloves
+ pG.forEach(g=>{let x=g.s*.2,y=-.2+Math.sin(tt*3+g.s)*.01,z=-.5;
+  if(S.guard){x=g.s*.08;y=-.05;z=-.28}
+  if(g.type){const p=PUNCH[g.type];g.t+=dt;const k=Math.sin(Math.min(1,g.t/p.dur)*Math.PI);
+   if(g.type==='upper'){y+=k*.2;z-=k*.35;x-=g.s*k*.1}else{z-=k*.6;x-=g.s*k*.12;y+=k*.06}
+   if(!g.hit&&g.t>p.dur*.45){g.hit=true;resolvePunch(g.type)}
+   if(g.t>=p.dur)g.type=null}
+  g.g.position.set(x,y,z)});
+ // opponent pose
+ const down=O.state==='down';
+ opp.position.x+=( (O.sway*.35)-opp.position.x)*Math.min(1,dt*10);
+ opp.position.y=0;opp.rotation.x+=((down?-1.4:(O.hitT>0?-.15:0))-opp.rotation.x)*Math.min(1,dt*(down?4:12));
+ opp.position.z=-1.4-(down?.5:0)+Math.sin(tt*2)*.04;
+ body.rotation.y=Math.sin(tt*2.2)*.08;
+ head.rotation.z=O.hitT>0?(O.hitDir||0)*.4:Math.sin(tt*1.5)*.05;head.rotation.x=O.hitT>0&&O.upper?-.5:0;
+ oArms.forEach((a,i)=>{let ext=0,high=0,lift=0;a.gm.emissive.setHex(0);
+  if(O.guard>0&&O.state==='idle'){lift=.25;ext=.05}
+  if(O.stun>0){lift=-.25}
+  if(i===O.arm){const k=KINDS[O.kind];
+   if(O.state==='windup'){ext=-.25*Math.min(1,O.t*3);lift=k.high<-.1?-.2:.05;const f=.5+.5*Math.sin(O.t*30);a.gm.emissive.setRGB(f*.9,f*.7,0)}
+   else if(O.state==='punch'){ext=Math.sin(Math.min(1,O.t/.25)*Math.PI);high=k.high}}
+  if(down){lift=-.5;ext=0}
+  setOppArm(a,ext,high,lift)});
+ renderer.render(scene,camera)}
+loop();hud();
+</script>
+</body>
+</html>

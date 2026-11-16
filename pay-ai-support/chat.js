@@ -64,10 +64,11 @@ const ACTION_URL = {
   open_history: () => 'services.html#hist',
   open_register: () => 'register.html',
   open_services: () => 'services.html',
+  open_faq: () => 'faq.html',
   open_services_ai: () => 'services.html#ai', // 利用サービスを開き、AIも開く
   open_campaigns: () => 'campaigns.html',
 };
-const ACTION_NAME = { open_send: '送金', open_history: '利用履歴', open_register: '銀行口座登録', open_services: '利用サービス', open_services_ai: '利用サービス', open_campaigns: '特集一覧' };
+const ACTION_NAME = { open_send: '送金', open_history: '利用履歴', open_register: '銀行口座登録', open_services: '利用サービス', open_faq: 'よくある質問（FAQ）', open_services_ai: '利用サービス', open_campaigns: '特集一覧' };
 
 const MORE_Q = '他の質問を見る';
 // jumps: [{ re, action }]。ボタンや入力が re に合うときは、AIや決まった答えを使わず、その画面を直接開く

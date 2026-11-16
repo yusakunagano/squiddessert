@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>よくある質問（利用サービス）</title>
+<link rel="stylesheet" href="app.css?v=20261142">
+<style>
+  .qa { margin: 12px 16px 0; background: #fff; border-radius: 14px; padding: 14px 16px; }
+  .qa:target { outline: 2px solid var(--brand); }
+  .qa h2 { font-size: 17px; margin: 0 0 8px; }
+  .qa p { margin: 0; font-size: 15px; line-height: 1.8; white-space: pre-wrap; }
+  .qa .meta { margin-top: 8px; font-size: 13px; color: var(--sub); }
+  .back { display: block; margin: 18px 16px; text-align: center; color: var(--brand); font-size: 16px; }
+</style>
+<script src="../ga.js?v=20261105"></script>
+</head>
+<body>
+<script src="gate.js?v=20261029"></script>
+<div class="app">
+  <h1 style="font-size:20px;margin:16px 16px 0">よくある質問（利用サービス）</h1>
+  <div id="list"></div>
+  <a class="back" href="services.html">← 利用サービスに戻る</a>
+</div>
+<script>
+const BENEFITS = [
+  { id: 'pay', name: 'Pay', rate: 0.5, on: true, cap: null,
+    fine: 'アプリ払いのご利用で、200円（税込）ごとに1ポイント（0.5%）進呈。',
+    plain: ['アプリで払うだけで0.5%', 'エントリーなどは不要'] },
+  { id: 'card', name: 'Payカード', rate: 0.5, on: true, cap: null,
+    fine: 'アプリ払いのお支払い方法をPayカードに設定すると、カードのご利用分としてさらにポイントを進呈。2027年1月ご利用分より、一部カードの通常還元率が変更になります。',
+    plain: ['支払い方法をカードにすると、さらに＋0.5%', '2027年1月から一部カードの還元率が変わる予定'] },
+  { id: 'rank', name: 'ランク特典', rate: 1, on: true, cap: 200,
+    fine: 'ポイントクラブのランクに応じて、アプリ払いのご利用額に対し還元率を上乗せ。2026年9月1日より、毎月の進呈上限はランクにかかわらず一律200ポイント。',
+    plain: ['ランクに応じて＋1%', 'ただし毎月もらえるのは200ポイントまで（2026年9月〜）', '＝ 月2万円を超える分には付かない'] },
+  { id: 'bank', name: 'Payカード×提携銀行', rate: 2, on: false, cap: 3000, max: true,
+    fine: 'Payカードの引き落とし口座を提携銀行に設定し、アカウント連携のうえ引き落とし実績がある場合、スマホ決済のご利用分に＋2.0%を進呈（進呈上限：月3,000ポイント）。対象は初回引き落とし月から12か月間。13か月目以降は、前々月16日〜前月15日のカードご利用額とカードの種類に応じて還元率が変動（PLATINUMで月50万円以上のご利用時2.0%、GOLD／GOLD Uは最大1.0%、一般カードは0.25%）。対象支店・対象カードに限ります。',
+    plain: ['カードの引き落とし口座を提携銀行にすると＋2%（最初の12か月）', '必要なのは「口座開設」「アカウント連携」「引き落とし口座の変更」「1回の引き落とし」', 'もらえるのは月3,000ポイントまで', '13か月目からは、カードの種類と利用額で0.25〜2%に変わる'] },
+  { id: 'sec', name: 'Payカード×提携証券', rate: 1.5, on: true, cap: null, unverified: true,
+    fine: '提携証券の口座とPayカードを連携し、所定の条件（カード積立等）を満たすと、カードのご利用分に最大1.5%を上乗せ。条件の詳細は提携証券のページをご確認ください。',
+    plain: ['証券口座とカードを連携すると最大＋1.5%', '積立などの条件あり（詳しくは証券会社のページで確認）'] },
+  { id: 'poikatsu', name: 'ポイ活プラン', rate: 5, rate2: 10, on: true, cap: 2500, unverified: true,
+    fine: '対象の料金プランご契約で、アプリ払い・カード払いのご利用に対し最大5%（一部対象店舗・期間は10%）を期間・用途限定ポイントで進呈（進呈上限あり）。2026年12月ご利用分より、対象決済の進呈分を差し引いた金額が計算対象になります。',
+    plain: ['対象プランに入っていると最大5%（一部のお店や期間は10%）', 'もらえるのは期間・用途限定ポイント。上限あり', '2026年12月から計算方法が変わる予定'] },
+];
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const GENERAL = [
+  { id: 'rate', q: '還元率（倍率）は、どう見ればよいですか？', a: '「いま」は、適用中の特典の合計です。「最大」は、まだ適用していない特典と、ポイ活プランの最大（10%）を含めた値です。特典ごとに月の上限があるため、実際の還元率は、表示より低くなることがあります。' },
+  { id: 'cap', q: 'ポイントの上限とは、何ですか？', a: '特典ごとに、1か月にもらえるポイントの上限があります。上限に届くと、それ以上お使いになっても、その特典の分は増えません。上限がある特典：' + BENEFITS.filter((b) => b.cap).map((b) => `${b.name}（月${b.cap.toLocaleString()}pt）`).join('、') + '。' },
+  { id: 'timing', q: '特典は、いつ反映されますか？', a: '条件を満たした月の、ご利用分から反映されます。反映のタイミングは、特典によって異なります（デモの説明です）。' },
+];
+const items = [
+  ...GENERAL,
+  ...BENEFITS.map((b) => ({ id: b.id, q: `「${b.name}」とは？（${b.on ? '適用中' : '未適用'}・${b.rate}%${b.rate2 ? '／最大' + b.rate2 + '%' : ''}）`, a: b.fine + (b.cap ? `\n月の進呈上限：${b.cap.toLocaleString()}pt` : '') + (b.unverified ? '\n※ この特典の条件は、プロトタイプ用の目安です。' : '') })),
+];
+document.getElementById('list').innerHTML = items.map((it) => `<section class="qa" id="${it.id}"><h2>Q. ${esc(it.q)}</h2><p>${esc(it.a)}</p></section>`).join('');
+if (location.hash) { const t = document.getElementById(decodeURIComponent(location.hash.slice(1))); if (t) t.scrollIntoView(); }
+</script>
+</body>
+</html>

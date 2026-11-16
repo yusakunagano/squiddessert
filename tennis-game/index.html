@@ -30,7 +30,9 @@
   #vwPanel button.on{background:#f2d43d;outline:2px solid #fff}
   #vwPanel .vwNote{font-size:12px;opacity:.8}
   #vwPanel.folded .vwBody{display:none}
-  #edPanel{position:absolute;right:8px;top:8px;width:min(360px,calc(100% - 16px));background:rgba(10,30,20,.88);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;font-size:13px;max-height:calc(100% - 16px);overflow-y:auto}
+  #edPanel{position:absolute;right:0;top:0;bottom:0;width:380px;box-sizing:border-box;background:#10241a;border-left:1px solid #2c5a43;padding:10px;display:flex;flex-direction:column;gap:8px;font-size:13px;overflow-y:auto}
+  @media (orientation:portrait){ #edPanel{left:0;right:0;top:auto;bottom:0;width:auto;height:46%;border-left:none;border-top:1px solid #2c5a43} }
+  body.editor canvas{inset:auto;left:0;top:0}
   #edPanel .vwHead{display:flex;justify-content:space-between;align-items:center;gap:8px}
   #edPanel a{color:#f2d43d;font-weight:bold;text-decoration:none}
   #edPanel button{font-size:13px;padding:6px 10px;border-radius:8px;background:#cfd8d3}
@@ -1174,8 +1176,11 @@ function placeCamera(tx){
   camera.position.set(camX * m, camBase.y, camBase.z * m);
   camera.lookAt(camX * 0.35 * m, camBase.ly, camBase.lz * m);
 }
+// ポーズ編集では、調整パネルと3Dを重ねずに並べる（横長：右にパネル、縦長：下にパネル）
+const ED_PANEL_W = 380, ED_PANEL_H = 0.46;
 function resize(){
-  const w = innerWidth, h = innerHeight;
+  let w = innerWidth, h = innerHeight;
+  if (EDITOR) { if (w >= h) w = Math.max(200, w - ED_PANEL_W); else h = Math.round(h * (1 - ED_PANEL_H)); }
   renderer.setSize(w, h, false); cv.style.width = w + 'px'; cv.style.height = h + 'px';
   camera.aspect = w / h;
   camBase = w >= h ? { fov: 54, y: 3.9, z: HL + 6.3, ly: 1.0, lz: -6 } : { fov: 68, y: 5.4, z: HL + 7.6, ly: 0.6, lz: -3.5 };
@@ -1559,7 +1564,7 @@ function render3d(){
     updateRig(R);
     const p = R.p, el = labelFor(R);
     tmpV.set(p.x, 2.05, p.y).project(camera);
-    const sx = (tmpV.x + 1) / 2 * innerWidth, sy = (1 - tmpV.y) / 2 * innerHeight;
+    const sx = (tmpV.x + 1) / 2 * cv.clientWidth, sy = (1 - tmpV.y) / 2 * cv.clientHeight;
     let html = '';
     if (p.label > 0) {
       const col = p.tag === '詰まった！' ? '#ff6b6b' : p.tag === '正面…' ? '#c9c9c9' : p.tag ? '#ff9f1c' : (p.shot === 'jk' || p.shot === 'bjk') ? '#ff3b3b' : p.shot === 'sm' ? '#ff5fd2' : p.shot && p.shot[0] === 'b' ? '#5fd0ff' : '#ffd23f';
@@ -1810,9 +1815,10 @@ const ED_SLIDERS = [
   ['sl', -1, '左足の前後', -0.6, 0.6], ['sr', -1, '右足の前後', -0.6, 0.6], ['kl', -1, '左足を上げる', 0, 0.7], ['kr', -1, '右足を上げる', 0, 0.7], ['eu', -1, '右ひじを上げる', 0, 1],
 ];
 function editorSetup(){
+  document.body.classList.add('editor');
   const box = document.createElement('div'); box.id = 'edPanel';
   let opts = ''; for (const k in POSE_REG) opts += `<option value="${k}">${POSE_REG[k].name}</option>`;
-  box.innerHTML = `<div class="vwHead"><b>ポーズを直す</b><button id="edFold">▲ たたむ</button><a href="?viewer">← モーション確認へ</a></div>
+  box.innerHTML = `<div class="vwHead"><b>ポーズを直す</b><a href="?viewer">← モーション確認へ</a></div>
     <div class="edBody">
       <select id="edSel">${opts}</select>
       <div id="edSliders"></div>
@@ -1823,8 +1829,6 @@ function editorSetup(){
       <textarea id="edOut" readonly rows="4"></textarea>
     </div>`;
   document.getElementById('wrap').appendChild(box);
-  const fold = document.getElementById('edFold'), setFold = f => { box.classList.toggle('folded', f); fold.textContent = f ? '▼ 開く' : '▲ たたむ'; };
-  fold.onclick = () => setFold(!box.classList.contains('folded'));
   const sliders = document.getElementById('edSliders');
   sliders.innerHTML = ED_SLIDERS.map(([k, i, n, mn, mx], j) => `<label class="edRow" data-k="${k}"><span>${n}</span><input type="range" min="${mn}" max="${mx}" step="0.01" data-j="${j}"><b></b></label>`).join('');
   const grip = document.getElementById('edGrip');
@@ -1859,8 +1863,8 @@ function editorSetup(){
     try { await navigator.clipboard.writeText(txt); document.getElementById('edMsg').textContent = 'コピーしました'; }
     catch (e) { const t = document.getElementById('edOut'); t.select(); document.execCommand('copy'); document.getElementById('edMsg').textContent = 'コピーしました'; }
   };
-  setFold(false);
   select('READY');
+  resize();
   vw.dist = 4.2; vw.el = 0.2;
 }
 

@@ -22,6 +22,13 @@
   button.sub{background:#cfd8d3}
   .help{font-size:14px;opacity:.85;max-width:420px;text-align:center;line-height:1.6}
   .hidden{display:none!important}
+  #vwPanel{position:absolute;left:8px;top:8px;max-width:min(420px,calc(100% - 16px));background:rgba(10,30,20,.82);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;font-size:14px;max-height:calc(100% - 16px);overflow-y:auto}
+  #vwPanel .vwHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  #vwPanel a{color:#f2d43d;font-weight:bold;text-decoration:none}
+  #vwPanel .vwBtns{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  #vwPanel button{font-size:13px;padding:6px 10px;border-radius:8px;background:#cfd8d3}
+  #vwPanel button.on{background:#f2d43d;outline:2px solid #fff}
+  #vwPanel .vwNote{font-size:12px;opacity:.8}
   .online{margin-top:6px;padding:12px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:440px}
   .online h2{margin:0}
   a.lbtn{font-size:16px;padding:11px 18px;border-radius:10px;background:#f2d43d;color:#222;font-weight:bold;text-decoration:none}
@@ -108,6 +115,7 @@
       <div style="font-size:13px;opacity:.85;text-align:center">ダブルスの後衛・前衛の動き方を、OK・NGの30パターンで解説。<br>4人とボールを動かせる作戦ボードもあります。</div>
       <div class="row"><a class="lbtn" href="learn.html">OK・NG パターン</a><a class="lbtn sub" href="learn.html#board">作戦ボード</a></div>
     </div>
+    <a href="?viewer" style="color:#f2d43d;font-size:15px;text-decoration:underline">選手の動きを確認する（ボタンで再生・360度回して見る）</a>
     <div class="help">
       移動：矢印キー / WASD（スマホは画面をドラッグ）<br>
       ボールに近づくと自動で打ちます。打つ瞬間の ←→ でコースを狙えます。<br>
@@ -124,6 +132,7 @@
 <script>
 (() => {
 const cv = document.getElementById('c');
+const VIEWER = /[?&]viewer/.test(location.search); // モーション確認モード
 const hud = document.getElementById('hud'), msgEl = document.getElementById('msg');
 const menu = document.getElementById('menu');
 
@@ -760,7 +769,8 @@ function hit(p, reach = 1.5){
     dist = Math.hypot(tx - ball.x, ty - ball.y);
     p.lungeT = 0; p.lungeDir = Math.sign((ball.x - p.x) * s) || 1; // 体を傾ける向き（その人の右=+1）
   }
-  if (isAirK && !lob && !drop && !mishit) { spd *= 1.3; ty = -s * (HL - 1.2 - Math.random() * 2); }
+  const approachShot = isAirK && (p.fwdRun || 0) > 3;
+  if (isAirK && !lob && !drop && !mishit) { spd *= approachShot ? 1.5 : 1.3; ty = -s * (HL - 1.2 - Math.random() * 2); } // 長く走ってきたエアKはさらに強いアプローチショット
   t = dist / spd;
   if (lob) t = Math.max(t, close === 'float' ? 1.4 : lunge ? 1.3 : p.isHuman ? 1.7 : 1.9);
   if (lunge) t = Math.max(t, dist / (8 + Math.random() * 3));
@@ -770,8 +780,9 @@ function hit(p, reach = 1.5){
   if (netMiss) ball.vz *= 0.35;
   ball.smash = isSmash && !mishit; ball.curve = 0;
   if (slice && !isSmash && !lob && !mishit) ball.curve = (side === 'f' ? -1 : 1) * s * 1.4; // スライスは少し曲がる（フォアは打った人の左へ、バックは右へ）
+  p.fwdRun = 0;
   ball.volley = isVolley; ball.spin = slice && !isSmash ? 'slice' : null;
-  p.tag = lunge ? 'ギリギリ…' : slice && !isSmash ? 'スライス' : close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
+  p.tag = approachShot && !mishit ? 'アプローチ！' : lunge ? 'ギリギリ…' : slice && !isSmash ? 'スライス' : close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
   lastHitter = p; bounces = 0; isServe = false; rallyHits++;
   hitFrom = { x: ball.x, y: ball.y };
   p.prepType = p.prepType && p.prepType === p.shot ? p.prepType : p.shot;
@@ -934,7 +945,9 @@ function update(dt){
     if (d < 0.5) { p.walk = (p.walk || 0) + d * 3.8; p.mv = (p.mv || 0) * 0.9 + (d / dt > 0.5 ? 1 : 0) * 0.1; }
   }
   for (const p of players) {
-    p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; p.lungeT = (p.lungeT ?? 9) + dt; p.fallT = (p.fallT ?? 9) + dt; if (p.jumpT > 0.9) p.akPlanned = false;
+    p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; p.lungeT = (p.lungeT ?? 9) + dt; p.fallT = (p.fallT ?? 9) + dt;
+    { const fv = -(p.vys || 0) * sideSign(p.team); p.fwdRun = fv > 1.2 ? (p.fwdRun || 0) + fv * dt : Math.max(0, (p.fwdRun || 0) - dt * 4); } // 前に長く走った距離
+    if (p.jumpT > 0.9) p.akPlanned = false;
     // 打つ前の準備動作（テイクバック）
     let target = 0;
     if (state === 'serve' && p === servingPlayer()) { target = tossing ? 1 : 0; p.prepType = 'sm'; }
@@ -949,10 +962,11 @@ function update(dt){
         const lat = Math.abs(ball.x - p.x);
         // 跳んでから少し遅れて（頂点を過ぎたあたりで）打てるよう、ボールが届く約0.4秒前に跳ぶ
         const vc = -((ball.x - p.x) * ball.vx + (ball.y - p.y) * ball.vy) / Math.max(0.1, d), tti = (d - 1.2) / Math.max(0.5, vc);
-        const approach = Math.abs(p.y) < HL - 2.5 || -(p.vys || 0) * sideSign(p.team) > 1.0; // 前に出て打つ（アプローチ）
-        if (bounces === 1 && ball.z > (approach ? 0.8 : 1.0) && d < 4 && tti < 0.42 && lat > 0.3 && lat < 1.5 && (p.jumpT ?? 9) > 1.2 && p.akDecided !== rallyHits) {
+        const longRun = (p.fwdRun || 0) > 3; // 前へ長く走ってきた
+        const approach = longRun || Math.abs(p.y) < HL - 2.5 || -(p.vys || 0) * sideSign(p.team) > 1.0; // 前に出て打つ（アプローチ）
+        if (bounces === 1 && ball.z > (longRun ? 0.6 : approach ? 0.8 : 1.0) && d < 4 && tti < 0.42 && lat > 0.3 && lat < 1.5 && (p.jumpT ?? 9) > 1.2 && p.akDecided !== rallyHits) {
           p.akDecided = rallyHits;
-          const chance = p.isHuman ? (approach ? 0.95 : 0.8) : [0.2, 0.35, 0.5][level] * (approach ? 1.8 : 1);
+          const chance = longRun ? (p.isHuman ? 1 : 0.85) : p.isHuman ? (approach ? 0.95 : 0.8) : [0.2, 0.35, 0.5][level] * (approach ? 1.8 : 1);
           if (Math.random() < chance) { p.jumpT = 0; p.jumpAmp = 0.6; p.akPlanned = true; p.akSide = sd; }
         }
       }
@@ -1138,6 +1152,7 @@ const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 300);
 function viewSign(){ return human && human.team === 1 ? -1 : 1; }
 let camBase = { fov: 50, y: 6.2, z: HL + 8.5, ly: 0.6, lz: -5 }, camX = 0;
 function placeCamera(tx){
+  if (VIEWER) { if (window.__vwReady) viewerCamera(); return; }
   camX += (tx - camX) * 0.08;
   const m = viewSign(); // 奥側チームの人は反対側から見る
   camera.position.set(camX * m, camBase.y, camBase.z * m);
@@ -1531,7 +1546,7 @@ function render3d(){
     ballBlob.material.opacity = Math.max(0.08, 0.35 - ball.z * 0.05);
   }
   placeCamera(human ? human.x * 0.45 * viewSign() : 0);
-  { const inGame = state !== 'menu' && !!human; document.getElementById('joy').classList.toggle('hidden', !inGame); document.getElementById('pad').classList.toggle('hidden', !inGame); }
+  { const inGame = state !== 'menu' && !!human && !VIEWER; document.getElementById('joy').classList.toggle('hidden', !inGame); document.getElementById('pad').classList.toggle('hidden', !inGame); }
   { const sv = state === 'serve' && human && servingPlayer() === human;
     if (sv !== lastPadServe) { lastPadServe = sv;
       for (const id of ['bPower', 'bLob', 'bDrop', 'bCut']) document.getElementById(id).classList.toggle('hidden', sv);
@@ -1619,11 +1634,119 @@ function prepPose(p){
 }
 resize();
 
+// ---- モーション確認モード（index.html?viewer）：1人だけをコートに立たせ、ボタンで各動作を再生し、ドラッグで360度回して見る ----
+const vw = { az: 0.6, el: 0.25, dist: 5.5, act: 'ready', t: 0, speed: 1, loop: true, ph: 0, drag: null };
+const VW_ACTS = [
+  ['ready', '構え（後ろ）'], ['net', '構え（ネット前）'], ['runR', '右へ走る'], ['runL', '左へ走る'], ['runF', '前へ走る'],
+  ['side', 'サイドステップ'], ['fs', 'フォアストローク'], ['bs', 'バックストローク'], ['fv', 'フォアボレー'], ['bv', 'バックボレー'],
+  ['sm', 'スマッシュ'], ['jk', 'エアK'], ['bjk', 'ジャンプバック'], ['serve', 'サーブ（ボールつき→トス→打つ）'],
+  ['reach', 'ギリギリで返す'], ['whiff', '届かない（空振り）'], ['fall', '転ぶ'],
+];
+const VW_LEN = { ready: 2, net: 2, runR: 2, runL: 2, runF: 2, side: 2, fs: 1.8, bs: 1.8, fv: 1.6, bv: 1.6, sm: 1.8, jk: 1.9, bjk: 1.9, serve: 5.2, reach: 1.6, whiff: 1.6, fall: 2.2 };
+function viewerSetup(){
+  document.getElementById('menu').classList.add('hidden');
+  hud.classList.add('hidden');
+  const box = document.createElement('div'); box.id = 'vwPanel';
+  box.innerHTML = '<div class="vwHead"><b>モーション確認</b><a href="?">← ゲームに戻る</a></div>' +
+    '<div class="vwBtns">' + VW_ACTS.map(([k, n]) => `<button data-act="${k}">${n}</button>`).join('') + '</div>' +
+    '<div class="vwBtns"><span>速さ</span><button data-sp="1" class="on">等速</button><button data-sp="0.5">1/2</button><button data-sp="0.25">1/4</button><button id="vwLoop" class="on">くり返し</button></div>' +
+    '<div class="vwNote">画面をドラッグで回転、ホイール／2本指で拡大・縮小</div>';
+  document.getElementById('wrap').appendChild(box);
+  box.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { vwStart(b.dataset.act); box.querySelectorAll('[data-act]').forEach(x => x.classList.toggle('on', x === b)); });
+  box.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { vw.speed = +b.dataset.sp; box.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', x === b)); });
+  document.getElementById('vwLoop').onclick = e => { vw.loop = !vw.loop; e.target.classList.toggle('on', vw.loop); };
+  // 1人だけ（サーブの確認のため後衛・自分のサーブ）
+  mode = 'singles';
+  players = [mkPlayer(0, 'back', true, '#2f7cf6')]; human = players[0];
+  score = { pts: [0, 0], games: [0, 0] }; server = 0; serveSide = 1; faults = 0;
+  ball = { x: 99, y: 0, z: 0, vx: 0, vy: 0, vz: 0, live: false };
+  // カメラの回転（ドラッグ）と拡大（ホイール・ピンチ）
+  const pts = new Map();
+  cv.addEventListener('pointerdown', e => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => {
+    const q = pts.get(e.pointerId); if (!q) return;
+    if (pts.size === 1) { vw.az -= (e.clientX - q.x) * 0.008; vw.el = Math.max(-0.1, Math.min(1.35, vw.el + (e.clientY - q.y) * 0.006)); }
+    else if (pts.size === 2) { const o = [...pts.entries()].find(([k]) => k !== e.pointerId)[1]; const d0 = Math.hypot(q.x - o.x, q.y - o.y), d1 = Math.hypot(e.clientX - o.x, e.clientY - o.y); if (d0 > 0) vw.dist = Math.max(2, Math.min(14, vw.dist * d0 / d1)); }
+    q.x = e.clientX; q.y = e.clientY;
+  });
+  const up = e => pts.delete(e.pointerId);
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', e => { e.preventDefault(); vw.dist = Math.max(2, Math.min(14, vw.dist * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
+  vwStart('ready');
+  window.__vwReady = true;
+}
+function vwReset(p){
+  Object.assign(p, { x: 0, y: HL - 2, mv: 0, walk: 0, vxs: 0, vys: 0, st: 9, prep: 0, prepType: null, shot: null, jumpT: 9, lungeT: 9, fallT: 9, label: 0, tag: '', serveSwing: false, fromPose: null });
+  state = 'rally'; tossing = false; timer = 0; tossT = 0; ball.x = 99;
+}
+function vwStart(act){ vw.act = act; vw.t = 0; vw.fired = {}; vwReset(human); if (act === 'net' || act === 'side' || act === 'fv' || act === 'bv') human.y = 3.2; }
+function vwOnce(key){ if (vw.fired[key]) return false; vw.fired[key] = true; return true; }
+function viewerUpdate(dt){
+  const p = human, a = vw.act; dt *= vw.speed; vw.t += dt; const t = vw.t;
+  if (t > VW_LEN[a]) { if (vw.loop) vwStart(a); return; }
+  p.st += dt; p.jumpT += dt; p.lungeT += dt; p.fallT += dt; p.label -= dt;
+  const run = (vx, vy, spd) => { p.mv = Math.min(1, (p.mv || 0) + dt * 6); p.walk += dt * spd * 3.8; p.vxs = vx; p.vys = vy; };
+  const label = (txt) => { if (vwOnce('lb')) { p.label = 1.2; p.tag = ''; } };
+  // 打つまで準備（テイクバック）→ スイング
+  const stroke = (shot, prepType, hitAt) => {
+    p.prepType = prepType;
+    if (t < hitAt) p.prep = Math.min(1, t / (hitAt * 0.8));
+    else if (vwOnce('hit')) { p.shot = shot; p.fromPose = prepPose(p); p.prep = 0; p.st = 0; p.label = 1.1; p.tag = ''; }
+  };
+  switch (a) {
+    case 'runR': run(3.3, 0, 3.3); break;
+    case 'runL': run(-3.3, 0, 3.3); break;
+    case 'runF': run(0, -3.3, 3.3); break;
+    case 'side': run(Math.sin(t * 2.2) > 0 ? 1.6 : -1.6, 0, 1.6); break;
+    case 'fs': case 'bs': case 'fv': case 'bv': case 'sm': stroke(a, a, 0.8); break;
+    case 'jk': case 'bjk':
+      p.prepType = a === 'jk' ? 'fs' : 'bs';
+      if (t < 0.5) p.prep = Math.min(1, t / 0.4);
+      if (t >= 0.5 && vwOnce('jump')) { p.jumpT = 0; p.jumpAmp = 0.6; }
+      if (t >= 0.9 && vwOnce('hit')) { p.shot = a; p.fromPose = prepPose(p); p.prep = 0; p.st = 0; p.label = 1.1; p.tag = ''; }
+      break;
+    case 'reach': if (t >= 0.3 && vwOnce('hit')) { p.shot = 'fs'; p.fromPose = POSES.fs.back2; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.label = 1.1; p.tag = 'ギリギリ…'; } break;
+    case 'whiff': if (t >= 0.3 && vwOnce('hit')) { p.shot = 'fs'; p.fromPose = POSES.fs.back2; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.label = 1.1; p.tag = '届かない…'; } break;
+    case 'fall': if (t >= 0.2 && vwOnce('hit')) { p.shot = 'fs'; p.fromPose = POSES.fs.back2; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.fallT = 0; p.label = 1.1; p.tag = 'コケた！'; } break;
+    case 'serve': {
+      // ボールつき（3回）→ トス → 落ちてきたところで打つ
+      const sg = 1;
+      if (!tossing && p.st > 5) {
+        state = 'serve'; timer = t;
+        const q = dribbleQ(timer);
+        ball.x = p.x + 0.4 * sg; ball.y = p.y - sg * 0.38; ball.z = 0.06 + 0.5 * q;
+        if (t >= DRIB + 0.3 && vwOnce('toss')) {
+          tossing = true; tossT = 0; ball.vz = 8.8;
+          tossTc = 8.8 / G + Math.sqrt(2 * Math.max(0, ball.z + 8.8 * 8.8 / (2 * G) - SERVE_HIT_Z) / G);
+          ball.vx = (p.x + 0.25 * sg - ball.x) / tossTc; ball.vy = (p.y - sg * 0.3 - ball.y) / tossTc;
+        }
+      } else if (tossing) {
+        tossT += dt; ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.vz -= G * dt; ball.z += ball.vz * dt;
+        if (ball.vz < 0 && ball.z <= SERVE_HIT_Z) {
+          tossing = false; state = 'rally';
+          p.shot = 'sm'; p.prepType = 'sm'; p.fromPose = SERVE_DROP; p.st = 0; p.serveSwing = true; p.jumpT = 0; p.jumpAmp = 0.22; p.label = 1.1; p.tag = 'サーブ';
+          ball.vx = 0; ball.vy = -28; ball.vz = -3;
+        }
+      } else { ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.vz -= G * dt; ball.z = Math.max(0, ball.z + ball.vz * dt); }
+      break;
+    }
+  }
+  if (!a.startsWith('run') && a !== 'side') { p.mv = Math.max(0, (p.mv || 0) - dt * 6); p.vxs *= 0.9; p.vys *= 0.9; }
+}
+function viewerCamera(){
+  const p = human || { x: 0, y: HL - 2 }, cx = p.x, cz = p.y, cy = 1.0;
+  camera.position.set(cx + Math.sin(vw.az) * Math.cos(vw.el) * vw.dist, cy + Math.sin(vw.el) * vw.dist, cz + Math.cos(vw.az) * Math.cos(vw.el) * vw.dist);
+  camera.lookAt(cx, cy, cz);
+}
+
+if (VIEWER) viewerSetup();
+
 let last = performance.now();
 function loop(now){
   let dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
   const steps = 4;
-  if (net.role === 'guest' && online) guestFrame(dt, now);
+  if (VIEWER) viewerUpdate(dt);
+  else if (net.role === 'guest' && online) guestFrame(dt, now);
   else if (!window.__freeze) for (let i = 0; i < steps; i++) update(dt / steps);
   hostSendState(now);
   render3d();

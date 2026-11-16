@@ -108,8 +108,8 @@ function doAct(chat, { ask, yes = 'はい', run, done, fields, formTitle }) {
 }
 
 // 本人確認：ご登録の電話番号にSMSで認証コードを送り、入力してもらう（デモの認証コードは 123456）
-function verifyIdentity(chat, next) {
-  chat.ai('解約のお手続きの前に、ご本人確認をします。\nご登録の電話番号（090-****-1234）に、SMSで認証コードを送りました。\n（デモ：認証コードは 123456 です）');
+function verifyIdentity(chat, next, what = '解約') {
+  chat.ai(what + 'のお手続きの前に、ご本人確認をします。\nご登録の電話番号（090-****-1234）に、SMSで認証コードを送りました。\n（デモ：認証コードは 123456 です）');
   askForm(chat, {
     title: '本人確認：SMSの認証コード',
     submit: '認証する',
@@ -157,7 +157,7 @@ const CARD_FLOWS = {
   }),
 
   fraud: (chat) => hear(chat, '身に覚えのない請求がありますか？', ['ある', 'ない、念のため止めたい'], (a) => {
-    if (a === 'ある') return doAct(chat, {
+    if (a === 'ある') return verifyIdentity(chat, () => doAct(chat, {
       formTitle: '請求の調査と、カードの一時停止（入力）',
       fields: [
         { key: 'what', label: '身に覚えのない請求（日付・金額・お店）', type: 'text', placeholder: '例：11/5 12,800円 ○○ネットショップ' },
@@ -165,11 +165,11 @@ const CARD_FLOWS = {
       ],
       ask: '次の2つを行います。\n① カードを一時停止する\n② 請求の調査を依頼する\nよろしいですか？', yes: '一時停止して、調査を依頼する', run: () => setCardStopped(true),
       done: (v) => `カードを一時停止し、調査の依頼を受け付けました（デモ）。\n対象：${v.what}\n結果は、${v.tel} にSMSでお知らせします。ホームのカードは「一時停止中」の表示になっています。`,
-    });
+    }), '一時停止');
     CARD_FLOWS.stop(chat);
   }),
 
-  stop: (chat, reason) => doAct(chat, {
+  stop: (chat, reason) => verifyIdentity(chat, () => doAct(chat, {
     formTitle: 'カードの一時停止のお手続き（入力）',
     fields: [
       { key: 'reason', label: '停止の理由', type: 'select', options: ['紛失した', '盗まれた', '不正利用の疑いがある', 'しばらく使わない'], value: reason },
@@ -178,7 +178,7 @@ const CARD_FLOWS = {
     ],
     ask: 'カードを、今すぐ一時停止します。よろしいですか？（再開は、いつでもできます）', yes: '一時停止する', run: () => setCardStopped(true),
     done: (v) => `カードを一時停止しました（デモ）。理由：${v.reason}\nホームのカードは「一時停止中」の表示になっています。\n再開するときは、もう一度、カードのメニューから「カードを利用できない原因を確認したい」を選んでください。${/紛失|盗/.test(v.reason) ? '\n紛失・盗難の場合は、カードの再発行も手続きしてください。' : ''}`,
-  }),
+  }), '一時停止'),
 
   switch: (chat) => hear(chat, '上位のカードから、下位（一般）のカードへの切り替えですね。どちらの方法にしますか？', ['アプリで今すぐ切り替える', '郵送の書類で手続きする'], (a) => (a.startsWith('アプリ')
     ? doAct(chat, { ask: 'カードを、一般に切り替えます。特典や年会費が変わります。よろしいですか？', run: () => setCardRank('normal'), done: 'カードを一般に切り替えました（デモ）。ホームのカードの券面も、一般に戻っています。' })

@@ -13,7 +13,7 @@ const CARD_REASONS = [
   { id: 'address', q: '住所不備', a: 'ご登録の住所に不備があると、カードや書類が届かず、戻ってきてしまうことがあります。\n「カード」→「登録情報の変更」→「住所」から、都道府県・番地・建物名・部屋番号まで、正しく入力し直してください。\n変更後、戻ってきているカードや書類は、あらためて発送されます（発送の依頼が必要な場合があります）。' },
   { id: 'unlock', q: 'カードの暗証番号ロックを解除したい', a: '暗証番号を連続して間違えると、カードがロックされます。\n解除の方法：「カード」→「暗証番号のロックの解除」で、本人確認（認証）をしてください。解除後に、新しい暗証番号を設定できます。\nお急ぎのときや、アプリで解除できないときは、カード会社のサポートへお問い合わせください。' },
   { id: 'stop', q: '不正利用のおそれがあるカードを停止したい', a: '不正利用のおそれがあるときは、すぐにカードを止めてください。\n「カード」→「カードの一時停止」で、今すぐ止められます（24時間いつでも）。止めても、再開は、いつでもできます。\n紛失・盗難や、不正利用が確認できたときは、カードの再発行も手続きしてください。身に覚えのない請求がある場合は、調査も依頼してください。' },
-  { id: 'lost', q: 'カードをなくした', a: 'カードを紛失したときは、悪用を防ぐため、すぐにカードを一時停止してください。\n「カード」→「カードの一時停止」で、24時間いつでも止められます（見つかったときは、再開もできます）。\n見つからないときは、カードの再発行を手続きしてください。不正利用があった場合の補償もあるので、あわせてカスタマーセンターへご連絡ください。' },
+  { id: 'lost', q: '紛失した', a: 'カードを紛失したときは、悪用を防ぐため、すぐにカードを一時停止してください。\n「カード」→「カードの一時停止」で、24時間いつでも止められます（見つかったときは、再開もできます）。\n見つからないときは、カードの再発行を手続きしてください。不正利用があった場合の補償もあるので、あわせてカスタマーセンターへご連絡ください。' },
 ];
 
 // ---------- 会話の流れ ----------
@@ -31,12 +31,13 @@ function toQA(chat, id, lead) {
 
 // 入力フォーム：手続きに必要な項目を入力してもらう（必須・形式のチェックつき）
 let cardFormSeq = 0;
-function askForm(chat, { title, fields, submit = '入力内容の確認へ' }, onSubmit) {
+function askForm(chat, { title, fields, submit = '入力内容の確認へ', detail }, onSubmit) {
   chat.chips([]);
   chat.history.push({ role: 'assistant', text: title });
   const el = chat.card('<div class="qform"><b class="q"></b><div class="flds"></div><div class="ferr" role="alert"></div><button type="button" class="go"></button></div>');
   el.querySelector('.q').textContent = title;
   el.querySelector('.go').textContent = submit;
+  if (detail) { const d = document.createElement('details'); d.className = 'more'; const sm = document.createElement('summary'); sm.textContent = '詳しい説明を見る'; const bd = document.createElement('div'); bd.textContent = detail; d.append(sm, bd); el.firstChild.appendChild(d); }
   const box = el.querySelector('.flds'), ctl = [];
   fields.forEach((f) => {
     const w = document.createElement('div'); w.className = 'fld';
@@ -116,6 +117,7 @@ function verifyIdentity(chat, next, what = '解約') {
   askForm(chat, {
     title: '本人確認：SMSの認証コード',
     submit: '認証する',
+    detail: 'SMSの認証コードとは\nご本人だけが手続きできるようにするための、6桁の数字です。ご登録の電話番号に、SMSで届きます。\n\n・有効期限は、届いてから10分です。\n・届かないときは、電話番号や電波の状態を確認して、少し待ってから、やり直してください。\n・コードは、ほかの人に教えないでください。カード会社が、電話やメッセージで、コードを聞くことはありません。',
     fields: [{ key: 'code', cls: 'pin code', label: '認証コード（6桁）', type: 'tel', max: 6, pattern: /^\d{6}$/, msg: '数字6桁', hint: 'SMSに届いた6桁の数字です。届かないときは、少し待ってからやり直してください。', check: (v) => (v === '123456' ? '' : '認証コードが違います。もう一度、入力してください。（デモ：123456）') }],
   }, () => {
     const el = chat.card('<div class="authing ok">✓ 本人確認ができました</div>');

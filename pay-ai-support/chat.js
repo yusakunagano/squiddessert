@@ -294,7 +294,7 @@ function withConsent(chat, needed, onGranted, opts = {}) {
 // 生体認証（デモ）：お客さまの情報（残高・明細・請求・利用の傾向など）を取り出す前に、顔・指紋で本人確認する
 function biometric(chat, onOk, opts = {}) {
   chat.chips([]);
-  const el = chat.card(`<div class="bio"><div class="bio-ic">${ic('finger')}</div><b>生体認証</b><p>${opts.purpose || 'お客さまの情報を取り出す前に、ご本人確認をします。顔または指紋で認証してください。'}</p><button type="button" class="go">顔・指紋で認証する</button><button type="button" class="cancel">やめる</button></div>`);
+  const el = chat.card(`<div class="bio"><div class="bio-ic">${ic('finger')}</div><b>生体認証</b><p>${opts.purpose || 'お客さまの情報を取り出す前に、ご本人確認をします。顔または指紋で認証してください。'}</p><button type="button" class="go">顔・指紋で認証する</button><button type="button" class="cancel">やめる</button><details class="more"><summary>詳しい説明を見る</summary><div>生体認証とは\nスマートフォンの顔認証や指紋認証で、ご本人かどうかを確認する方法です。\n\n・顔や指紋のデータは、アプリや会社には送られません。お使いの端末の中だけで照合します。\n・認証できないときは、暗証番号などで、代わりに確認できます（デモでは省略しています）。</div></details></div>`);
   const go = el.querySelector('.go'), cancel = el.querySelector('.cancel');
   go.onclick = () => {
     go.disabled = cancel.disabled = true; go.textContent = '認証中…'; el.classList.add('scan');

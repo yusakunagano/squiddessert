@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>アプリホーム（プロトタイプ）</title>
-<link rel="stylesheet" href="app.css?v=20261140">
+<link rel="stylesheet" href="app.css?v=20261149">
 <style>
   .top { background: linear-gradient(135deg, #ff4d6d, var(--brand)); color: #fff; padding: 16px 16px 56px; }
   .top .brand { font-weight: 800; font-size: 20px; }
@@ -86,9 +86,9 @@
   <button class="revoke" id="revoke">AI連携を解除</button>
 </div>
 <script src="icons.js?v=20261146"></script>
-<script src="chat.js?v=20261142"></script>
+<script src="chat.js?v=20261149"></script>
 <script src="agent.js?v=20261136"></script>
-<script src="card.js?v=20261147"></script>
+<script src="card.js?v=20261149"></script>
 <script>
 // サンプルのバーコード：決まった並びで、太い線・細い線・すきまを並べる（読み取りはできません）
 (() => {
@@ -131,7 +131,7 @@ document.getElementById('pt').textContent = `ポイント ${USER.points.total.to
 })();
 document.getElementById('revoke').onclick = () => { Link.revoke(); alert('AIとのアカウント連携を解除しました'); };
 
-const BASE_CHIPS = ['お得な情報を知りたい', '送金したい', '履歴を見たい', 'ポイントの期限は？', 'カードをなくした', 'AIエージェントを使う'];
+const BASE_CHIPS = ['お得な情報を知りたい', '送金したい', '履歴を見たい', 'ポイントの期限は？', '紛失した', 'AIエージェントを使う'];
 // ステータス（カードの種類）：一般 ⇄ ゴールド。AIが利用状況を見て、ゴールドの券面にする（デモ）
 const GOLD_NEED = 50000; // 直近2か月のカード利用額の目安（デモ用）
 const cardRank = () => { try { return sessionStorage.getItem('payCardRank') === 'gold' ? 'gold' : 'normal'; } catch (e) { return 'normal'; } };
@@ -148,7 +148,7 @@ const CARD_MORE = '▼ ほかの項目を見る';
 // カードの券面にスワイプしたとき、銀行口座登録などのメニュー（アイコンと名前）を、カード向けに替える。押すと、AIがその項目を始める
 const CARD_MENU = [
   { icon: 'receipt', label: 'カードの<br>請求額', q: 'カードの請求額' },
-  { icon: 'lock', label: '一時停止・<br>なくした', q: 'カードをなくした' },
+  { icon: 'lock', label: '紛失した・<br>一時停止', q: '紛失した' },
   { icon: 'key', label: '暗証番号<br>ロック解除', q: 'カードの暗証番号ロックを解除したい' },
   { icon: 'spark', label: 'ゴールドに<br>する', q: 'カードをゴールドにしたい' },
 ];
@@ -163,11 +163,11 @@ function swapMenu(card) {
     }
   });
 }
-// 全部の項目：上から「カードの請求額」「カードをなくした」「カードをゴールドにしたい」、そのあとに、ほかの項目、いちばん下に「解約」
+// 全部の項目：上から「カードの請求額」「紛失した」「カードをゴールドにしたい」、そのあとに、ほかの項目、いちばん下に「解約」
 // （menu: false の項目は、一覧には出さない。会話の途中や、QAには、そのまま使う）
 const cardAll = () => {
   const rest = CARD_REASONS.filter(r => r.menu !== false && r.id !== 'lost' && r.id !== 'cancel').map(r => r.q);
-  return ['カードの請求額', 'カードをなくした', 'カードをゴールドにしたい', ...rest, CARD_REASONS.find(r => r.id === 'cancel').q];
+  return ['カードの請求額', '紛失した', 'カードをゴールドにしたい', ...rest, CARD_REASONS.find(r => r.id === 'cancel').q];
 };
 const DEFAULT_CHIPS = [...BASE_CHIPS];
 // カードの券面を表示している間は、AIのメニューをカードの問い合わせにする（配列の中身を入れ替える）

@@ -462,12 +462,39 @@ S.confirm = { p: 4, title: '登録内容の確認', render(v) {
   }; });
 } };
 
+// 登録完了：「設定する」で、登録した口座を、チャージ元・カードの引き落とし口座に設定できる
 S.done = { p: 4, title: '登録完了', render(v) {
-  const yucho = state.bank === 'ゆうちょ銀行';
+  const last4 = esc(state.number.slice(-4));
+  const acct = `${esc(state.bank)}（***${last4}）`;
+  const home = '<a class="ghost" href="index.html" style="text-decoration:none;text-align:center">ホームに戻る</a>';
+  if (state.bankSet) { // 設定が終わったあと
+    const s = state.bankSet;
+    v.innerHTML = `<div class="center"><div class="big" style="font-size:56px;color:var(--ok)">✓</div><h2>口座を設定しました</h2><p class="lead">${acct}</p></div>
+      <div class="sum"><div><span>チャージ元の口座</span><b>${s.charge ? '設定しました' : '設定しない'}</b></div><div><span>カードの引き落とし口座</span><b>${s.debit ? '設定しました' : '設定しない'}</b></div></div>
+      <div class="okline">✓ 設定が完了しました</div>
+      <a class="primary" href="index.html" style="text-decoration:none;text-align:center">ホームに戻る</a>`;
+    return;
+  }
+  if (state.setupOpen) { // 設定する：どれに使うかを選ぶ
+    v.innerHTML = `<h2>登録した口座を設定する</h2><p class="lead">${acct}</p>
+      <label class="setrow"><input type="checkbox" id="setCharge" checked><span><b>チャージ元の口座にする</b><small>チャージのときに、この口座から入金します</small></span></label>
+      <label class="setrow"><input type="checkbox" id="setDebit" checked><span><b>カードの引き落とし口座にする</b><small>カードのご利用代金を、この口座から引き落とします</small></span></label>
+      <button class="primary" id="doSet">この内容で設定する</button>
+      <button class="ghost" id="setBack">あとで設定する</button>`;
+    $('doSet').onclick = () => {
+      state.bankSet = { charge: $('setCharge').checked, debit: $('setDebit').checked };
+      try { sessionStorage.setItem('payBank', JSON.stringify({ bank: state.bank, last4: state.number.slice(-4), ...state.bankSet })); } catch (e) {}
+      render(); window.scrollTo(0, 0);
+    };
+    $('setBack').onclick = () => { state.setupOpen = false; render(); };
+    return;
+  }
   v.innerHTML = `<div class="center"><div class="big" style="font-size:56px;color:var(--ok)">✓</div><h2>口座の登録が完了しました</h2>
-    <p class="lead">${esc(state.bank)}（***${esc(state.number.slice(-4))}）からチャージできます。<br>登録のお知らせを、SMSで送りました。</p></div>
+    <p class="lead">${acct}からチャージできます。<br>登録のお知らせを、SMSで送りました。</p></div>
     <div class="sum"><div><span>チャージ上限</span><b>${yen(state.limit)}／回</b></div><div><span>オートチャージ</span><b>${state.auto.on ? 'あり' : 'なし'}</b></div></div>
-    <a class="primary" href="index.html" style="text-decoration:none;text-align:center">ホームに戻る</a>`;
+    <button class="primary" id="openSet">設定する</button>
+    ${home}`;
+  $('openSet').onclick = () => { state.setupOpen = true; render(); window.scrollTo(0, 0); };
 } };
 
 // 失敗が続いたら、AIサポートを案内する

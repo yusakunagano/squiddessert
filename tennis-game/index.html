@@ -1610,7 +1610,7 @@ const READY = { h: [0.05, 0.38, 0.95], r: [-0.49, 0.53, 0.32], l: 'grip', tw: -0
 const POSES = {
   // フォアハンド：ラケットを高く引く → 後ろで下に落とす（ループ）→ 前で打つ → 左肩の上に巻きつけて終わる
   fs: { back1: { tw: 1.29, h: [0.76, -0.11, 1.23], r: [0.04, 0.04, 0.86], l: [0.32, 0.79, 1.45], bend: 0.27, cr: 0.12, sl: 0.45, sr: -0.04, kl: 0.13, kr: 0, eu: 0.86 }, // 教えてもらったテイクバック
-        back2: { tw: 0.69, h: [0.7, -0.78, 0.9], r: [0.46, -0.25, 0.52], l: [-0.32, 0.48, 1.2], cr: 0.14, sl: 0.3 }, // 教えてもらったテイクバック（落とす）
+        back2: { tw: 0.63, h: [0.7, -0.78, 0.9], r: [0.46, -0.25, 0.52], l: [0.26, 0.48, 1.2], cr: 0.14, sl: 0.3 }, // 教えてもらったテイクバック（落とす）
         hit:   { tw: 0.1, h: [0.5, 0.4, 0.95], r: [0.65, 0.15, 0.1], l: [-0.35, 0.25, 1.1], cr: 0.08, sl: 0.3 },
         mid:   { tw: -0.55, h: [0.05, 0.5, 1.4], r: [-0.4, 0.2, 0.45], l: [-0.35, 0.1, 1.15], cr: 0.04, sl: 0.3, sr: 0.2 },
         fol:   { tw: -1, h: [-0.95, -0.25, 1.85], r: [-0.32, -0.45, -0.12], l: [-0.1, -0.19, 1.33], cr: 0.02, sl: -0.05, sr: 0.38, kl: 0, kr: 0 } }, // 教えてもらったフィニッシュ
@@ -1804,6 +1804,12 @@ function applyPoseData(target, data){ for (const key of POSE_KEYS_ALL) { if (key
 let poseEdits = {};
 try { poseEdits = JSON.parse(localStorage.getItem('tennisPoseEdits') || '{}') || {}; } catch (e) { poseEdits = {}; }
 for (const k in poseEdits) if (POSE_REG[k]) applyPoseData(POSE_REG[k].pose, poseEdits[k]);
+// コピー用の文章：ポーズ名をつけて、直したポーズごとに並べる
+function poseEditsText(){
+  const keys = Object.keys(poseEdits);
+  if (!keys.length) return '（まだ直したポーズはありません）';
+  return 'テニスゲームのポーズの手直し：\n' + keys.map(k => `■ ${POSE_REG[k] ? POSE_REG[k].name : k}（${k}）\n` + JSON.stringify(poseEdits[k])).join('\n');
+}
 function savePoseEdits(){ try { localStorage.setItem('tennisPoseEdits', JSON.stringify(poseEdits)); } catch (e) {} }
 
 let edPose = null, edKey = 'READY';
@@ -1841,7 +1847,7 @@ function editorSetup(){
       inp.disabled = k === 'l' && edPose.l === 'grip';
     });
     grip.checked = edPose.l === 'grip';
-    document.getElementById('edOut').value = JSON.stringify(poseEdits, null, 1);
+    document.getElementById('edOut').value = poseEditsText();
   };
   const markEdited = () => {
     const d = {}; for (const key of POSE_KEYS_ALL) if (key in edPose) d[key] = Array.isArray(edPose[key]) ? edPose[key].map(v => +(+v).toFixed(2)) : (typeof edPose[key] === 'number' ? +edPose[key].toFixed(2) : edPose[key]);
@@ -1859,7 +1865,7 @@ function editorSetup(){
   document.getElementById('edReset').onclick = () => { applyPoseData(edPose, POSE_DEFAULT[edKey]); delete poseEdits[edKey]; savePoseEdits(); refresh(); };
   document.getElementById('edResetAll').onclick = () => { if (!confirm('直したポーズを全部元に戻しますか？')) return; for (const k in poseEdits) if (POSE_REG[k]) applyPoseData(POSE_REG[k].pose, POSE_DEFAULT[k]); poseEdits = {}; savePoseEdits(); refresh(); };
   document.getElementById('edCopy').onclick = async () => {
-    const txt = 'テニスゲームのポーズの手直し：\n' + JSON.stringify(poseEdits, null, 1);
+    const txt = poseEditsText();
     try { await navigator.clipboard.writeText(txt); document.getElementById('edMsg').textContent = 'コピーしました'; }
     catch (e) { const t = document.getElementById('edOut'); t.select(); document.execCommand('copy'); document.getElementById('edMsg').textContent = 'コピーしました'; }
   };

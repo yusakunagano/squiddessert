@@ -1438,15 +1438,15 @@ function updateRig(R){
   const tgt = cp.pose, inSwing = (p.st ?? 9) < 0.5;
   const kk = 1 - Math.exp(-frameDt * (inSwing ? 30 : 16));
   const tl = tgt.l === 'grip' ? null : tgt.l;
-  if (!R.sm) R.sm = { h: tgt.h.slice(), r: tgt.r.slice(), l: (tl || [tgt.h[0] - 0.02, tgt.h[1] - 0.04, tgt.h[2] - 0.1]).slice(), tw: 0, cr: 0, sl: 0, sr: 0, kr: 0, kl: 0, bend: 0, eu: 0, yaw: cp.yaw };
+  if (!R.sm) R.sm = { h: tgt.h.slice(), r: tgt.r.slice(), l: (tl || [tgt.h[0] - 0.02, tgt.h[1] - 0.04, tgt.h[2] - 0.1]).slice(), tw: 0, cr: 0, sl: 0, sr: 0, kr: 0, kl: 0, bend: 0, eu: 0, yw: 0, yaw: cp.yaw };
   const sm = R.sm, ap = (a, b) => { for (let i = 0; i < 3; i++) a[i] += (b[i] - a[i]) * kk; };
   ap(sm.h, tgt.h); ap(sm.r, tgt.r);
   ap(sm.l, tl || [sm.h[0] - 0.02, sm.h[1] - 0.04, sm.h[2] - 0.1]);
-  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'kl', 'bend', 'eu']) sm[k] += ((tgt[k] || 0) - sm[k]) * kk;
+  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'kl', 'bend', 'eu', 'yw']) sm[k] += ((tgt[k] || 0) - sm[k]) * kk;
   sm.yaw += (cp.yaw - sm.yaw) * (1 - Math.exp(-frameDt * 12));
-  const pose = { h: sm.h, r: sm.r, l: tl ? sm.l : 'grip', tw: sm.tw, cr: sm.cr, sl: sm.sl, sr: sm.sr, kr: sm.kr, kl: sm.kl, bend: sm.bend, eu: sm.eu };
+  const pose = { h: sm.h, r: sm.r, l: tl ? sm.l : 'grip', tw: sm.tw, cr: sm.cr, sl: sm.sl, sr: sm.sr, kr: sm.kr, kl: sm.kl, bend: sm.bend, eu: sm.eu, yw: sm.yw };
   if (!tl) sm.l = [sm.h[0] - 0.02, sm.h[1] - 0.04, sm.h[2] - 0.1];
-  const yaw = sm.yaw;
+  const yaw = sm.yaw + (pose.yw || 0); // 体全体（足ごと）の向き：フォアは右向き、バックは左向き
   const st0 = p.st ?? 9;
   const receiving = state === 'serve' && p.team !== server;
   const wideOK = (state === 'serve' && p !== servingPlayer()) || Math.abs(p.y) < HL / 2;
@@ -1658,7 +1658,7 @@ function lerpPose(A, B, t){
   const gl = (P0) => P0.l === 'grip' ? [P0.h[0] - 0.02, P0.h[1] - 0.04, P0.h[2] - 0.1] : P0.l;
   const l = (A.l === 'grip' && B.l === 'grip') ? 'grip' : lerp3(gl(A), gl(B), t);
   const o = { h: lerp3(A.h, B.h, t), r: lerp3(A.r, B.r, t), l };
-  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'kl', 'bend', 'eu']) o[k] = (A[k] || 0) + ((B[k] || 0) - (A[k] || 0)) * t;
+  for (const k of ['tw', 'cr', 'sl', 'sr', 'kr', 'kl', 'bend', 'eu', 'yw']) o[k] = (A[k] || 0) + ((B[k] || 0) - (A[k] || 0)) * t;
   return o;
 }
 // 準備動作：構え → 高く引く(back1) → ラケットを落とす(back2)
@@ -1797,7 +1797,11 @@ POSE_REG['SERVE_DOWN'] = { name: 'サーブ：腕を下ろす', pose: SERVE_DOWN
 POSE_REG['SERVE_TROPHY'] = { name: 'サーブ：トロフィーポーズ', pose: SERVE_TROPHY };
 POSE_REG['SERVE_DROP'] = { name: 'サーブ：ラケットを背中に落とす', pose: SERVE_DROP };
 for (const k of Object.keys(POSE_GROUP)) for (const ph of POSE_PHASES) if (POSES[k] && POSES[k][ph]) POSE_REG[k + '.' + ph] = { name: POSE_GROUP[k] + ' ' + PHASE_NAME[ph], pose: POSES[k][ph] };
-const POSE_KEYS_ALL = ['h', 'r', 'l', 'tw', 'bend', 'cr', 'sl', 'sr', 'kl', 'kr', 'eu'];
+// 体全体の向き（yw）の初期値：フォアは少し右向き、バックは少し左向き（打ち終わりに近いほど正面へ戻る）
+{ const YW = { back1: 0.3, back2: 0.35, hit: 0.2, mid: 0.1, fol: 0.05 };
+  for (const [k, sg] of [['fs', 1], ['fv', 1], ['jk', 1], ['bs', -1], ['bv', -1], ['bjk', -1]])
+    for (const ph of POSE_PHASES) if (POSES[k] && POSES[k][ph] && POSES[k][ph].yw === undefined) POSES[k][ph].yw = sg * YW[ph]; }
+const POSE_KEYS_ALL = ['h', 'r', 'l', 'yw', 'tw', 'bend', 'cr', 'sl', 'sr', 'kl', 'kr', 'eu'];
 const clonePose = (o) => JSON.parse(JSON.stringify(o));
 const POSE_DEFAULT = {}; for (const k in POSE_REG) POSE_DEFAULT[k] = clonePose(POSE_REG[k].pose);
 function applyPoseData(target, data){ for (const key of POSE_KEYS_ALL) { if (key in data) target[key] = Array.isArray(data[key]) ? data[key].slice() : data[key]; else if (!['h', 'r', 'l'].includes(key)) delete target[key]; } }
@@ -1817,7 +1821,7 @@ const ED_SLIDERS = [
   ['h', 0, '右手：左右（＋が右）', -1, 1], ['h', 1, '右手：前後（＋が前）', -1, 1], ['h', 2, '右手：高さ', 0.2, 2.5],
   ['r', 0, 'ラケットの向き：左右', -1, 1], ['r', 1, 'ラケットの向き：前後', -1, 1], ['r', 2, 'ラケットの向き：上下', -1, 1],
   ['l', 0, '左手：左右', -1, 1], ['l', 1, '左手：前後', -1, 1], ['l', 2, '左手：高さ', 0.2, 2.5],
-  ['tw', -1, '体のひねり（＋で右を向く）', -2, 2], ['bend', -1, '前かがみ（＋）／反り（−）', -1.2, 1.2], ['cr', -1, 'ひざの曲げ（腰を落とす）', -0.1, 0.4],
+  ['yw', -1, '体全体の向き（足ごと、＋で右向き）', -1.6, 1.6], ['tw', -1, '上半身のひねり（＋で右を向く）', -2, 2], ['bend', -1, '前かがみ（＋）／反り（−）', -1.2, 1.2], ['cr', -1, 'ひざの曲げ（腰を落とす）', -0.1, 0.4],
   ['sl', -1, '左足の前後', -0.6, 0.6], ['sr', -1, '右足の前後', -0.6, 0.6], ['kl', -1, '左足を上げる', 0, 0.7], ['kr', -1, '右足を上げる', 0, 0.7], ['eu', -1, '右ひじを上げる', 0, 1],
 ];
 function editorSetup(){

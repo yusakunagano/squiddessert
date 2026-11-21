@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>コンビニレジ研修</title>
+<meta name="description" content="コンビニのレジ打ちを本格的に体験できるトレーニングアプリ。スキャン、年齢確認、レジ袋、軽減税率、現金・クレジット・電子マネー・QR決済・ポイントまで。">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='18' width='52' height='38' rx='6' fill='%232563eb'/%3E%3Crect x='14' y='6' width='36' height='16' rx='3' fill='%2393c5fd'/%3E%3Crect x='14' y='28' width='36' height='8' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#e9edf2;--panel:#fff;--ink:#1b2430;--sub:#5b6676;--line:#d3dae3;
+  --pos:#0f2a4a;--lcd:#0b1c10;--lcdink:#8dff9a;--accent:#2563eb;--warn:#d97706;--bad:#dc2626;--ok:#16a34a;
+  --key:#f4f6f9;--keyink:#1b2430;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:14px}
+button{font-family:inherit;cursor:pointer}
+.hidden{display:none!important}
+#app{max-width:1280px;margin:0 auto;padding:10px 16px 40px}
+header.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+header.top h1{font-size:17px;margin:0}
+.train{background:#facc15;color:#000;font-weight:800;padding:2px 10px;border-radius:4px;letter-spacing:.1em;font-size:12px}
+.stat{margin-left:auto;display:flex;gap:12px;color:var(--sub);font-size:13px;flex-wrap:wrap}
+.stat b{color:var(--ink)}
+.grid{display:grid;gap:10px;grid-template-columns:1fr}
+@media(min-width:980px){.grid{grid-template-columns:1.25fr 1fr}.custArea{grid-column:1/3}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+.card h2{font-size:12px;color:var(--sub);margin:0 0 6px;font-weight:600;letter-spacing:.05em}
+/* customer area */
+.custArea{display:grid;gap:10px;grid-template-columns:1fr}
+@media(min-width:760px){.custArea{grid-template-columns:260px 1fr 250px}}
+.who{display:flex;gap:10px;align-items:center}
+.avatar{font-size:46px;line-height:1}
+.look{font-size:12px;color:var(--sub)}
+.talk{margin-top:8px;height:150px;overflow-y:auto;font-size:13px;display:flex;flex-direction:column;gap:4px;background:#f7f9fb;border-radius:8px;padding:6px}
+.talk .c{align-self:flex-start;background:#fff;border:1px solid var(--line);padding:4px 8px;border-radius:10px 10px 10px 2px;max-width:92%}
+.talk .s{align-self:flex-end;background:#dbeafe;padding:4px 8px;border-radius:10px 10px 2px 10px;max-width:92%}
+.talk .sys{align-self:center;color:var(--sub);font-size:11px}
+.counter{display:flex;gap:10px;min-height:200px}
+.zone{flex:1;background:repeating-linear-gradient(45deg,#f3efe6,#f3efe6 10px,#efe9dd 10px,#efe9dd 20px);border-radius:8px;padding:6px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;position:relative;min-height:190px}
+.zone.done{background:#eef2f6}
+.zone .lbl{position:absolute;bottom:4px;right:8px;font-size:11px;color:#9aa3ae}
+.item{width:118px;background:#fff;border:1px solid #cfd6df;border-radius:6px;padding:4px;text-align:center;cursor:pointer;user-select:none;transition:transform .08s}
+.item:hover{transform:translateY(-2px);box-shadow:0 3px 8px rgba(0,0,0,.12)}
+.item .em{font-size:26px;line-height:1.1}
+.item .nm{font-size:11px;height:28px;overflow:hidden;line-height:1.25}
+.item svg{width:100%;height:40px;display:block}
+.item .bc{position:relative}
+.item.damaged .bc::after{content:"";position:absolute;inset:0 0 10px 0;background:radial-gradient(circle at 30% 50%,rgba(120,90,40,.85) 0 12px,transparent 13px),radial-gradient(circle at 65% 40%,rgba(120,90,40,.75) 0 10px,transparent 11px),linear-gradient(100deg,transparent 40%,rgba(255,255,255,.9) 45% 55%,transparent 60%)}
+.item.scanned{opacity:.55;cursor:default;transform:none!important;box-shadow:none!important}
+.item.special{border:2px dashed var(--accent)}
+.item.phone{background:#111;color:#fff}
+.term{background:#1f2937;color:#fff;border-radius:10px;padding:8px}
+.term .scr{background:#cfe8ff;color:#0b2540;border-radius:6px;min-height:84px;padding:8px;font-size:13px;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.term .scr b{font-size:20px}
+.term .scr button{margin:4px auto 0;padding:8px 14px;border:none;border-radius:6px;background:#2563eb;color:#fff;font-weight:700}
+.tray{margin-top:8px;background:#8b6f47;border-radius:8px;padding:6px;min-height:56px;display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start}
+.tray .ttl{width:100%;font-size:11px;color:#f5e9d6}
+.money{display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;border-radius:4px;padding:0 4px;height:24px;min-width:40px}
+.money.bill{background:#d9f0d0;color:#14532d;border:1px solid #6b9f5b;min-width:54px}
+.money.b10000{background:#efe2c4;color:#5b3a12;border-color:#a3814a}
+.money.b5000{background:#e3d8ee;color:#3b2363;border-color:#8b6fb0}
+.money.coin{border-radius:50%;width:30px;height:30px;min-width:30px;font-size:10px;padding:0;background:#d4d4d8;color:#222;border:1px solid #888}
+.money.c500,.money.c50{background:#e8dca0;border-color:#a28f39}
+.money.c10,.money.c5{background:#c98b4f;color:#fff;border-color:#8a5a2c}
+.money.c5{background:#d6b24a;color:#222}
+.money.c1{background:#f1f1f1}
+/* POS */
+.pos{background:var(--pos);color:#fff;border-radius:12px;padding:10px}
+.lcd{background:var(--lcd);color:var(--lcdink);font-family:"SFMono-Regular",Consolas,"Noto Sans Mono",monospace;border-radius:6px;padding:8px;font-size:13px}
+.journal{height:210px;overflow-y:auto;border-bottom:1px dashed #2d5a35;margin-bottom:6px}
+.jl{display:flex;gap:6px;padding:2px 4px;cursor:pointer;border-radius:3px}
+.jl.sel{background:#1f4d2a}
+.jl .q{width:30px;text-align:right}
+.jl .n{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.jl .p{width:72px;text-align:right}
+.tot{display:flex;justify-content:space-between;font-size:13px}
+.tot.big{font-size:22px;font-weight:800;color:#fff36b}
+.posmsg{min-height:20px;color:#ffd166;font-size:12px;margin-top:4px}
+.entry{text-align:right;font-size:20px;background:#04110a;border-radius:4px;padding:2px 8px;margin-top:4px;min-height:30px}
+.keys{display:grid;grid-template-columns:repeat(3,1fr) 1.15fr 1.15fr;gap:5px;margin-top:8px}
+.keys button{border:none;border-radius:6px;padding:11px 2px;font-size:15px;font-weight:700;background:var(--key);color:var(--keyink);box-shadow:0 2px 0 #9aa3ae}
+.keys button:active{transform:translateY(2px);box-shadow:none}
+.keys .f{background:#c7d2fe;font-size:12px}
+.keys .y{background:#fde68a;font-size:12px}
+.keys .r{background:#fecaca;font-size:12px}
+.keys .g{background:#bbf7d0;font-size:13px}
+.keys .pay{background:#93c5fd;font-size:13px}
+.keys .big{grid-row:span 2}
+.side{display:flex;flex-direction:column;gap:10px}
+.phr{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.phr button{border:1px solid #bcd0ee;background:#f0f6ff;border-radius:16px;padding:8px 6px;font-size:12.5px;color:#163a6e;text-align:center}
+.phr button:hover{background:#dbeafe}
+.phr button.used{background:#e5e7eb;color:#6b7280;border-color:#e5e7eb}
+.hint{background:#fff7d6;border:1px solid #f2d36b;border-radius:8px;padding:8px;font-size:13px}
+.hint b{color:#92400e}
+.drawer{background:#374151;border-radius:10px;padding:8px;color:#fff}
+.drawer .row{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0}
+.drawer .money{cursor:pointer;height:34px;min-width:58px;font-size:12px}
+.drawer .money.coin{width:38px;height:38px;min-width:38px}
+.drawer .ct{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px;flex-wrap:wrap}
+.btn{border:none;border-radius:8px;padding:10px 16px;font-weight:700;font-size:14px;background:var(--accent);color:#fff}
+.btn.sub{background:#e5e7eb;color:#111}
+.btn.ok{background:var(--ok)}
+.btn.bad{background:var(--bad)}
+/* overlays */
+.ov{position:fixed;inset:0;background:rgba(10,20,30,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal{background:#fff;border-radius:12px;padding:16px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto}
+.modal h3{margin:0 0 10px}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.shelf button{border:1px solid #ccc;border-radius:6px;background:#fafafa;padding:6px 4px;font-size:11px}
+.shelf button .no{display:block;font-size:18px;font-weight:800;color:#1d4ed8}
+.idcard{border:2px solid #1e3a8a;border-radius:10px;padding:12px;background:linear-gradient(135deg,#eef4ff,#fff);font-size:14px;line-height:1.8;margin-bottom:12px}
+.receipt{font-family:"SFMono-Regular",Consolas,"Noto Sans Mono",monospace;font-size:12px;background:#fffef8;border:1px solid #ddd;padding:12px;white-space:pre;overflow-x:auto;position:relative;line-height:1.45}
+.receipt .wm{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-20deg);font-size:34px;color:rgba(220,38,38,.18);font-weight:900;pointer-events:none;white-space:nowrap}
+.res{width:100%;border-collapse:collapse;font-size:13px}
+.res td,.res th{border-bottom:1px solid #eee;padding:5px;text-align:left}
+.ded{color:var(--bad)}
+.start{max-width:720px;margin:20px auto}
+.start h1{font-size:26px;margin:0 0 4px}
+.opt{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+.opt label{border:1px solid var(--line);background:#fff;border-radius:8px;padding:10px 12px;cursor:pointer}
+.opt input{margin-right:6px}
+.toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 16px;border-radius:8px;z-index:60;font-size:13px;transition:opacity .3s}
+.flash{animation:fl .35s}
+@keyframes fl{0%{background:#fde047}100%{}}
+.score{font-size:42px;font-weight:900}
+ul.tight{margin:4px 0;padding-left:20px}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- start -->
+  <section id="startView" class="start card">
+    <h1>🏪 コンビニレジ研修</h1>
+    <p style="color:var(--sub);margin-top:0">本物のPOSレジと同じ流れで練習するトレーニングモードです。お客様が来たら挨拶し、商品をスキャンし、確認すべきことを聞いて、正しくお会計してください。</p>
+    <h2 style="font-size:14px;margin-bottom:0">研修モード</h2>
+    <div class="opt">
+      <label><input type="radio" name="mode" value="guide" checked>ガイドあり（次にやることを表示）</label>
+      <label><input type="radio" name="mode" value="exam">ガイドなし（本番想定）</label>
+    </div>
+    <h2 style="font-size:14px;margin-bottom:0">お客様の人数</h2>
+    <div class="opt">
+      <label><input type="radio" name="cnt" value="5" checked>5人</label>
+      <label><input type="radio" name="cnt" value="10">10人</label>
+      <label><input type="radio" name="cnt" value="20">20人</label>
+    </div>
+    <details style="margin-bottom:14px">
+      <summary style="cursor:pointer;font-weight:700">レジの基本の流れ（はじめての方へ）</summary>
+      <ol style="line-height:1.8">
+        <li>「いらっしゃいませ」と挨拶する。タバコやホットスナックの注文があれば聞き取る</li>
+        <li>「ポイントカードはお持ちですか？」→ あればカードをスキャン</li>
+        <li>カウンターの商品をクリックしてスキャン。読めないバーコードは下の13桁をテンキーで打って <b>JAN</b> キー</li>
+        <li>お酒・タバコは<b>年齢確認</b>。若く見える方には身分証を確認し、20歳未満なら販売をお断り</li>
+        <li>レジ袋・温め（弁当など）・店内飲食（イートインは税率10%）を確認してキーを押す</li>
+        <li><b>小計</b>キーで合計を伝え、お支払い方法を確認</li>
+        <li>現金：お預かり金額をテンキー → <b>現計</b> → ドロアからお釣りを数えて渡す<br>キャッシュレス：該当キーを押して端末・QRで決済</li>
+        <li>レシートを渡し「ありがとうございました」</li>
+      </ol>
+      <p style="font-size:12px;color:var(--sub)">価格は税抜本体価格から計算。飲食料品は軽減税率8%（店内飲食は10%）、酒・タバコ・日用品・レジ袋は10%です。</p>
+    </details>
+    <button class="btn" id="startBtn" style="width:100%;padding:14px;font-size:16px">研修をはじめる</button>
+    <p id="best" style="color:var(--sub);font-size:12px;text-align:center"></p>
+  </section>
+
+  <!-- main -->
+  <section id="mainView" class="hidden">
+    <header class="top">
+      <h1>🏪 トレーニングマート</h1><span class="train">トレーニング中</span>
+      <div class="stat"><span>お客様 <b id="stIdx">1</b>/<b id="stTot">5</b></span><span>経過 <b id="stTime">0</b>秒</span><span>累計 <b id="stScore">-</b>点</span></div>
+    </header>
+    <div class="grid">
+      <div class="custArea">
+        <div class="card">
+          <h2>お客様</h2>
+          <div class="who"><div class="avatar" id="cAv">🙂</div><div><div id="cName" style="font-weight:700">お客様</div><div class="look" id="cLook"></div></div></div>
+          <div class="talk" id="talk"></div>
+        </div>
+        <div class="card">
+          <h2>カウンター（商品をクリックでスキャン）</h2>
+          <div class="counter">
+            <div class="zone" id="zoneIn"><span class="lbl">未スキャン</span></div>
+            <div class="zone done" id="zoneOut"><span class="lbl">スキャン済み</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>お客様側</h2>
+          <div class="term"><div style="font-size:11px;opacity:.7;margin-bottom:4px">決済端末 / 客面ディスプレイ</div><div class="scr" id="termScr">いらっしゃいませ</div></div>
+          <div class="tray" id="custTray"><div class="ttl">カルトン（お客様のお金）</div></div>
+        </div>
+      </div>
+
+      <div class="pos">
+        <div class="lcd">
+          <div class="journal" id="journal"></div>
+          <div class="tot"><span id="taxInfo">8%対象 ¥0 / 10%対象 ¥0</span><span id="memberInfo"></span></div>
+          <div class="tot" id="ptRow"></div>
+          <div class="tot big"><span id="totLbl">合計</span><span id="totVal">¥0</span></div>
+          <div class="entry" id="entry"></div>
+          <div class="posmsg" id="posMsg"></div>
+        </div>
+        <div class="keys" id="keys">
+          <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button class="r" data-k="void">取消</button><button class="y" data-k="tobacco">タバコ棚</button>
+          <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button class="f" data-k="jan">JAN入力</button><button class="y" data-k="snack">ホット<br>スナック</button>
+          <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button class="f" data-k="eatin">イートイン</button><button class="y" data-k="heat">温め<br>(レンジ)</button>
+          <button data-k="0">0</button><button data-k="00">00</button><button class="r" data-k="clr">C</button><button class="f" data-k="bagS">袋S 3円</button><button class="f" data-k="bagM">袋M 5円</button>
+          <button class="f" data-k="bagL">袋L 5円</button><button class="f" data-k="point">ポイント<br>利用</button><button class="g" data-k="sub">小計</button><button class="pay" data-k="credit">クレジット</button><button class="pay" data-k="emoney">電子マネー</button>
+          <button class="pay" data-k="qr">QR決済</button><button class="g" data-k="cash" style="grid-column:span 4;background:#4ade80;font-size:16px">現計（現金）</button>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="hint" id="hint"></div>
+        <div class="card">
+          <h2>接客用語（タップで話しかける）</h2>
+          <div class="phr" id="phr">
+            <button data-p="greet">いらっしゃいませ</button>
+            <button data-p="point">ポイントカードはお持ちですか？</button>
+            <button data-p="bag">袋はご利用ですか？</button>
+            <button data-p="heat">温めますか？</button>
+            <button data-p="eat">店内でお召し上がりですか？</button>
+            <button data-p="pay">お支払い方法は？</button>
+            <button data-p="age">年齢確認のタッチをお願いします</button>
+            <button data-p="id">身分証を拝見できますか？</button>
+            <button data-p="thanks" style="grid-column:span 2">レシートのお返しです。ありがとうございました</button>
+          </div>
+        </div>
+        <div class="drawer hidden" id="drawer">
+          <div style="font-weight:700">💴 ドロア（クリックでお釣りトレイへ）</div>
+          <div class="row" id="drBills"></div>
+          <div class="row" id="drCoins"></div>
+          <div style="font-size:12px;margin-top:6px">お釣りトレイ（クリックで戻す）</div>
+          <div class="tray" id="chgTray" style="background:#4b5563;margin-top:2px"></div>
+          <div class="ct"><span>トレイ合計 <b id="chgSum">¥0</b></span><button class="btn ok" id="giveChange">お釣りを渡す</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="ovRoot"></div>
+
+<script>
+'use strict';
+/* ========== 基本データ ========== */
+const STORE='トレーニングマート 研修センター店';
+function jan(seed){ // 49 + 10桁 + チェックデジット
+  let s='49'+String(seed).padStart(10,'0');
+  let sum=0;for(let i=0;i<12;i++)sum+=(+s[i])*(i%2?3:1);
+  return s+((10-sum%10)%10);
+}
+let SEQ=1000;
+function P(name,em,base,rate,o={}){return Object.assign({name,em,base,rate,code:jan(1203450000+(SEQ+=37))},o)}
+const PRODUCTS=[
+  P('おにぎり 紅しゃけ','🍙',148,8,{food:1}),P('おにぎり ツナマヨ','🍙',138,8,{food:1}),P('おにぎり 紀州梅','🍙',128,8,{food:1}),
+  P('ミックスサンド','🥪',298,8,{food:1}),P('たまごサンド','🥪',268,8,{food:1}),
+  P('からあげ弁当','🍱',498,8,{food:1,hot:1}),P('のり弁当','🍱',450,8,{food:1,hot:1}),P('ミートソースパスタ','🍝',480,8,{food:1,hot:1}),P('焼きそば','🍝',398,8,{food:1,hot:1}),
+  P('カップ麺 しょうゆ','🍜',198,8,{food:1}),P('メロンパン','🥐',138,8,{food:1}),P('ポテトチップス うすしお','🍟',158,8,{food:1}),
+  P('ミルクチョコレート','🍫',128,8,{food:1}),P('フルーツグミ','🍬',118,8,{food:1}),P('なめらかプリン','🍮',178,8,{food:1}),P('グリーンサラダ','🥗',298,8,{food:1}),
+  P('緑茶 525ml','🍵',138,8,{food:1}),P('天然水 550ml','💧',100,8,{food:1}),P('コーラ 500ml','🥤',160,8,{food:1}),P('缶コーヒー ブラック','☕',120,8,{food:1}),
+  P('カフェラテ 240ml','🥛',168,8,{food:1}),P('スポーツドリンク','🥤',150,8,{food:1}),P('牛乳 1000ml','🥛',238,8,{food:1}),
+  P('缶ビール 350ml','🍺',218,10,{age:1}),P('缶ビール 500ml','🍺',288,10,{age:1}),P('レモンサワー 350ml','🍋',158,10,{age:1}),P('ハイボール 350ml','🥃',198,10,{age:1}),
+  P('ボールペン 黒','🖊️',120,10),P('アルカリ乾電池 単3×4','🔋',398,10),P('ポケットティッシュ','🧻',98,10),P('不織布マスク 7枚','😷',398,10),P('歯ブラシ','🪥',198,10),P('週刊誌','📰',450,10),
+];
+const SNACKS=[
+  {name:'からあげ 5個',em:'🍗',base:238,rate:8},{name:'フライドチキン',em:'🍗',base:220,rate:8},{name:'アメリカンドッグ',em:'🌭',base:130,rate:8},
+  {name:'肉まん',em:'🥟',base:150,rate:8},{name:'あんまん',em:'🥟',base:140,rate:8},{name:'コロッケ',em:'🥔',base:100,rate:8},{name:'ホットコーヒー S',em:'☕',base:110,rate:8},
+].map(s=>Object.assign(s,{food:1,snack:1}));
+const TB_NAMES=['ブルースター','ミントライト','シルバーアーク','ノーザン','オーシャン','スカイライン','ゴールドリーフ','ミッドナイト','クールウィンド','ハーバー','レッドライン','フォレスト'];
+const TOBACCO=[];
+for(let i=0;i<24;i++){const nm=TB_NAMES[i%12]+(i<12?' 6mg':' 1mg ボックス');const incl=[520,550,580,600,620,650][i%6];
+  TOBACCO.push({no:i+1,name:nm,em:'🚬',base:Math.ceil(incl*100/110),rate:10,age:1,tobacco:1,code:jan(1500000000+i*13)});}
+const BAGS={bagS:{name:'レジ袋 S',em:'🛍️',base:3,rate:10,bag:'S'},bagM:{name:'レジ袋 M',em:'🛍️',base:5,rate:10,bag:'M'},bagL:{name:'レジ袋 L',em:'🛍️',base:5,rate:10,bag:'L'}};
+const ALLCODES={};PRODUCTS.concat(TOBACCO).forEach(p=>ALLCODES[p.code]=p);
+const DENOMS=[10000,5000,1000,500,100,50,10,5,1];
+const PEOPLE=[
+  {em:'👨‍💼',look:'スーツ姿の会社員（40代くらい）'},{em:'👩‍💼',look:'オフィスカジュアルの女性（30代くらい）'},{em:'👴',look:'年配の男性（70代くらい）'},
+  {em:'👵',look:'年配の女性（70代くらい）'},{em:'👷',look:'作業着の男性（50代くらい）'},{em:'🧔',look:'私服の男性（30代くらい）'},{em:'👩',look:'私服の女性（40代くらい）'},
+  {em:'👨‍🔧',look:'整備士風の男性（40代くらい）'},{em:'👩‍🍳',look:'エプロン姿の女性（50代くらい）'}];
+const YOUNG=[{em:'🧑',look:'パーカー姿の若者（10代後半〜20代前半？）'},{em:'👦',look:'童顔の若者（高校生くらいにも見える）'},{em:'👧',look:'若い女性（10代後半〜20代前半？）'},{em:'🧑‍🎓',look:'リュックを背負った学生風'}];
+const NAMES=['山田 太郎','佐藤 花子','鈴木 一郎','高橋 美咲','田中 健太','伊藤 さくら','渡辺 翔','中村 葵','小林 大輝','加藤 優奈'];
+
+/* ========== ユーティリティ ========== */
+const $=id=>document.getElementById(id);
+const rnd=n=>Math.floor(Math.random()*n);
+const pick=a=>a[rnd(a.length)];
+const chance=p=>Math.random()<p;
+const yen=n=>'¥'+n.toLocaleString('ja-JP');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
+function breakdown(n){const r=[];for(const d of DENOMS){while(n>=d){r.push(d);n-=d}}return r}
+
+/* ========== 音 ========== */
+let AC=null;
+function tone(f,d,t=0,type='square',v=.08){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(AC.destination);const st=AC.currentTime+t;o.start(st);g.gain.setValueAtTime(v,st);g.gain.exponentialRampToValueAtTime(.0001,st+d);o.stop(st+d+.02)}catch(e){}}
+const SND={
+  scan:()=>tone(2900,.09),
+  err:()=>{tone(400,.15);tone(400,.15,.2)},
+  key:()=>tone(1800,.03,0,'square',.03),
+  ok:()=>{tone(1320,.12,0,'sine',.12);tone(1760,.25,.12,'sine',.12)},
+  ic:()=>{tone(2600,.08,0,'sine',.1);tone(3200,.25,.09,'sine',.1)},
+  drawer:()=>{tone(120,.12,0,'sawtooth',.12);tone(90,.15,.08,'sawtooth',.1)},
+  print:()=>{for(let i=0;i<6;i++)tone(700+rnd(200),.04,i*.06,'sawtooth',.03)},
+};
+
+/* ========== EAN-13 バーコード ========== */
+const EL=['0001101','0011001','0010011','0111101','0100011','0110001','0101111','0111011','0110111','0001011'];
+const EG=['0100111','0110011','0011011','0100001','0011101','0111001','0000101','0010001','0001001','0010111'];
+const ER=EL.map(s=>s.replace(/./g,c=>c==='0'?'1':'0'));
+const PAR=['LLLLLL','LLGLGG','LLGGLG','LLGGGL','LGLLGG','LGGLLG','LGGGLL','LGLGLG','LGLGGL','LGGLGL'];
+function barcode(code){
+  const d=code.split('').map(Number),par=PAR[d[0]];let bits='101';
+  for(let i=1;i<=6;i++)bits+=(par[i-1]==='L'?EL:EG)[d[i]];
+  bits+='01010';for(let i=7;i<=12;i++)bits+=ER[d[i]];bits+='101';
+  let r='';for(let i=0;i<bits.length;i++)if(bits[i]==='1'){const g=(i<3||(i>=45&&i<50)||i>=92);r+=`<rect x="${i+6}" y="0" width="1" height="${g?34:30}"/>`;}
+  return `<svg viewBox="0 0 107 42" preserveAspectRatio="none"><rect width="107" height="42" fill="#fff"/><g fill="#000">${r}</g><text x="53.5" y="41" font-size="8" text-anchor="middle" font-family="monospace" fill="#000">${code}</text></svg>`;
+}
+
+/* ========== 状態 ========== */
+const G={mode:'guide',total:5,idx:0,results:[]};
+let C=null,T=null,timer=null,uidSeq=1;
+
+function makeCustomer(){
+  const c={uid:0};
+  const nItems=1+rnd(5);
+  const pool=shuffle(PRODUCTS.filter(p=>!p.age));
+  c.items=[];
+  for(let i=0;i<nItems;i++){const p=chance(.15)&&c.items.length?c.items[c.items.length-1].prod:pool[i];c.items.push({uid:uidSeq++,prod:p,scanned:false,damaged:false})}
+  const wantAlcohol=chance(.25), wantTobacco=chance(.2);
+  if(wantAlcohol){const a=pick(PRODUCTS.filter(p=>p.age));const n=1+rnd(2);for(let i=0;i<n;i++)c.items.push({uid:uidSeq++,prod:a,scanned:false,damaged:false})}
+  c.tobacco=wantTobacco?pick(TOBACCO):null;
+  c.snacks=chance(.3)?[pick(SNACKS)]:[];if(c.snacks.length&&chance(.25))c.snacks.push(pick(SNACKS));
+  if(chance(.25)){const it=pick(c.items);it.damaged=true}
+  shuffle(c.items);
+  const hasAge=wantAlcohol||wantTobacco;
+  c.young=hasAge&&chance(.35);
+  c.age=c.young?(chance(.4)?17+rnd(3):20+rnd(4)):28+rnd(45);
+  const pp=c.young?pick(YOUNG):pick(PEOPLE);c.em=pp.em;c.look=pp.look;
+  const t=new Date();c.birth=new Date(t.getFullYear()-c.age,t.getMonth(),t.getDate()-1-rnd(300));
+  // 誕生日直前の微妙なケースも作る
+  if(c.young&&chance(.3)){c.birth=new Date(t.getFullYear()-20,t.getMonth(),t.getDate()+1+rnd(20));}
+  c.age=calcAge(c.birth);
+  c.idName=pick(NAMES);
+  c.hasHot=c.items.some(i=>i.prod.hot);
+  c.hasFood=c.items.some(i=>i.prod.food)||c.snacks.length>0;
+  c.wantsHeat=c.hasHot&&chance(.7);
+  c.eatIn=c.hasFood&&chance(.15);
+  const bagRoll=Math.random();c.wantsBag=bagRoll<.45?null:(c.items.length>=4?(chance(.5)?'L':'M'):(chance(.6)?'S':'M'));
+  c.hasCard=chance(.5);c.points=c.hasCard?50+rnd(900):0;c.usePoints=c.hasCard&&chance(.3);
+  c.cardCode=jan(9900000000+rnd(99999));
+  const r=Math.random();c.pay=r<.38?'cash':r<.55?'credit':r<.78?'emoney':'qr';
+  if(c.usePoints&&chance(.7))c.pay='cash';
+  c.emBrand=c.pay==='emoney'?pick(['交通系IC','交通系IC','iD','QUICPay']):null;
+  c.icShort=c.emBrand==='交通系IC'&&chance(.25);
+  c.credInsert=chance(.4);
+  c.stated=chance(.35);
+  return c;
+}
+function calcAge(b){const t=new Date();let a=t.getFullYear()-b.getFullYear();if(t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate()))a--;return a}
+const PAYNAME={cash:'現金',credit:'クレジットカード',emoney:'電子マネー',qr:'QRコード決済'};
+function payPhrase(c){
+  if(c.pay==='cash')return c.usePoints?'ポイント全部使って、残りは現金でお願いします。':pick(['現金で。','現金でお願いします。']);
+  if(c.pay==='credit')return pick(['カードで。','クレジットでお願いします。']);
+  if(c.pay==='emoney')return c.emBrand==='交通系IC'?pick(['交通系で。','交通系ICでお願いします。']):c.emBrand+'でお願いします。';
+  return pick(['QRコードで払います。','QR決済でお願いします。']);
+}
+
+function newTx(){
+  T={lines:[],sel:null,entry:'',said:{},heatDone:false,eatIn:false,member:false,pointsUsed:0,
+     ageNeeded:false,ageConfirmed:false,idChecked:false,refused:false,decided:false,
+     subtotal:false,payStage:null,methodKnown:false,cashGiven:null,deposit:0,chg:[],
+     ded:[],start:Date.now(),paid:null,receipt:null,wrongTobacco:0,remindedPoints:false,cardOnCounter:false,phoneOnCounter:false,termMsg:''};
+}
+
+/* ========== 金額計算 ========== */
+function rateOf(p){return(p.rate===8&&T.eatIn)?10:p.rate}
+function inclOf(p){return Math.floor(p.base*(100+rateOf(p))/100)}
+function totals(){
+  let t8=0,t10=0;
+  for(const l of T.lines){const v=inclOf(l.prod)*l.qty;if(rateOf(l.prod)===8)t8+=v;else t10+=v}
+  return{t8,t10,total:t8+t10,tax8:Math.floor(t8*8/108),tax10:Math.floor(t10*10/110)}
+}
+function due(){return Math.max(0,totals().total-T.pointsUsed)}
+
+/* ========== 会話 ========== */
+function say(who,text){const d=document.createElement('div');d.className=who;d.textContent=text;$('talk').appendChild(d);$('talk').scrollTop=1e6}
+function cust(text,delay=350){setTimeout(()=>{say('c',text);render()},delay)}
+function posMsg(m,err){$('posMsg').textContent=m||'';if(err)SND.err()}
+function ded(pts,reason){T.ded.push({pts,reason})}
+function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>{d.style.opacity=0;setTimeout(()=>d.remove(),400)},1800)}
+
+/* ========== 進行 ========== */
+function startShift(){
+  G.mode=document.querySelector('input[name=mode]:checked').value;
+  G.total=+document.querySelector('input[name=cnt]:checked').value;
+  G.idx=0;G.results=[];
+  $('startView').classList.add('hidden');$('mainView').classList.remove('hidden');
+  nextCustomer();
+}
+function nextCustomer(){
+  closeOv();
+  C=makeCustomer();newTx();
+  $('talk').innerHTML='';
+  say('sys',`— ${G.idx+1}人目のお客様が来店しました —`);
+  $('cAv').textContent=C.em;$('cName').textContent=`お客様 ${G.idx+1}`;$('cLook').textContent=C.look;
+  $('termScr').innerHTML='いらっしゃいませ';
+  posMsg('');
+  clearInterval(timer);timer=setInterval(()=>{$('stTime').textContent=Math.floor((Date.now()-T.start)/1000)},500);
+  render();
+}
+
+/* ---- 接客用語 ---- */
+function phrase(p){
+  const txt={greet:'いらっしゃいませ！',point:'ポイントカードはお持ちですか？',bag:'袋はご利用ですか？',heat:'こちら温めますか？',eat:'店内でお召し上がりですか？',pay:'お支払い方法はいかがなさいますか？',age:'恐れ入ります、画面の年齢確認ボタンのタッチをお願いします。',id:'恐れ入ります、年齢の確認できる身分証を拝見できますか？',thanks:'レシートのお返しです。ありがとうございました！'}[p];
+  if(T.payStage==='left')return;
+  say('s',txt);
+  const first=!T.said[p];T.said[p]=(T.said[p]||0)+1;
+  switch(p){
+    case'greet':
+      if(!first){cust('（会釈）');break}
+      {let req=[];
+       if(C.tobacco)req.push(`タバコの${C.tobacco.no}番を1つください。`);
+       if(C.snacks.length)req.push(`あと、${C.snacks.map(s=>s.name).join('と')}もお願いします。`);
+       if(C.stated){req.push(payPhrase(C));T.methodKnown=true}
+       cust(req.length?req.join(' '):pick(['（会釈して商品を置く）','お願いします。','（商品をカウンターに置く）']))}
+      break;
+    case'point':
+      if(C.hasCard){if(!T.cardOnCounter&&!T.member){T.cardOnCounter=true;cust('はい、これでお願いします。（カードを置く）')}else cust('さっき出しました。')}
+      else cust(pick(['持ってないです。','ないです。','大丈夫です。']));
+      break;
+    case'bag':
+      if(C.wantsBag)cust(`${C.wantsBag}サイズでお願いします。`);
+      else cust(pick(['いらないです。','大丈夫です、袋持ってるので。','そのままで大丈夫です。']));
+      break;
+    case'heat':
+      if(!C.hasHot){cust('え？温めるものはないですけど…');if(first)ded(2,'温める商品がないのに温めを聞いた');}
+      else cust(C.wantsHeat?'お願いします。':'そのままで大丈夫です。');
+      break;
+    case'eat':
+      if(!C.hasFood)cust('？持ち帰りです。');
+      else cust(C.eatIn?'店内で食べていきます。':'持ち帰りです。');
+      break;
+    case'pay':
+      T.methodKnown=true;cust(payPhrase(C));
+      setTimeout(customerReact,700);
+      break;
+    case'age':
+      if(!T.ageNeeded||T.ageConfirmed){cust('え？');break}
+      T.ageConfirmed=true;
+      $('termScr').innerHTML='<div>あなたは20歳以上ですか？</div><b>はい ✔</b>';
+      cust('（画面の「はい」をタッチ）');SND.key();
+      posMsg('年齢確認 完了（客面タッチ）');
+      break;
+    case'id':
+      if(!T.ageNeeded&&!T.lines.some(l=>l.prod.age)){cust('え、何でですか…？');if(first)ded(3,'不要な身分証確認');break}
+      if(T.decided){cust('さっき見せましたよ。');break}
+      cust('（身分証を差し出す）');setTimeout(showID,500);
+      break;
+    case'thanks':
+      if(T.payStage!=='done'){cust(T.payStage?'まだ終わってないですよね…？':'え、まだお会計してないですけど…');break}
+      finishTx();
+      break;
+  }
+  render();
+}
+
+/* ---- お客様の自動反応（支払い準備）---- */
+function customerReact(){
+  if(!T.subtotal||T.payStage==='done'||T.payStage==='left')return;
+  if(C.hasCard&&!T.member&&!T.cardOnCounter){T.cardOnCounter=true;cust('あ、ポイントカードあります。（カードを置く）');return}
+  if(C.usePoints&&T.pointsUsed===0){if(!T.remindedPoints){T.remindedPoints=true;cust('ポイント使いたいんですけど。')}return}
+  if(!T.methodKnown)return;
+  if(C.pay==='cash'&&!T.cashGiven&&!T.payStage){
+    const d=due();if(d===0)return;
+    T.cashGiven=breakdown(chooseCash(d));
+    cust(`（${yen(T.cashGiven.reduce((a,b)=>a+b,0))}をカルトンに置く）`);
+  }
+}
+function chooseCash(d){
+  const opts=[d];
+  const up1000=Math.ceil(d/1000)*1000;opts.push(up1000,up1000);
+  if(d%1000&&d%100)opts.push(up1000+d%100);          // 1000+端数でお釣りをきれいに
+  if(d%500&&d%10)opts.push(Math.ceil(d/1000)*1000+(d%10)); // 1円玉合わせ
+  if(d<5000)opts.push(5000);
+  if(d<10000&&chance(.4))opts.push(10000);
+  return pick(opts.filter(v=>v>=d));
+}
+
+/* ---- スキャン ---- */
+function scanItem(uid){
+  if(T.payStage)return posMsg('支払い処理中はスキャンできません',true);
+  const it=C.items.find(i=>i.uid===uid);if(!it||it.scanned)return;
+  if(it.damaged){posMsg('読み取りエラー：バーコードを読めません。JANコードを手入力してください',true);return}
+  registerItem(it);
+}
+function registerItem(it,manual){
+  it.scanned=true;addLine(it.prod,'scan',it.uid);SND.scan();
+  posMsg(manual?'手入力で登録しました':'');
+  afterRegister(it.prod);
+}
+function addLine(prod,kind,uid){
+  if(T.subtotal){T.subtotal=false;if(T.cashGiven){T.cashGiven=null;cust('（お金を手元に戻す）')}}
+  let l=T.lines.find(x=>x.prod===prod&&x.kind===kind);
+  if(!l){l={prod,kind,qty:0,uids:[]};T.lines.push(l)}
+  l.qty++;l.uids.push(uid??null);T.sel=T.lines.indexOf(l);
+  render();setTimeout(()=>{const j=$('journal');j.scrollTop=1e6},0);
+}
+function afterRegister(p){
+  if(p.age&&!T.ageConfirmed&&!T.refused){T.ageNeeded=true;
+    $('termScr').innerHTML='<div>年齢確認が必要な商品です</div><div style="font-size:12px">お客様は画面をタッチしてください</div><b>20歳以上ですか？</b>';
+    posMsg('【年齢確認】客面ディスプレイのタッチをお客様にお願いしてください');
+  }
+}
+function janEntry(){
+  const code=T.entry;T.entry='';
+  if(code.length!==13){posMsg('JANコードは13桁で入力してください',true);return render()}
+  let s=0;for(let i=0;i<12;i++)s+=(+code[i])*(i%2?3:1);
+  if((10-s%10)%10!==+code[12]){posMsg('チェックデジットエラー：入力を確認してください',true);return render()}
+  const it=C.items.find(i=>!i.scanned&&i.prod.code===code);
+  if(it)return registerItem(it,true);
+  if(code===C.cardCode&&T.cardOnCounter)return scanCard();
+  const p=ALLCODES[code];
+  if(p){addLine(p,'scan',null);SND.scan();afterRegister(p);posMsg('登録しました（※カウンターにない商品です）');return}
+  posMsg('該当商品がありません',true);render();
+}
+function scanCard(){
+  if(T.member)return;
+  T.member=true;T.cardOnCounter=false;SND.scan();
+  posMsg(`会員カード読取：ポイント残高 ${C.points}P`);
+  cust('（カードを受け取る）',200);
+  setTimeout(customerReact,800);render();
+}
+function voidLine(){
+  if(T.payStage)return posMsg('支払い処理中は取消できません',true);
+  const l=T.lines[T.sel];if(!l)return posMsg('取消する行をジャーナルで選んでください',true);
+  const uid=l.uids.pop();l.qty--;
+  if(uid){const it=C.items.find(i=>i.uid===uid);if(it)it.scanned=false}
+  if(l.qty<=0){T.lines.splice(T.sel,1);T.sel=null}
+  T.subtotal=false;if(T.cashGiven){T.cashGiven=null}
+  posMsg('取消しました');SND.key();
+  if(!T.lines.some(x=>x.prod.age)){T.ageNeeded=false}
+  render();
+}
+
+/* ---- キー ---- */
+function key(k){
+  SND.key();
+  if(/^\d+$/.test(k)){if(T.entry.length<13)T.entry+=k;if(T.entry.length>13)T.entry=T.entry.slice(0,13);return render()}
+  switch(k){
+    case'clr':T.entry='';posMsg('');break;
+    case'jan':return janEntry();
+    case'void':return voidLine();
+    case'tobacco':return showTobacco();
+    case'snack':return showSnacks();
+    case'eatin':
+      if(T.payStage)return posMsg('支払い処理中は変更できません',true);
+      T.eatIn=!T.eatIn;T.subtotal=false;T.cashGiven=null;posMsg(T.eatIn?'イートイン（店内飲食）：飲食料品は税率10%':'テイクアウトに戻しました');break;
+    case'heat':
+      if(!T.lines.some(l=>l.prod.hot))return posMsg('温める商品が登録されていません',true);
+      if(T.heatDone)return posMsg('すでに温め済みです');
+      T.heatDone=true;posMsg('レンジで温めました（チン！）');tone(2200,.4,0,'sine',.1);break;
+    case'bagS':case'bagM':case'bagL':
+      if(T.payStage)return posMsg('支払い処理中は登録できません',true);
+      addLine(BAGS[k],'bag');SND.scan();return;
+    case'point':return usePoints();
+    case'sub':return subtotal();
+    case'cash':return payCash();
+    case'credit':case'emoney':case'qr':return payCashless(k);
+  }
+  render();
+}
+function usePoints(){
+  if(!T.member){T.entry='';return posMsg('会員カードが読み取られていません',true)}
+  if(!T.subtotal){return posMsg('小計を押してからポイント利用してください',true)}
+  if(T.payStage)return posMsg('支払い処理中です',true);
+  const n=T.entry===''?Math.min(C.points,totals().total):+T.entry;T.entry='';
+  if(n<=0)return posMsg('利用ポイントを入力してください',true);
+  if(n>C.points)return posMsg(`ポイントが不足しています（残高 ${C.points}P）`,true);
+  if(n>totals().total)return posMsg('合計金額を超えるポイントは使えません',true);
+  T.pointsUsed=n;posMsg(`${n}P 利用しました。お支払い残額 ${yen(due())}`);SND.scan();
+  say('s',`${n}ポイントご利用で、残り${yen(due())}になります。`);
+  setTimeout(customerReact,600);render();
+}
+function subtotal(){
+  if(T.payStage)return posMsg('支払い処理中です',true);
+  if(!T.lines.length)return posMsg('商品が登録されていません',true);
+  if(T.ageNeeded&&!T.ageConfirmed&&!T.refused)return posMsg('年齢確認が完了していません。客面タッチをお願いしてください',true);
+  T.subtotal=true;T.entry='';
+  const t=totals();
+  posMsg('小計');
+  $('termScr').innerHTML=`<div>お会計</div><b>${yen(due())}</b>`;
+  say('s',`お会計${yen(due())}になります。`);
+  setTimeout(customerReact,700);
+  render();
+}
+function checkMethod(m){
+  if(!T.subtotal){posMsg('先に小計を押してください',true);return false}
+  if(C.usePoints&&T.pointsUsed===0&&T.member){cust('あ、先にポイント使いたいです。');return false}
+  if(m!==C.pay){
+    ded(5,`支払い方法の間違い（${PAYNAME[m]}を選択 → 正しくは${PAYNAME[C.pay]}）`);
+    SND.err();cust(`えっと、${PAYNAME[C.pay]}で払いたいんですけど…`);posMsg('お支払い方法を確認してください');return false;
+  }
+  if(!T.methodKnown){T.methodKnown=true;T.guessed=true}
+  return true;
+}
+function payCash(){
+  if(T.payStage)return posMsg('支払い処理中です',true);
+  if(!checkMethod('cash'))return render();
+  if(!T.cashGiven){customerReact();T.entry='';return posMsg('お客様からお金を受け取り、お預かり金額を入力してから現計を押してください')}
+  const d=due();
+  const dep=T.entry===''?d:+T.entry;T.entry='';
+  if(dep<d)return posMsg(`お預かり金額が不足しています（お会計 ${yen(d)}）`,true);
+  const given=T.cashGiven.reduce((a,b)=>a+b,0);
+  if(dep!==given)ded(10,`お預かり金額の入力ミス（入力 ${yen(dep)} / 実際 ${yen(given)}）`);
+  T.deposit=dep;T.payStage='change';T.paid='cash';
+  say('s',`${yen(given)}お預かりいたします。`);
+  SND.drawer();
+  posMsg(`お釣り ${yen(dep-d)}　ドロアからお釣りを取ってお渡しください`);
+  $('termScr').innerHTML=`<div>お預り ${yen(dep)}</div><b>お釣り ${yen(dep-d)}</b>`;
+  render();
+}
+function giveChange(){
+  if(T.payStage!=='change')return;
+  const given=T.cashGiven.reduce((a,b)=>a+b,0),correct=given-due();
+  const sum=T.chg.reduce((a,b)=>a+b,0);
+  if(sum!==correct){ded(20,`お釣りの間違い（渡した ${yen(sum)} / 正しくは ${yen(correct)}）`);SND.err();
+    cust(sum<correct?`あれ、お釣り${yen(correct-sum)}足りなくないですか？`:'あの、お釣り多いですよ…');}
+  else{
+    if(correct>0){const ideal=breakdown(correct).length;if(T.chg.length>ideal+2)ded(2,'お釣りの枚数が多すぎる（大きい金種を使いましょう）')}
+    say('s',correct?`${yen(correct)}のお返しです。`:'ちょうどお預かりいたします。');
+  }
+  completePayment();
+}
+function completePayment(){
+  T.payStage='done';SND.print();
+  T.receipt=buildReceipt();
+  $('termScr').innerHTML='<b>ありがとうございました</b>';
+  posMsg('決済完了。レシートを渡して「ありがとうございました」');
+  render();showReceipt(true);
+}
+function payCashless(m){
+  if(T.payStage)return posMsg('支払い処理中です',true);
+  if(m==='emoney')return showBrand();
+  if(!checkMethod(m))return render();
+  T.paid=m;
+  if(m==='credit'){
+    T.payStage='terminal';const d=due();
+    $('termScr').innerHTML=`<div>クレジット　${yen(d)}</div><div>カードを挿入またはタッチしてください</div>`;
+    posMsg('お客様のカード操作を待っています…');
+    setTimeout(()=>{
+      if(C.credInsert){$('termScr').innerHTML='<div>暗証番号を入力してください</div><b>＊＊＊＊</b>';cust('（カードを差し込んで暗証番号を入力）',0);
+        setTimeout(()=>{$('termScr').innerHTML='<div>承認中…</div>';setTimeout(()=>{SND.ok();say('sys','承認されました（一括払い）');completePayment()},900)},1500);}
+      else{cust('（カードをタッチ）',0);SND.ic();setTimeout(()=>{$('termScr').innerHTML='<div>承認中…</div>';setTimeout(()=>{SND.ok();say('sys','承認されました（一括払い）');completePayment()},800)},300)}
+    },1000);
+  } else if(m==='qr'){
+    T.payStage='qr';T.phoneOnCounter=true;
+    $('termScr').innerHTML='<div>QRコード決済</div><b>'+yen(due())+'</b>';
+    posMsg('お客様のスマホのコード（カウンター上）をスキャンしてください');
+    cust('（スマホの画面を見せる）');
+  }
+  render();
+}
+function payEmoney(brand){
+  closeOv();
+  if(!checkMethod('emoney'))return render();
+  T.paid='emoney';T.payStage='terminal';T.emBrand=brand;const d=due();
+  $('termScr').innerHTML=`<div>${brand}　${yen(d)}</div><div>カードをタッチしてください</div>`;
+  posMsg(`${brand}：お客様のタッチを待っています…`);render();
+  setTimeout(()=>{
+    if(brand!==C.emBrand){SND.err();$('termScr').innerHTML='<div>このカードはご利用になれません</div>';
+      ded(3,`電子マネーのブランド違い（${brand} → 正しくは${C.emBrand}）`);
+      cust(`あ、${C.emBrand}なんですけど…`,0);T.payStage=null;T.paid=null;posMsg('ブランドを選び直してください');render();return}
+    cust('（カードをタッチ）',0);
+    if(C.icShort){C.icShort=false;const bal=Math.max(0,d-50-rnd(400));SND.err();
+      $('termScr').innerHTML=`<div>残高不足です</div><div>残高 ${yen(bal)}</div>`;
+      posMsg('残高不足：お客様に別のお支払い方法を確認してください');
+      setTimeout(()=>{cust('え、足りない？じゃあ現金で払います。',0);C.pay='cash';T.payStage=null;T.paid=null;T.methodKnown=true;setTimeout(customerReact,700);render()},900);
+      render();return}
+    SND.ic();setTimeout(()=>{say('sys',`${brand} 決済完了`);completePayment()},500);
+  },1000);
+}
+function scanPhone(){if(T.payStage!=='qr')return;T.phoneOnCounter=false;SND.scan();setTimeout(()=>{SND.ok();say('sys','QR決済 完了');completePayment()},700)}
+
+/* ---- 年齢確認・身分証 ---- */
+function showID(){
+  T.idChecked=true;
+  const b=C.birth;
+  ov(`<h3>身分証（運転免許証）</h3>
+   <div class="idcard"><b>運転免許証</b><br>氏名　${esc(C.idName)}<br>生年月日　${b.getFullYear()}年${b.getMonth()+1}月${b.getDate()}日生<br>交付　${b.getFullYear()+18+rnd(Math.max(1,C.age-18))}年　<span style="color:#888">番号 ●●●●●●●●</span></div>
+   <p style="font-size:13px">今日は <b>${new Date().getFullYear()}年${new Date().getMonth()+1}月${new Date().getDate()}日</b> です。20歳以上か判断してください。</p>
+   <div style="display:flex;gap:8px"><button class="btn ok" onclick="decideAge(true)">20歳以上：販売する</button><button class="btn bad" onclick="decideAge(false)">20歳未満：お断りする</button></div>`);
+}
+function decideAge(sell){
+  closeOv();T.decided=true;
+  if(sell){
+    if(C.age<20){ded(40,`20歳未満（${C.age}歳）に酒・タバコを販売しようとした`);SND.err();toast('⚠ 未成年への販売は法律違反です');}
+    say('s','ありがとうございます。お返しします。');
+  } else {
+    if(C.age>=20){ded(10,`20歳以上（${C.age}歳）なのに販売をお断りした`);cust('え、もう20歳過ぎてますけど…！')}
+    else cust('……すみません。');
+    say('s','申し訳ございません。20歳未満の方にはお売りできません。');
+    T.refused=true;T.ageNeeded=false;
+    T.lines=T.lines.filter(l=>!l.prod.age);T.sel=null;
+    C.items=C.items.filter(i=>!i.prod.age);C.tobacco=null;T.subtotal=false;T.cashGiven=null;
+    $('termScr').innerHTML='いらっしゃいませ';
+  }
+  render();
+}
+
+/* ---- タバコ棚・ホットスナック・電子マネー選択 ---- */
+function showTobacco(){
+  if(T.payStage)return posMsg('支払い処理中です',true);
+  ov(`<h3>🚬 タバコ棚（お客様の言った番号を取る）</h3><div class="shelf">${TOBACCO.map(t=>`<button onclick="takeTobacco(${t.no})"><span class="no">${t.no}</span>${esc(t.name)}<br>${yen(inclOf(t))}</button>`).join('')}</div><div style="margin-top:10px;text-align:right"><button class="btn sub" onclick="closeOv()">閉じる</button></div>`);
+}
+function takeTobacco(no){
+  closeOv();const t=TOBACCO[no-1];
+  if(!C.tobacco){cust('タバコは頼んでないです。');ded(3,'頼まれていないタバコを取った');return render()}
+  if(C.items.some(i=>i.prod.tobacco)){cust('1つで大丈夫です。');return}
+  if(t!==C.tobacco){T.wrongTobacco++;ded(3,`タバコの番号違い（${no}番 → 正しくは${C.tobacco.no}番）`);cust(`あ、それじゃないです。${C.tobacco.no}番です。`);return render()}
+  say('s',`${no}番、こちらでよろしいですか？`);cust('はい。');
+  C.items.push({uid:uidSeq++,prod:t,scanned:false,damaged:false});render();
+}
+function showSnacks(){
+  if(T.payStage)return posMsg('支払い処理中です',true);
+  ov(`<h3>🍗 ホットスナック</h3><div class="shelf">${SNACKS.map((s,i)=>`<button onclick="addSnack(${i})"><span style="font-size:24px">${s.em}</span><br>${esc(s.name)}<br>${yen(inclOf(s))}</button>`).join('')}</div><div style="margin-top:10px;text-align:right"><button class="btn sub" onclick="closeOv()">閉じる</button></div>`);
+}
+function addSnack(i){closeOv();addLine(SNACKS[i],'snack');SND.scan();posMsg(SNACKS[i].name+' を登録（ケースから取って袋へ）')}
+function showBrand(){
+  ov(`<h3>電子マネーの種類を選択</h3><div style="display:flex;gap:8px;flex-wrap:wrap">${['交通系IC','iD','QUICPay'].map(b=>`<button class="btn" onclick="payEmoney('${b}')">${b}</button>`).join('')}</div><div style="margin-top:10px;text-align:right"><button class="btn sub" onclick="closeOv()">閉じる</button></div>`);
+}
+
+/* ---- ドロア ---- */
+function addChg(d){if(T.payStage!=='change')return;T.chg.push(d);T.chg.sort((a,b)=>b-a);tone(d>=1000?500:1400,.04,0,'triangle',.05);renderDrawer()}
+function remChg(i){T.chg.splice(i,1);renderDrawer()}
+function moneyHTML(d,extra=''){const coin=d<1000;return `<span class="money ${coin?'coin c'+d:'bill b'+d}" ${extra}>${d.toLocaleString()}</span>`}
+
+/* ---- レシート ---- */
+function pad(s,n){s=String(s);let w=0;for(const ch of s)w+=ch.charCodeAt(0)>255?2:1;return s+' '.repeat(Math.max(0,n-w))}
+function rpad(s,n){s=String(s);let w=0;for(const ch of s)w+=ch.charCodeAt(0)>255?2:1;return ' '.repeat(Math.max(0,n-w))+s}
+function cut(s,n){let w=0,o='';for(const ch of s){const c=ch.charCodeAt(0)>255?2:1;if(w+c>n)break;w+=c;o+=ch}return o}
+function buildReceipt(){
+  const t=totals(),now=new Date(),W=34;
+  const L=[];
+  L.push(rpad(STORE,Math.floor((W+STORE.length*2)/2)));
+  L.push('  TEL 00-0000-0000  登録番号 T0000000000000');
+  L.push(`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}  レジ#1`);
+  L.push(`責No.研修生            No.${String(1000+G.idx).padStart(4,'0')}`);
+  L.push('-'.repeat(W));
+  if(T.eatIn)L.push('＜店内飲食＞');
+  for(const l of T.lines){
+    const mark=rateOf(l.prod)===8?'※':'  ';
+    const p=inclOf(l.prod);
+    if(l.qty>1){L.push(mark+cut(l.prod.name,W-2));L.push(pad('',4)+pad(`${yen(p)}×${l.qty}`,W-14)+rpad(yen(p*l.qty),10))}
+    else L.push(mark+pad(cut(l.prod.name,W-12),W-12)+rpad(yen(p),10));
+  }
+  L.push('-'.repeat(W));
+  L.push(pad('小計',W-10)+rpad(yen(t.total),10));
+  if(T.pointsUsed)L.push(pad('ポイント値引',W-10)+rpad('-'+yen(T.pointsUsed),10));
+  L.push(pad('合計',W-12)+rpad(yen(due()),12));
+  if(t.t10)L.push(pad('(10%対象',W-10)+rpad(yen(t.t10),10)),L.push(pad(' 内消費税等',W-11)+rpad(yen(t.tax10)+')',11));
+  if(t.t8)L.push(pad('(8%対象',W-10)+rpad(yen(t.t8),10)),L.push(pad(' 内消費税等',W-11)+rpad(yen(t.tax8)+')',11));
+  if(T.paid==='cash'){const g=T.cashGiven.reduce((a,b)=>a+b,0);L.push(pad('お預り',W-10)+rpad(yen(T.deposit),10));L.push(pad('お釣り',W-10)+rpad(yen(T.deposit-due()),10))}
+  else if(T.paid==='credit')L.push(pad('クレジット（一括）',W-10)+rpad(yen(due()),10),'  カード番号 ****-****-****-'+String(1000+rnd(8999)));
+  else if(T.paid==='emoney')L.push(pad(T.emBrand+'支払',W-10)+rpad(yen(due()),10));
+  else if(T.paid==='qr')L.push(pad('QRコード決済',W-10)+rpad(yen(due()),10));
+  if(T.member){const earned=Math.floor(due()/200);L.push('-'.repeat(W));L.push(`会員 ****${C.cardCode.slice(-4)}`);L.push(pad('今回利用',W-10)+rpad(T.pointsUsed+'P',10));L.push(pad('今回付与',W-10)+rpad(earned+'P',10));L.push(pad('ポイント残高',W-10)+rpad((C.points-T.pointsUsed+earned)+'P',10))}
+  L.push('-'.repeat(W));
+  L.push('※印は軽減税率(8%)対象商品です');
+  return L.join('\n');
+}
+function showReceipt(auto){
+  ov(`<h3>🧾 レシート発行</h3><div class="receipt"><span class="wm">トレーニング</span>${esc(T.receipt)}</div>
+   ${T.paid==='credit'?'<p style="font-size:12px;color:var(--sub)">※クレジットの「お客様控え」も一緒にお渡しします。</p>':''}
+   <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end"><button class="btn" onclick="closeOv()">閉じる（「ありがとうございました」で締める）</button></div>`);
+}
+
+/* ---- 採点 ---- */
+function finishTx(){
+  T.payStage='left';clearInterval(timer);
+  const sec=Math.floor((Date.now()-T.start)/1000);
+  const s=T.said;
+  if(!s.greet)ded(5,'「いらっしゃいませ」の挨拶がない');
+  if(!s.point)ded(5,'ポイントカードの確認をしていない');
+  if(C.hasCard&&!T.member)ded(5,'ポイントカードを読み取っていない');
+  if(C.usePoints&&T.member&&T.pointsUsed!==Math.min(C.points,totals().total))ded(5,`ポイント利用額が違う（${T.pointsUsed}P → 希望は全額 ${Math.min(C.points,totals().total)}P）`);
+  if(!s.bag)ded(5,'レジ袋の確認をしていない');
+  const bags=T.lines.filter(l=>l.kind==='bag');
+  const bagOk=C.wantsBag?(bags.length===1&&bags[0].qty===1&&bags[0].prod.bag===C.wantsBag):bags.length===0;
+  if(!bagOk)ded(5,`レジ袋の登録ミス（希望：${C.wantsBag?C.wantsBag+'サイズ':'不要'}）`);
+  if(C.hasHot&&!s.heat)ded(5,'お弁当などの温め確認をしていない');
+  if(C.wantsHeat&&!T.heatDone)ded(5,'温めを希望されたのに温めていない');
+  if(!C.wantsHeat&&T.heatDone)ded(3,'不要な温めをした');
+  if(C.hasFood&&!s.eat)ded(5,'店内飲食かどうか確認していない（税率に関わる）');
+  if(C.hasFood&&T.eatIn!==C.eatIn)ded(10,`イートイン/持ち帰りの登録ミス（税率が違う：${C.eatIn?'店内飲食10%':'持ち帰り8%'}が正しい）`);
+  const miss=C.items.filter(i=>!i.scanned);
+  if(miss.length)ded(10*miss.length,`スキャン漏れ ${miss.length}点（${miss.map(i=>i.prod.name).join('、')}）`);
+  const extras=T.lines.filter(l=>l.kind==='scan').reduce((a,l)=>a+l.uids.filter(u=>u===null).length,0);
+  if(extras)ded(10*extras,`カウンターにない商品を登録 ${extras}点`);
+  if(C.tobacco&&!C.items.some(i=>i.prod.tobacco))ded(10,`注文のタバコ（${C.tobacco.no}番）を販売していない`);
+  const want={},got={};C.snacks.forEach(x=>want[x.name]=(want[x.name]||0)+1);
+  T.lines.filter(l=>l.kind==='snack').forEach(l=>got[l.prod.name]=l.qty);
+  for(const n of new Set([...Object.keys(want),...Object.keys(got)])){const d=(got[n]||0)-(want[n]||0);if(d<0)ded(10*-d,`ホットスナック入れ忘れ（${n}）`);if(d>0)ded(10*d,`注文されていないホットスナック（${n}）`)}
+  const soldAge=T.lines.some(l=>l.prod.age);
+  if(soldAge&&C.young&&!T.idChecked)ded(10,'若く見えるお客様に身分証の確認をしていない');
+  if(soldAge&&C.age<20&&!T.decided)ded(40,`20歳未満（${C.age}歳）に酒・タバコを販売した`);
+  if(!s.pay&&!C.stated)ded(3,'お支払い方法を確認していない');
+  if(sec>150)ded(5,`時間がかかりすぎ（${sec}秒）`);
+  const total=T.ded.reduce((a,d)=>a+d.pts,0);
+  const score=Math.max(0,100-total);
+  G.results.push({score,sec,ded:T.ded.slice(),items:C.items.length+C.snacks.length,pay:T.paid,total:due()});
+  G.idx++;
+  $('stScore').textContent=G.results.reduce((a,r)=>a+r.score,0);
+  const last=G.idx>=G.total;
+  ov(`<h3>お客様 ${G.idx} の評価</h3>
+   <div class="score" style="color:${score>=90?'var(--ok)':score>=70?'var(--warn)':'var(--bad)'}">${score}点</div>
+   <p style="color:var(--sub);margin-top:0">対応時間 ${sec}秒 ／ お会計 ${yen(due())}（${PAYNAME[T.paid]||'-'}）</p>
+   ${T.ded.length?`<b>減点ポイント</b><ul class="tight">${T.ded.map(d=>`<li><span class="ded">-${d.pts}</span> ${esc(d.reason)}</li>`).join('')}</ul>`:'<p>✨ パーフェクト！完璧な接客です。</p>'}
+   <details><summary style="cursor:pointer">このお客様の正解</summary><ul class="tight">
+     <li>レジ袋：${C.wantsBag?C.wantsBag+'サイズ':'不要'}</li>${C.hasHot?`<li>温め：${C.wantsHeat?'希望':'不要'}</li>`:''}${C.hasFood?`<li>${C.eatIn?'店内飲食（10%）':'持ち帰り（8%）'}</li>`:''}
+     <li>ポイントカード：${C.hasCard?'あり（'+C.points+'P'+(C.usePoints?'・全額利用希望':'')+'）':'なし'}</li>
+     <li>支払い：${PAYNAME[C.pay]}${C.emBrand?'（'+C.emBrand+'）':''}</li>${C.young?`<li>年齢：${C.age}歳（${C.age<20?'販売不可':'販売可'}）</li>`:''}</ul></details>
+   <div style="margin-top:14px;text-align:right"><button class="btn" onclick="${last?'showFinal()':'nextCustomer()'}">${last?'研修結果を見る':'次のお客様 →'}</button></div>`,true);
+  say('c',pick(['ありがとうございました〜','どうも。','（会釈して退店）']));
+  render();
+}
+function showFinal(){
+  const n=G.results.length,sum=G.results.reduce((a,r)=>a+r.score,0),avg=Math.round(sum/n);
+  const rank=avg>=95?'S':avg>=85?'A':avg>=70?'B':avg>=50?'C':'D';
+  const cnt={};G.results.forEach(r=>r.ded.forEach(d=>{const k=d.reason.replace(/（.*$/,'');cnt[k]=(cnt[k]||0)+1}));
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  let best=0;try{best=+localStorage.getItem('regBest')||0;if(avg>best)localStorage.setItem('regBest',avg)}catch(e){}
+  ov(`<h3>📋 研修結果</h3>
+   <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap"><div class="score">${rank}</div><div>平均 <b style="font-size:22px">${avg}</b> 点<br><span style="color:var(--sub)">${n}人対応 ・ 平均 ${Math.round(G.results.reduce((a,r)=>a+r.sec,0)/n)}秒/人${avg>best?' ・ 🎉自己ベスト更新':''}</span></div></div>
+   <p>${rank==='S'?'即戦力です！そのままシフトに入れます。':rank==='A'?'ほぼ一人立ちOK。細かいミスに気をつけましょう。':rank==='B'?'流れはつかめています。確認漏れを減らしましょう。':'まずはガイドありモードで流れを覚えましょう。'}</p>
+   <table class="res"><tr><th>#</th><th>点数</th><th>時間</th><th>支払い</th><th>金額</th></tr>${G.results.map((r,i)=>`<tr><td>${i+1}</td><td>${r.score}</td><td>${r.sec}秒</td><td>${PAYNAME[r.pay]||'-'}</td><td>${yen(r.total)}</td></tr>`).join('')}</table>
+   ${top.length?`<p><b>よくあったミス</b></p><ul class="tight">${top.map(([k,v])=>`<li>${esc(k)} × ${v}回</li>`).join('')}</ul>`:''}
+   <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button class="btn sub" onclick="location.reload()">トップへ</button><button class="btn" onclick="closeOv();startShift()">もう一度</button></div>`,true);
+}
+
+/* ---- ガイド ---- */
+function hintText(){
+  if(T.payStage==='left')return'評価を確認して次のお客様へ。';
+  const s=T.said;
+  if(!s.greet)return'まずは<b>「いらっしゃいませ」</b>と挨拶しましょう。';
+  if(!s.point&&!T.member)return'<b>「ポイントカードはお持ちですか？」</b>と聞きましょう。';
+  if(T.cardOnCounter)return'カウンターに置かれた<b>ポイントカード</b>をクリックしてスキャン。';
+  if(C.tobacco&&!C.items.some(i=>i.prod.tobacco))return`タバコの注文があります。<b>タバコ棚</b>キーから<b>お客様が言った番号</b>を取りましょう。`;
+  const dmg=C.items.find(i=>!i.scanned&&i.damaged);
+  if(C.items.some(i=>!i.scanned&&!i.damaged))return'カウンターの<b>商品をクリック</b>してスキャンしましょう。';
+  if(dmg)return`バーコードが汚れて読めない商品があります。下の13桁 <b>${dmg.prod.code}</b> をテンキーで入力して<b>JAN入力</b>。`;
+  if(C.snacks.some(sn=>!T.lines.some(l=>l.prod===sn)))return'ホットスナックの注文があります。<b>ホットスナック</b>キーから登録。';
+  if(T.ageNeeded&&!T.decided&&C.young)return'若く見えるお客様です。<b>「身分証を拝見できますか？」</b>で生年月日を確認。';
+  if(T.ageNeeded&&!T.ageConfirmed)return'お酒・タバコがあります。<b>「年齢確認のタッチをお願いします」</b>。';
+  if(!s.bag)return'<b>「袋はご利用ですか？」</b>と聞きましょう。';
+  const bags=T.lines.filter(l=>l.kind==='bag');
+  if(C.wantsBag&&!bags.length)return`<b>袋${C.wantsBag}</b>キーでレジ袋を登録。`;
+  if(C.hasHot&&!s.heat)return'温められる商品があります。<b>「温めますか？」</b>';
+  if(C.wantsHeat&&!T.heatDone)return'<b>温め(レンジ)</b>キーで温めましょう。';
+  if(C.hasFood&&!s.eat)return'飲食料品があります。<b>「店内でお召し上がりですか？」</b>（店内なら税率10%）';
+  if(C.eatIn&&!T.eatIn)return'店内飲食なので<b>イートイン</b>キーを押しましょう。';
+  if(!T.subtotal&&!T.payStage)return'<b>小計</b>キーを押して合計金額を伝えましょう。';
+  if(C.usePoints&&T.member&&!T.pointsUsed)return'ポイント全額利用のご希望です。テンキー未入力のまま<b>ポイント利用</b>キーで全額利用できます。';
+  if(!T.methodKnown&&!T.payStage)return'<b>「お支払い方法は？」</b>と聞きましょう。';
+  if(!T.payStage){
+    if(C.pay==='cash'){if(!T.cashGiven)return'お客様がお金を出すのを待ちましょう。';return'カルトンのお金を数えて<b>テンキーで入力</b>→<b>現計</b>。（ちょうどならそのまま現計）'}
+    if(C.pay==='emoney')return`<b>電子マネー</b>キー →「${C.emBrand}」を選択。`;
+    return`<b>${C.pay==='credit'?'クレジット':'QR決済'}</b>キーを押しましょう。`;
+  }
+  if(T.payStage==='change'){const c=T.cashGiven.reduce((a,b)=>a+b,0)-due();return`ドロアから <b>${yen(c)}</b> をお釣りトレイに入れて「お釣りを渡す」。`}
+  if(T.payStage==='qr')return'カウンター上の<b>お客様のスマホ</b>をクリックしてスキャン。';
+  if(T.payStage==='terminal')return'お客様の端末操作を待ちます…';
+  if(T.payStage==='done')return'最後に<b>「レシートのお返しです。ありがとうございました」</b>。';
+  return'';
+}
+
+/* ========== 描画 ========== */
+function render(){
+  if(!T)return;
+  $('stIdx').textContent=Math.min(G.idx+1,G.total);$('stTot').textContent=G.total;
+  // counter
+  const card=(it)=>`<div class="item ${it.damaged?'damaged':''} ${it.scanned?'scanned':''}" onclick="scanItem(${it.uid})"><div class="em">${it.prod.em}</div><div class="nm">${esc(it.prod.name)}</div><div class="bc">${barcode(it.prod.code)}</div></div>`;
+  let inH=C.items.filter(i=>!i.scanned).map(card).join('');
+  if(T.cardOnCounter)inH=`<div class="item special" onclick="scanCard()"><div class="em">💳</div><div class="nm">ポイントカード</div><div class="bc">${barcode(C.cardCode)}</div></div>`+inH;
+  if(T.phoneOnCounter)inH=`<div class="item phone special" onclick="scanPhone()"><div class="em">📱</div><div class="nm" style="color:#fff">QRコード決済<br>バーコード画面</div><div class="bc">${barcode(jan(8800000000+rnd(9999)))}</div></div>`+inH;
+  $('zoneIn').innerHTML=inH+'<span class="lbl">未スキャン</span>';
+  $('zoneOut').innerHTML=C.items.filter(i=>i.scanned).map(card).join('')+T.lines.filter(l=>l.kind!=='scan').map(l=>`<div class="item scanned"><div class="em">${l.prod.em}</div><div class="nm">${esc(l.prod.name)}${l.qty>1?' ×'+l.qty:''}</div></div>`).join('')+'<span class="lbl">スキャン済み</span>';
+  // tray
+  $('custTray').innerHTML='<div class="ttl">カルトン（お客様のお金）'+(T.cashGiven?' 計 '+yen(T.cashGiven.reduce((a,b)=>a+b,0)):'')+'</div>'+(T.cashGiven||[]).map(d=>moneyHTML(d)).join('');
+  // journal
+  $('journal').innerHTML=T.lines.map((l,i)=>`<div class="jl ${i===T.sel?'sel':''}" onclick="T.sel=${i};render()"><span class="n">${rateOf(l.prod)===8?'※':'　'}${esc(l.prod.name)}</span><span class="q">${l.qty}</span><span class="p">${yen(inclOf(l.prod)*l.qty)}</span></div>`).join('')||'<div style="opacity:.5">― 商品をスキャンしてください ―</div>';
+  const t=totals();
+  $('taxInfo').textContent=`8%対象 ${yen(t.t8)} / 10%対象 ${yen(t.t10)}${T.eatIn?' [店内]':''}`;
+  $('memberInfo').textContent=T.member?`会員 ${C.points}P`:'';
+  $('ptRow').innerHTML=T.pointsUsed?`<span>ポイント利用</span><span>-${yen(T.pointsUsed)}</span>`:'';
+  $('totLbl').textContent=T.subtotal?'お支払い':'合計';
+  $('totVal').textContent=yen(T.subtotal?due():t.total);
+  $('entry').textContent=T.entry;
+  // phrases
+  document.querySelectorAll('#phr button').forEach(b=>b.classList.toggle('used',!!T.said[b.dataset.p]));
+  // hint
+  $('hint').classList.toggle('hidden',G.mode!=='guide');
+  $('hint').innerHTML='💡 <b>次にやること：</b>'+hintText();
+  renderDrawer();
+}
+function renderDrawer(){
+  const open=T.payStage==='change';
+  $('drawer').classList.toggle('hidden',!open);
+  if(!open)return;
+  $('drBills').innerHTML=[10000,5000,1000].map(d=>moneyHTML(d,`onclick="addChg(${d})"`)).join('');
+  $('drCoins').innerHTML=[500,100,50,10,5,1].map(d=>moneyHTML(d,`onclick="addChg(${d})"`)).join('');
+  $('chgTray').innerHTML=T.chg.map((d,i)=>moneyHTML(d,`onclick="remChg(${i})" style="cursor:pointer"`)).join('')||'<span style="font-size:11px;opacity:.6">空</span>';
+  $('chgSum').textContent=yen(T.chg.reduce((a,b)=>a+b,0));
+}
+function ov(html,sticky){$('ovRoot').innerHTML=`<div class="ov" ${sticky?'':'onclick="if(event.target===this)closeOv()"'}><div class="modal">${html}</div></div>`}
+function closeOv(){$('ovRoot').innerHTML=''}
+
+/* ========== イベント ========== */
+$('startBtn').onclick=startShift;
+$('keys').addEventListener('click',e=>{const b=e.target.closest('button');if(b)key(b.dataset.k)});
+$('phr').addEventListener('click',e=>{const b=e.target.closest('button');if(b)phrase(b.dataset.p)});
+$('giveChange').onclick=giveChange;
+document.addEventListener('keydown',e=>{
+  if(!T||$('mainView').classList.contains('hidden')||$('ovRoot').innerHTML)return;
+  if(/^[0-9]$/.test(e.key))key(e.key);
+  else if(e.key==='Backspace'){T.entry=T.entry.slice(0,-1);render()}
+  else if(e.key==='Enter'&&T.entry.length===13)key('jan');
+  else if(e.key==='Escape')key('clr');
+});
+try{const b=localStorage.getItem('regBest');if(b)$('best').textContent='自己ベスト平均：'+b+'点'}catch(e){}
+</script>
+<script src="../ga.js?v=20261104"></script>
+</body>
+</html>

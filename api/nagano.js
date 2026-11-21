@@ -109,7 +109,7 @@ export default async function handler(req, res) {
   const sources = urls.map((u) => `- ${u}`).join("\n");
 
   try {
-    let response;
+    let response, usedModel;
     for (const [i, { model, tools }] of ATTEMPTS.entries()) {
       try {
         response = await ai.models.generateContent({
@@ -117,6 +117,7 @@ export default async function handler(req, res) {
           contents: messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
           config: { systemInstruction: `${SYSTEM_PROMPT}\n\n<sources>\n${sources}\n</sources>`, tools },
         });
+        usedModel = model;
         break;
       } catch (err) {
         if (!(err instanceof ApiError) || err.status !== 429 || i === ATTEMPTS.length - 1) throw err;
@@ -125,7 +126,17 @@ export default async function handler(req, res) {
     }
     const reply = response.text?.trim();
     if (!reply) return res.status(422).json({ error: "この質問にはお答えできませんでした。聞き方を変えてみてください。" });
-    return res.status(200).json({ reply, topics: topics.map((k) => TOPICS[k].label), sources: urls });
+    // 返答には必ずコンテキスト量（トークン数）を付ける
+    const u = response.usageMetadata ?? {};
+    const usage = {
+      model: usedModel,
+      input: u.promptTokenCount ?? 0, // 会話・指示・読み込んだページなど、AI に渡した量
+      tools: u.toolUsePromptTokenCount ?? 0, // URL 読み取り・検索で取り込んだ量
+      output: u.candidatesTokenCount ?? 0,
+      thinking: u.thoughtsTokenCount ?? 0,
+      total: u.totalTokenCount ?? 0,
+    };
+    return res.status(200).json({ reply, topics: topics.map((k) => TOPICS[k].label), sources: urls, usage });
   } catch (err) {
     return sendAiError(res, err);
   }

@@ -48,7 +48,9 @@ async function ask(text) {
     const raw = await r.text(); wait.remove();
     let j; try { j = JSON.parse(raw); } catch { add(`サーバーから正しい返事がありませんでした（ステータス ${r.status}）${/TIMEOUT/i.test(raw) ? "：時間切れ" : ""}`); history.pop(); return; }
     if (!r.ok) { add(j.error || "エラーが発生しました"); history.pop(); return; }
-    add(j.reply, false, "話題：" + j.topics.join("・")); history.push({ role: "assistant", text: j.reply });
+    const u = j.usage || {}, n = (x) => Number(x || 0).toLocaleString();
+    const ctx = `コンテキスト量：合計 ${n(u.total)} トークン（入力 ${n(u.input)}・ページ/検索 ${n(u.tools)}・思考 ${n(u.thinking)}・出力 ${n(u.output)}）｜${u.model || ""}`;
+    add(j.reply, false, "話題：" + j.topics.join("・") + "\n" + ctx); history.push({ role: "assistant", text: j.reply });
   } catch { wait.remove(); add("通信に失敗しました（サーバーに届きませんでした）"); history.pop(); }
   finally { send.disabled = false; q.focus(); }
 }

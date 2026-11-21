@@ -162,3 +162,11 @@ GEMINI_API_KEY=... node scripts/crawl-campaigns.mjs
 3. 「認証情報」→ OAuth クライアント ID（種類：ウェブ アプリケーション）を作り、承認済みの JavaScript 生成元に `https://yusakunagano.github.io` を登録
 4. 発行された**クライアント ID**（シークレットは不要）を `nuse/index.html` の `GOOGLE_CLIENT_ID` に入れる
 5. 一般公開するには、Google の OAuth アプリの審査（確認）が必要になる場合があります。審査が済むまでは、テストユーザーだけが使えます
+
+## AI永野
+
+永野の note と、d払い・dカード・ドコモフィナンシャルグループ・ドコモの公式ページをもとに Gemini が答えるチャットボットです。
+
+- `nagano/index.html` … チャット画面
+- `api/nagano.js` … 回答 API。質問の言葉から話題（永野／d払い／d払いFAQ／dカード／DFG／ドコモ）を判定し、その話題の公式ページだけを Gemini の URL コンテキスト機能で読ませて答えます（読ませる URL は固定）。
+- エージェントは分けず、1 つの AI ＋話題ごとの参照先切り替えにしています。

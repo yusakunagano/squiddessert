@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI永野</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1d2330;--sub:#6b7280;--accent:#cc0033;--me:#ffe8ee;--line:#e3e6ea}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1e2127;--fg:#e8eaed;--sub:#9aa0a6;--me:#4a1f2a;--line:#2c3038}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,"Hiragino Sans",sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:16px;display:flex;flex-direction:column;height:100dvh}
+h1{font-size:20px;margin:0 0 4px}h1 b{color:var(--accent)}.note{font-size:12px;color:var(--sub);margin:0 0 12px}
+#log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:8px}
+.msg{max-width:88%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;line-height:1.6;background:var(--card);border:1px solid var(--line);overflow-wrap:anywhere}
+.me{align-self:flex-end;background:var(--me);border:none}.tag{font-size:11px;color:var(--sub);margin-top:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chips button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+form{display:flex;gap:8px}input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:16px}
+form button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:0 18px;font-size:15px}form button:disabled{opacity:.5}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><b>AI</b>永野</h1>
+  <p class="note">永野の note と、d払い・dカード・ドコモフィナンシャルグループ・ドコモの公式ページをもとに AI が答えます。AI の回答は公式な案内ではありません。暗証番号やカード番号は入力しないでください。</p>
+  <div id="log"></div>
+  <div class="chips" id="chips"></div>
+  <form id="f"><input id="q" maxlength="500" placeholder="永野に質問する" autocomplete="off"><button id="send">送信</button></form>
+</div>
+<script>
+const API_ORIGIN = location.hostname.endsWith("github.io") ? "https://squiddessert.vercel.app" : "";
+const SAMPLES = ["自己紹介して", "d払いの始め方は？", "d払いが使えないときは？", "dカードの年会費は？", "どんな会社で働いてるの？"];
+const log = document.getElementById("log"), q = document.getElementById("q"), send = document.getElementById("send");
+const history = [];
+function add(text, me, tag) {
+  const d = document.createElement("div"); d.className = "msg" + (me ? " me" : "");
+  d.textContent = text;
+  if (!me) d.innerHTML = d.innerHTML.replace(/https?:\/\/[^\s<）)」]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+  if (tag) { const t = document.createElement("div"); t.className = "tag"; t.textContent = tag; d.append(t); }
+  log.append(d); log.scrollTop = log.scrollHeight; return d;
+}
+async function ask(text) {
+  text = text.trim(); if (!text || send.disabled) return;
+  add(text, true); history.push({ role: "user", text }); q.value = ""; send.disabled = true;
+  const wait = add("考え中…");
+  try {
+    const r = await fetch(API_ORIGIN + "/api/nagano", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history.slice(-10) }) });
+    const j = await r.json(); wait.remove();
+    if (!r.ok) { add(j.error || "エラーが発生しました"); history.pop(); return; }
+    add(j.reply, false, "話題：" + j.topics.join("・")); history.push({ role: "assistant", text: j.reply });
+  } catch { wait.remove(); add("通信に失敗しました"); history.pop(); }
+  finally { send.disabled = false; q.focus(); }
+}
+document.getElementById("f").onsubmit = (e) => { e.preventDefault(); ask(q.value); };
+for (const s of SAMPLES) { const b = document.createElement("button"); b.textContent = s; b.onclick = () => ask(s); document.getElementById("chips").append(b); }
+add("こんにちは、AI永野です。d払いやdカード、僕の会社のことなど、気軽に聞いてください！");
+</script>
+</body>
+</html>

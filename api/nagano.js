@@ -5,7 +5,9 @@
 //  1. 質問の言葉から話題を判定（AI は使わない。速く、費用もかからない）
 //  2. その話題の公式ページだけを Gemini の URL コンテキスト機能で読ませて答えさせる
 // 読ませる URL はここに書いたものだけ（利用者が URL を指定することはできない）。
-import { acceptPost, ai, MODEL, readBody, sendAiError } from "./_shared.js";
+import { acceptPost, ai, readBody, sendAiError } from "./_shared.js";
+// 答えの質を上げるため、AI永野だけ lite ではなく Flash を使う
+const MODEL = "gemini-flash-latest";
 import { clientIp, createLimiter } from "./_ratelimit.js";
 
 export const TOPICS = {

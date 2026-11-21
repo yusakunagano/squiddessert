@@ -45,10 +45,11 @@ async function ask(text) {
   const wait = add("考え中…");
   try {
     const r = await fetch(API_ORIGIN + "/api/nagano", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history.slice(-10) }) });
-    const j = await r.json(); wait.remove();
+    const raw = await r.text(); wait.remove();
+    let j; try { j = JSON.parse(raw); } catch { add(`サーバーから正しい返事がありませんでした（ステータス ${r.status}）${/TIMEOUT/i.test(raw) ? "：時間切れ" : ""}`); history.pop(); return; }
     if (!r.ok) { add(j.error || "エラーが発生しました"); history.pop(); return; }
     add(j.reply, false, "話題：" + j.topics.join("・")); history.push({ role: "assistant", text: j.reply });
-  } catch { wait.remove(); add("通信に失敗しました"); history.pop(); }
+  } catch { wait.remove(); add("通信に失敗しました（サーバーに届きませんでした）"); history.pop(); }
   finally { send.disabled = false; q.focus(); }
 }
 document.getElementById("f").onsubmit = (e) => { e.preventDefault(); ask(q.value); };

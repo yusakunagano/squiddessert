@@ -7,10 +7,10 @@
 // 読ませる URL はここに書いたものだけ（利用者が URL を指定することはできない）。
 import { ApiError } from "@google/genai";
 import { acceptPost, ai, MODEL as LITE_MODEL, readBody, sendAiError } from "./_shared.js";
-// 答えの質を上げるため、まず Flash（＋Google 検索）で答える。
-// 回数の上限（429）に当たったら、上限の多い lite で答え直す（検索の上限も別なので、lite では公式ページの読み取りだけ）。
+// 無料枠で回数を確保するため lite を使う。まず Google 検索つきで答え、
+// 検索の回数上限（429）に当たったら、公式ページの読み取りだけで答え直す。
 const ATTEMPTS = [
-  { model: "gemini-flash-latest", tools: [{ urlContext: {} }, { googleSearch: {} }] },
+  { model: LITE_MODEL, tools: [{ urlContext: {} }, { googleSearch: {} }] },
   { model: LITE_MODEL, tools: [{ urlContext: {} }] },
 ];
 import { clientIp, createLimiter } from "./_ratelimit.js";

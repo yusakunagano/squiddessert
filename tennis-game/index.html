@@ -48,6 +48,23 @@
   #vwPanel .vwBody{display:flex;flex-direction:column;gap:8px}
   .online{margin-top:6px;padding:12px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:440px}
   .online h2{margin:0}
+  #charGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;width:min(680px,100%)}
+  .cc{background:rgba(255,255,255,.08);border:2px solid transparent;border-radius:10px;padding:8px;cursor:pointer;font-size:12px;line-height:1.45;text-align:left;color:#fff}
+  .cc.sel{border-color:#f2d43d;background:rgba(242,212,61,.18)}
+  .cc b{font-size:15px;display:block}
+  .cc .meta{opacity:.8}
+  .cc .bar{display:flex;justify-content:space-between;gap:4px}
+  .cc .stars{color:#f2d43d;letter-spacing:1px}
+  #result,#bracket{position:absolute;inset:0;background:rgba(10,30,20,.93);display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:14px;padding:16px;text-align:center;overflow-y:auto;z-index:20}
+  #result .big{font-size:110px;line-height:1;filter:drop-shadow(0 6px 16px rgba(242,212,61,.7));animation:pop .7s ease-out}
+  #result h1{margin:0;font-size:32px}
+  @keyframes pop{0%{transform:scale(.2) rotate(-20deg);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+  .confetti{position:absolute;top:-10px;width:9px;height:14px;opacity:.9;animation:fall linear forwards;pointer-events:none}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+  #bracket .round{display:flex;flex-direction:column;gap:6px;width:min(420px,100%)}
+  #bracket .mt{background:rgba(255,255,255,.08);border-radius:8px;padding:6px 10px;display:flex;justify-content:space-between;gap:8px;font-size:14px}
+  #bracket .mt .w{color:#f2d43d;font-weight:bold}
+  #bracket .mt.me{outline:2px solid #2f7cf6}
   a.lbtn{font-size:16px;padding:11px 18px;border-radius:10px;background:#f2d43d;color:#222;font-weight:bold;text-decoration:none}
   a.lbtn.sub{background:#cfd8d3}
   .online input{font-size:20px;width:110px;text-align:center;padding:9px;border-radius:10px;border:none;letter-spacing:.2em}
@@ -91,6 +108,8 @@
     <div class="pbtn" id="bKick">キック</div>
     <div class="pbtn" id="bCut">スライス</div>
   </div>
+  <div id="result" class="hidden"></div>
+  <div id="bracket" class="hidden"></div>
   <div class="menu hidden" id="lobby">
     <h2>部屋番号</h2>
     <div id="lbCode">----</div>
@@ -102,6 +121,16 @@
   </div>
   <div class="menu" id="menu">
     <h1>🎾 テニス</h1>
+    <h2>あなたの選手を選ぶ</h2>
+    <div id="charGrid"></div>
+    <h2>試合形式</h2>
+    <div class="row">
+      <button data-fmt2="match" class="sel">1試合</button>
+      <button data-fmt2="tour">トーナメント（8人）</button>
+    </div>
+    <div class="row" style="font-size:14px;align-items:center;gap:8px"><span>1セット</span>
+      <button data-gps="1" class="sub sel">1ゲーム</button><button data-gps="3" class="sub">3ゲーム</button><button data-gps="6" class="sub">6ゲーム</button>
+      <span>・2セット先取</span></div>
     <h2>モードを選択</h2>
     <div class="row">
       <button data-mode="singles" class="sel">シングルス</button>
@@ -160,6 +189,25 @@ const VIEW_W = 16;
 
 // ---- settings ----
 let mode = 'singles', pos = 'back', level = 1;
+// ---- 選手（実在の名選手をもじった架空のキャラクター）----
+// 能力は 1〜5 で、全員の合計を同じ（15）にして、だれかが一方的に強くならないようにしている
+// spd=足の速さ, str=ストローク, srv=サーブ, con=ミスの少なさ, net=前に出る
+const CHARS = [
+  { id: 'mederer', name: 'メデラー', sex: 'm', h: 1.85, lefty: false, oneBH: true, hair: 'short', hairC: '#5a3a22', band: '#ffffff', skin: '#f0c8a6', shirt: '#d93b3b', st: { spd: 2, str: 3, srv: 4, con: 2, net: 4 }, note: '前に出るのが好き。サーブとネットプレーがうまい。片手バック。' },
+  { id: 'cinnamon', name: 'シナモン', sex: 'm', h: 1.91, lefty: false, oneBH: false, hair: 'curly', hairC: '#c0582b', skin: '#f3cfb3', shirt: '#2fbf71', st: { spd: 3, str: 4, srv: 3, con: 3, net: 2 }, note: '長身から打つ、伸びのある強いストローク。' },
+  { id: 'nadare', name: 'ナダレ', sex: 'm', h: 1.85, lefty: true, oneBH: false, hair: 'long', hairC: '#2a1a10', band: '#d23a2a', skin: '#d9a982', shirt: '#ff8a1f', st: { spd: 4, str: 3, srv: 2, con: 4, net: 2 }, note: '左利き。足が速く、粘り強くてミスが少ない。' },
+  { id: 'alcaros', name: 'アルカロス', sex: 'm', h: 1.83, lefty: false, oneBH: false, hair: 'short', hairC: '#2b1d14', skin: '#d6a37c', shirt: '#3a7bd5', st: { spd: 4, str: 3, srv: 3, con: 2, net: 3 }, note: '足が速くて何でもできる。前にも出てくる。' },
+  { id: 'shakovic', name: 'シャコビッチ', sex: 'm', h: 1.88, lefty: false, oneBH: false, hair: 'crop', hairC: '#3a2a20', skin: '#ecc4a2', shirt: '#1f2a44', st: { spd: 3, str: 3, srv: 2, con: 5, net: 2 }, note: 'とにかくミスが少ない、鉄壁の守り。' },
+  { id: 'nishikigoi', name: '錦鯉', sex: 'm', h: 1.78, lefty: false, oneBH: false, hair: 'short', hairC: '#111111', skin: '#e6b98f', shirt: '#f0f0f0', st: { spd: 4, str: 3, srv: 2, con: 3, net: 3 }, airK: 1.6, note: '足が速く、ジャンプして打つエアKが得意。' },
+  { id: 'naoko', name: '東京なおこ', sex: 'f', h: 1.80, lefty: false, oneBH: false, hair: 'bun', hairC: '#2a1a12', band: '#ff4fa3', skin: '#8d5a3b', shirt: '#ff4fa3', st: { spd: 2, str: 4, srv: 5, con: 2, net: 2 }, note: '強烈なサーブと強いストローク。' },
+  { id: 'kimiko', name: '伊藤きみこ', sex: 'f', h: 1.63, lefty: false, oneBH: false, hair: 'bob', hairC: '#111111', skin: '#efc9a4', shirt: '#ffd23f', st: { spd: 3, str: 2, srv: 3, con: 4, net: 3 }, note: '小柄だがミスが少なく、前に出てボレーもうまい。' },
+];
+const ST_NAME = { spd: '足の速さ', str: 'ストローク', srv: 'サーブ', con: 'ミスの少なさ', net: '前に出る' };
+let myChar = CHARS[0], fmt = 'match', gamesPerSet = 1; // fmt: 'match'（1試合）/ 'tour'（トーナメント）
+const SETS_TO_WIN = 2;
+const stK = (p, k) => p && p.char ? p.char.st[k] : 3; // 能力（キャラ未設定は 3＝ふつう）
+function shuffle(a){ for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function applyChar(p, c){ p.char = c; p.color = c.shirt; p.lefty = c.lefty; p.oneBH = c.oneBH; return p; }
 document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
   mode = b.dataset.mode; sel('[data-mode]', b);
   document.getElementById('posBox').classList.toggle('hidden', mode !== 'doubles');
@@ -167,7 +215,16 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
 document.querySelectorAll('[data-pos]').forEach(b => b.onclick = () => { pos = b.dataset.pos; sel('[data-pos]', b); });
 document.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => { level = +b.dataset.lv; sel('[data-lv]', b); });
 function sel(q, b){ document.querySelectorAll(q).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); }
-document.getElementById('start').onclick = () => { online = false; startMatch(); };
+document.getElementById('start').onclick = () => { online = false; if (fmt === 'tour' && mode === 'singles') startTournament(); else startMatch(); };
+// 選手カード
+{ const grid = document.getElementById('charGrid'), stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+  grid.innerHTML = CHARS.map((c, i) => `<button class="cc${i === 0 ? ' sel' : ''}" data-ch="${i}"><b><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c.shirt};border:1px solid #fff;margin-right:5px"></i>${c.name}</b>
+    <div class="meta">${c.sex === 'f' ? '女子' : '男子'}・${Math.round(c.h * 100)}cm・${c.lefty ? '左利き' : '右利き'}・バック${c.oneBH ? '片手' : '両手'}</div>
+    ${Object.keys(ST_NAME).map(k => `<div class="bar"><span>${ST_NAME[k]}</span><span class="stars">${stars(c.st[k])}</span></div>`).join('')}
+    <div class="meta">${c.note}</div></button>`).join('');
+  grid.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => { myChar = CHARS[+b.dataset.ch]; sel('#charGrid [data-ch]', b); }); }
+document.querySelectorAll('[data-fmt2]').forEach(b => b.onclick = () => { fmt = b.dataset.fmt2; sel('[data-fmt2]', b); });
+document.querySelectorAll('[data-gps]').forEach(b => b.onclick = () => { gamesPerSet = +b.dataset.gps; sel('[data-gps]', b); });
 document.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => { net.fmt = b.dataset.fmt; hostLobbyUpdate(); });
 document.getElementById('hostBtn').onclick = () => hostRoom();
 document.getElementById('joinBtn').onclick = () => joinRoom();
@@ -294,26 +351,86 @@ function mkPlayer(team, role, isHuman, color){
 }
 function startMatch(){
   if (document.activeElement) document.activeElement.blur();
-  menu.classList.add('hidden');
+  menu.classList.add('hidden'); document.getElementById('bracket').classList.add('hidden'); document.getElementById('result').classList.add('hidden');
   players = [];
+  // 相手（と味方）は、あなた以外の選手からランダムに選ぶ（トーナメントでは決まった相手）
+  const others = shuffle(CHARS.filter(c => c !== myChar));
+  const opp = tour && tour.opp ? tour.opp : others[0];
   if (mode === 'singles') {
-    players.push(human = mkPlayer(0, 'back', true, '#2f7cf6'));
-    players.push(mkPlayer(1, 'back', false, '#e5483b'));
+    players.push(human = applyChar(mkPlayer(0, 'back', true, '#2f7cf6'), myChar));
+    players.push(applyChar(mkPlayer(1, 'back', false, '#e5483b'), opp));
   } else {
-    players.push(human = mkPlayer(0, pos, true, '#2f7cf6'));
-    players.push(mkPlayer(0, pos === 'back' ? 'front' : 'back', false, '#7fb2ff'));
-    players.push(mkPlayer(1, 'back', false, '#e5483b'));
-    players.push(mkPlayer(1, 'front', false, '#ff9a8f'));
+    players.push(human = applyChar(mkPlayer(0, pos, true, '#2f7cf6'), myChar));
+    players.push(applyChar(mkPlayer(0, pos === 'back' ? 'front' : 'back', false, '#7fb2ff'), others[1]));
+    players.push(applyChar(mkPlayer(1, 'back', false, '#e5483b'), others[2]));
+    players.push(applyChar(mkPlayer(1, 'front', false, '#ff9a8f'), others[3]));
   }
-  score = { pts: [0, 0], games: [0, 0] };
+  score = { pts: [0, 0], games: [0, 0], sets: [0, 0] };
+  const opps = players.filter(p => p.team === 1).map(p => p.char.name).join('・');
+  showMsg((tour ? tour.roundName + '\n' : '') + `${myChar.name} vs ${opps}`, 2.2);
   server = 0; faults = 0;
   newPoint();
 }
+// ---- トーナメント（8人）と、試合後の表彰 ----
+let tour = null; // { slots:[8人], round:0..2, results:[[勝者...]], opp, roundName }
+const ROUND_NAME = ['準々決勝', '準決勝', '決勝'];
+function startTournament(){
+  const others = shuffle(CHARS.filter(c => c !== myChar));
+  tour = { slots: [myChar, ...others], round: 0, alive: [myChar, ...others] };
+  showBracket();
+}
+function roundPairs(list){ const p = []; for (let i = 0; i < list.length; i += 2) p.push([list[i], list[i + 1]]); return p; }
+function showBracket(){
+  const el = document.getElementById('bracket'); menu.classList.add('hidden'); el.classList.remove('hidden');
+  const pairs = roundPairs(tour.alive), me = pairs.find(q => q.includes(myChar));
+  tour.opp = me[0] === myChar ? me[1] : me[0]; tour.roundName = ROUND_NAME[tour.round];
+  el.innerHTML = `<h1 style="margin:0">🏟️ トーナメント</h1><h2 style="margin:0">${tour.roundName}</h2>
+    <div class="round">${pairs.map(q => `<div class="mt${q.includes(myChar) ? ' me' : ''}"><span>${q[0].name}${q[0] === myChar ? '（あなた）' : ''}</span><span>vs</span><span>${q[1].name}${q[1] === myChar ? '（あなた）' : ''}</span></div>`).join('')}</div>
+    <div>次の相手：<b>${tour.opp.name}</b>　${tour.opp.note}</div>
+    <div class="row"><button id="brGo">試合開始</button><button id="brQuit" class="sub">やめる</button></div>`;
+  document.getElementById('brGo').onclick = () => { el.classList.add('hidden'); startMatch(); };
+  document.getElementById('brQuit').onclick = () => { tour = null; el.classList.add('hidden'); toMenu(); };
+}
+function toMenu(){ state = 'menu'; players = []; human = null; msgEl.textContent = ''; document.getElementById('result').classList.add('hidden'); menu.classList.remove('hidden'); }
+function confetti(){
+  const el = document.getElementById('result'), cols = ['#f2d43d', '#ff4fa3', '#2fbf71', '#3a7bd5', '#ff8a1f', '#ffffff'];
+  for (let i = 0; i < 90; i++) { const c = document.createElement('i'); c.className = 'confetti'; c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % cols.length]; c.style.animationDuration = (2.5 + Math.random() * 2.5) + 's'; c.style.animationDelay = Math.random() * 1.2 + 's'; el.appendChild(c); }
+}
+// 試合が終わったとき：勝てばトロフィー、負ければ「残念でした」
+function matchOver(won){
+  const el = document.getElementById('result'), sc = score.sets ? `セット ${score.sets[myTeam()]}-${score.sets[1 - myTeam()]}` : '';
+  if (tour) {
+    // ほかの試合はランダムに勝者を決める
+    const pairs = roundPairs(tour.alive), next = [];
+    for (const q of pairs) next.push(q.includes(myChar) ? (won ? myChar : tour.opp) : q[Math.random() < 0.5 ? 0 : 1]);
+    const rName = tour.roundName;
+    if (!won) {
+      el.innerHTML = `<div class="big">😢</div><h1>残念でした</h1><div>${rName}で ${tour.opp.name} に負けました（${sc}）</div><div class="row"><button id="rsMenu">メニューへ</button></div>`;
+      tour = null;
+    } else if (next.length === 1) {
+      el.innerHTML = `<div class="big">🏆</div><h1>優勝おめでとう！</h1><div>${myChar.name} がトーナメントを制しました！（決勝 ${sc}）</div><div class="row"><button id="rsMenu">メニューへ</button></div>`;
+      tour = null; setTimeout(confetti, 50);
+    } else {
+      tour.alive = next; tour.round++;
+      el.innerHTML = `<div class="big">🎉</div><h1>${rName} 勝利！</h1><div>${sc}　次は ${ROUND_NAME[tour.round]} です</div><div class="row"><button id="rsNext">次へ</button></div>`;
+    }
+  } else {
+    el.innerHTML = won ? `<div class="big">🏆</div><h1>優勝！</h1><div>${myChar.name} の勝ち！（${sc}）</div><div class="row"><button id="rsMenu">メニューへ</button></div>`
+      : `<div class="big">😢</div><h1>残念でした</h1><div>${teamName(1)} に負けました（${sc}）</div><div class="row"><button id="rsMenu">メニューへ</button></div>`;
+    if (won) setTimeout(confetti, 50);
+  }
+  el.classList.remove('hidden');
+  const m = document.getElementById('rsMenu'); if (m) m.onclick = () => toMenu();
+  const n = document.getElementById('rsNext'); if (n) n.onclick = () => { el.classList.add('hidden'); state = 'menu'; showBracket(); };
+}
 function sideSign(team){ return team === 0 ? 1 : -1; }
+// フォア側かバック側か（左利きは逆）
+function sideOf(p, bx){ return ((bx - p.x) * sideSign(p.team) * (p.lefty ? -1 : 1) >= 0) ? 'f' : 'b'; }
+const shotKey = (p, k) => (p.oneBH && k === 'bs') ? 'bs1' : k; // 片手バックの選手
 function myTeam(){ return human ? human.team : 0; }
 // オフラインは「あなた／CPU」、オンラインは「青チーム／赤チーム」（自分のチームには（あなた）を付ける）
 function teamName(t){
-  if (!online) return t === 0 ? 'あなた' : 'CPU';
+  if (!online) { if (t === 0) return 'あなた'; const n = players.filter(p => p.team === 1 && p.char).map(p => p.char.name); return n.length ? n.join('・') : 'CPU'; }
   return t === 0 ? '青チーム' : '赤チーム';
 }
 function servingPlayer(){ return players.find(p => p.team === server && p.role === 'back'); }
@@ -535,7 +652,7 @@ function hostStart(){
   if (net.unsub) { net.unsub(); net.unsub = null; }
   if (net.code) { sig.remove(net.code); net.code = null; } // 試合が始まったら部屋の書類は消す
   lobbyEl().classList.add('hidden');
-  score = { pts: [0, 0], games: [0, 0] }; server = 0; faults = 0;
+  score = { pts: [0, 0], games: [0, 0], sets: [0, 0] }; server = 0; faults = 0;
   newPoint();
 }
 const TEAMCOL = [['#2f7cf6', '#7fb2ff'], ['#e5483b', '#ff9a8f']];
@@ -568,7 +685,7 @@ function onNetMsg(peer, m){
     online = true; level = m.level;
     buildPlayersFromPlan(m.plan, net.mySeat);
     lobbyEl().classList.add('hidden');
-    score = { pts: [0, 0], games: [0, 0] }; server = 0; faults = 0;
+    score = { pts: [0, 0], games: [0, 0], sets: [0, 0] }; server = 0; faults = 0;
     ball = { x: 0, y: 0, z: 1, vx: 0, vy: 0, vz: 0, live: false };
     state = 'serve';
   }
@@ -580,13 +697,13 @@ function hostSendState(now){
   if (net.role !== 'host' || !online || now - net.lastSend < 33) return;
   net.lastSend = now;
   const P = players.map(p => [R3(p.x), R3(p.y), R3(p.vxs || 0), R3(p.walk || 0), R3(p.mv || 0), R3(Math.min(p.st ?? 9, 9)), p.shot || '', R3(p.prep || 0), p.prepType || '', R3(Math.max(-1, p.label || 0)), p.tag || '', R3(Math.min(p.jumpT ?? 9, 9)), p.serveSwing ? 1 : 0, p.isHuman ? 1 : 0, R3(Math.min(p.lungeT ?? 9, 9)), p.lungeDir || 1, p.jumpAmp ?? 0.5, R3(p.vys || 0), R3(Math.min(p.fallT ?? 9, 9))]);
-  broadcast('u', { t: 's', st: state, tm: R3(timer), to: tossing ? 1 : 0, tt: R3(tossT), sv: server, ss: serveSide, f: faults, sc: [score.pts[0], score.pts[1], score.games[0], score.games[1]], b: ball ? [R3(ball.x), R3(ball.y), R3(ball.z)] : null, m: msgEl.textContent, P });
+  broadcast('u', { t: 's', st: state, tm: R3(timer), to: tossing ? 1 : 0, tt: R3(tossT), sv: server, ss: serveSide, f: faults, sc: [score.pts[0], score.pts[1], score.games[0], score.games[1], score.sets[0], score.sets[1]], b: ball ? [R3(ball.x), R3(ball.y), R3(ball.z)] : null, m: msgEl.textContent, P });
 }
 function applySnapshot(m){
   if (!players.length) return;
   state = m.st === 'dead' || m.st === 'rally' || m.st === 'serve' || m.st === 'over' ? m.st : state;
   timer = m.tm; tossing = !!m.to; tossT = m.tt; server = m.sv; serveSide = m.ss; faults = m.f;
-  score = { pts: [m.sc[0], m.sc[1]], games: [m.sc[2], m.sc[3]] };
+  score = { pts: [m.sc[0], m.sc[1]], games: [m.sc[2], m.sc[3]], sets: [m.sc[4] || 0, m.sc[5] || 0] };
   if (m.b && ball) { ball.tx = m.b[0]; ball.ty = m.b[1]; ball.tz = m.b[2]; if (ball.x === undefined || Math.hypot(ball.x - m.b[0], ball.y - m.b[1]) > 3) { ball.x = m.b[0]; ball.y = m.b[1]; ball.z = m.b[2]; } }
   if (msgEl.textContent !== m.m) { msgEl.textContent = m.m; msgTimer = 999; }
   m.P.forEach((a, i) => {
@@ -623,7 +740,7 @@ function newPoint(){
     // x from each player's perspective: right side = +x for team0, -x for team1
     if (p.role === 'back') { p.x = s * serveSide * 1.5 * (p.team === server ? 1 : 2.2); p.y = s * (HL + (p.team === server ? 0.4 : 0.6)); }
     else { p.x = -s * serveSide * 2.5; p.y = s * 3.5; }
-    p.hx = p.x; p.hy = p.y; p.cool = 0; p.mvx = p.mvy = 0;
+    p.hx = p.x; p.hy = p.y; p.cool = 0; p.mvx = p.mvy = 0; p.netRush = false;
   }
   if (mode === 'singles') {
     const r = players.find(p => p.team !== server);
@@ -660,11 +777,11 @@ function hit(p, reach = 1.5){
   const vsSmash = !!ball.smash;
   const isSmash = ball.z > 2.9; // 2.5m未満の高めの球はハイボレーにする
   const isVolley = !isSmash && bounces === 0 && Math.abs(p.y) < 8;
-  const side = (ball.x - p.x) * s >= 0 ? 'f' : 'b';
+  const side = sideOf(p, ball.x);
   const isAirK = !isSmash && !isVolley && p.akPlanned && (p.jumpT ?? 9) < 0.8;
   p.akPlanned = false;
   const bodyVolley = isVolley && Math.abs(ball.x - p.x) < 0.35; // 体の正面に来たボレーはバックボレーでさばく
-  p.shot = isSmash ? 'sm' : isAirK ? (side === 'f' ? 'jk' : 'bjk') : bodyVolley ? 'bvc' : side + (isVolley ? 'v' : 's');
+  p.shot = shotKey(p, isSmash ? 'sm' : isAirK ? (side === 'f' ? 'jk' : 'bjk') : bodyVolley ? 'bvc' : side + (isVolley ? 'v' : 's'));
   const err = [1.6, 1.1, 0.7][level];
   if (p.isHuman) {
     let aim = 0;
@@ -711,7 +828,7 @@ function hit(p, reach = 1.5){
       tx = Math.max(-W + 0.8, Math.min(W - 0.8, netMan.x + (netMan.x > 0 ? -1 : 1) * (1 + Math.random() * 2)));
     }
     // small chance of error
-    if (Math.random() < [0.16, 0.09, 0.04][level]) { tx *= 1.35; ty *= 1.12; }
+    if (Math.random() < [0.16, 0.09, 0.04][level] * (1.36 - 0.12 * stK(p, 'con'))) { tx *= 1.35; ty *= 1.12; }
   }
   if (isSmash) {
     // スマッシュ：高い打点から叩きつける
@@ -747,14 +864,14 @@ function hit(p, reach = 1.5){
     const center = lat0 < 0.35 ? (0.35 - lat0) / 0.35 : 0;
     const fast = Math.max(0, Math.min(1, (inSpd - 21) / 16));
     const pressure = Math.min(1, Math.max(quick, center * 0.8, fast) + 0.25 * (quick + center + fast - Math.max(quick, center, fast)));
-    if (Math.random() < pressure * 0.7) {
+    if (Math.random() < pressure * 0.7 * (1.36 - 0.12 * stK(p, 'con'))) { // ミスの少なさで変わる
       const q = Math.random();
       close = q < 0.45 ? 'ctrl' : q < 0.8 ? 'float' : 'net';
       rush = Math.max(rush, pressure);
     }
   }
   if (close === 'ctrl') { tx += (Math.random() - .5) * 6 * rush; ty += -s * (Math.random() - .4) * 5 * rush; }
-  if ((jam > 0 && Math.random() < 0.25 + jam * 0.6) || close === 'net' || close === 'wild' || (vsSmash && Math.random() < 0.4)) {
+  if ((jam > 0 && Math.random() < (0.25 + jam * 0.6) * (1.36 - 0.12 * stK(p, 'con'))) || close === 'net' || close === 'wild' || (vsSmash && Math.random() < 0.4)) {
     if (close) jam = Math.max(jam, 0.7);
     if (vsSmash) jam = Math.max(jam, 0.9);
     mishit = true; jam = Math.max(jam, rush * 0.8);
@@ -764,7 +881,7 @@ function hit(p, reach = 1.5){
   }
   let dist = Math.hypot(tx - ball.x, ty - ball.y);
   if (close === 'float') { lob = true; power = false; ty = -s * (4 + Math.random() * 6); tx *= 0.6; }
-  let spd = lob ? 11 : (p.isHuman ? (power ? 44 : 26) : [20, 23, 27][level]);
+  let spd = lob ? 11 : (p.isHuman ? (power ? 44 : 26) : [20, 23, 27][level]) * (0.9 + 0.04 * stK(p, 'str')); // ストロークの強さ
   if (close === 'float') spd = 8;
   if (mishit) spd *= 0.6;
   // 体の正面より少し横（0.55〜1.2m）で打つと力が伝わる。正面だと弱い球になる
@@ -807,6 +924,7 @@ function hit(p, reach = 1.5){
   p.prepType = p.prepType && p.prepType === p.shot ? p.prepType : p.shot;
   p.fromPose = (p.prep || 0) > 0.3 && p.prepType === p.shot ? prepPose(p) : POSES[p.shot].back2;
   p.swing = 0.25; p.st = 0; p.prep = 0; p.serveSwing = false;
+  if (!p.isHuman && mode === 'singles' && p.char && !lob && Math.random() < stK(p, 'net') * 0.08) p.netRush = true; // 前に出やすい選手は打ったあとネットへ
   playHit(isSmash || power || isAirK ? 1.3 : lob || drop || mishit ? 0.6 : 1);
   p.label = 0.9;
   for (const q of players) q.cool = 0;
@@ -835,7 +953,8 @@ function serve(p){
     else if (outward) tx = boxX * (W - 0.5);
   }
   // 入る確率：フラットは入りにくく（約2倍）、スライスはよく入る（約3分の1）
-  const faultMul = kind === 'flat' ? 1.9 : kind === 'slice' ? 0.35 : kind === 'kick' ? 0.7 : 1;
+  const faultMul = (kind === 'flat' ? 1.9 : kind === 'slice' ? 0.35 : kind === 'kick' ? 0.7 : 1) * (1 + (stK(p, 'srv') - 3) * 0.08) * (1.24 - 0.08 * stK(p, 'con'));
+  sv *= 0.88 + 0.06 * stK(p, 'srv'); // サーブの強さ
   if (Math.random() < (p.isHuman ? 0.12 : [0.3, 0.2, 0.12][level]) * faultMul) ty -= s * (0.7 + Math.random() * 0.6);
   const ax = -Math.sign(boxX) * curveAmt;
   ball.z = Math.max(ball.z, 2.4);
@@ -860,10 +979,20 @@ function pointTo(team, reason){
   if ((a >= 4 || b >= 4) && Math.abs(a - b) >= 2) {
     const w = a > b ? 0 : 1;
     score.games[w]++; score.pts = [0, 0]; server = 1 - server;
-    const [g0, g1] = score.games;
-    if ((g0 >= 6 || g1 >= 6) && Math.abs(g0 - g1) >= 2) {
-      state = 'over'; timer = 0;
-      showMsg((g0 > g1 ? 0 : 1) === myTeam() ? `🏆 ${teamName(myTeam())}の勝ち！  ${g0}-${g1}\nクリック/タップでメニュー` : `${teamName(g0 > g1 ? 0 : 1)}の勝ち…  ${g0}-${g1}\nクリック/タップでメニュー`, 999);
+    if (!score.sets) score.sets = [0, 0];
+    const G = online ? 6 : gamesPerSet, g = score.games[w], o = score.games[1 - w];
+    if (G === 1 ? g >= 1 : (g >= G && (g - o >= 2 || g > G))) {
+      score.sets[w]++; const done = score.sets[w] >= SETS_TO_WIN;
+      const setNo = score.sets[0] + score.sets[1];
+      if (done) {
+        state = 'over'; timer = 0;
+        const [s0, s1] = score.sets;
+        if (online) showMsg((w === myTeam() ? `🏆 ${teamName(myTeam())}の勝ち！` : `${teamName(w)}の勝ち…`) + `  セット ${s0}-${s1}\nクリック/タップでメニュー`, 999);
+        else { msgEl.textContent = ''; matchOver(w === myTeam()); }
+        return;
+      }
+      score.games = [0, 0];
+      showMsg(`${teamName(w)}が第${setNo}セットを取りました（セット ${score.sets[myTeam()]}-${score.sets[1 - myTeam()]}）`, 2.2);
       return;
     }
     showMsg(teamName(w) + 'がゲームを取りました', 1.6);
@@ -938,15 +1067,15 @@ let gtime = 0;
 function update(dt){
   gtime += dt;
   if (msgTimer > 0 && msgTimer < 900) { msgTimer -= dt; if (msgTimer <= 0 && state !== 'serve') msgEl.textContent = ''; }
-  if (state === 'menu' || state === 'over') { if (state === 'over' && serveRequest) { serveRequest = false; if (online) netClose(); state = 'menu'; menu.classList.remove('hidden'); msgEl.textContent = ''; } serveRequest = false; return; }
+  if (state === 'menu' || state === 'over') { if (state === 'over' && serveRequest && online) { serveRequest = false; if (online) netClose(); state = 'menu'; menu.classList.remove('hidden'); msgEl.textContent = ''; } serveRequest = false; return; }
 
   // 人が操作する選手（この端末の自分＋オンラインの仲間・相手）
   if (human) { human.inp = toWorldInput(localInput(), human.team, touch); if (serveRequest) human.serveReq = true; }
-  const hs = 3.3;
+  const hs0 = 3.3;
   for (const hp of players) {
     if (!hp.isHuman) continue;
     if ((hp.fallT ?? 9) < FALL_T) { accelerate(hp, 0, 0, dt); continue; } // 転んでいる間は動けない
-    const I = hp.inp || NOINP, mx = I.mx, my = I.my, sg = sideSign(hp.team);
+    const I = hp.inp || NOINP, mx = I.mx, my = I.my, sg = sideSign(hp.team), hs = hs0 * (0.85 + 0.05 * stK(hp, 'spd')); // 足の速さ
     if (state === 'serve' && servingPlayer() === hp) {
       hp.x += mx * hs * dt * 0.5;
       const lim = sg * serveSide > 0 ? [0.3, SW] : [-SW, -0.3];
@@ -977,8 +1106,9 @@ function update(dt){
       const coming = (ball.y - p.y) * ball.vy < 0 || d < 1.6;
       if (coming && d < 11) {
         target = Math.max(0, Math.min(1, 1 - (d - 1.6) / 6)); // 早めにテイクバックし、引いたまま動く
-        const sd = (ball.x - p.x) * sideSign(p.team) >= 0 ? 'f' : 'b';
+        const sd = sideOf(p, ball.x);
         p.prepType = ball.z > 2.8 && ball.vz < 3 && bounces === 0 ? 'sm' : (bounces === 0 && Math.abs(p.y) < 8 && Math.abs(ball.x - p.x) < 0.35) ? 'bvc' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
+        p.prepType = shotKey(p, p.prepType);
         // エアK：バウンド後に肩の高さへ弾んだフォア側の球が良い位置に来たら、跳び上がって打つ
         const lat = Math.abs(ball.x - p.x);
         // 跳んでから少し遅れて（頂点を過ぎたあたりで）打てるよう、ボールが届く約0.4秒前に跳ぶ
@@ -987,7 +1117,8 @@ function update(dt){
         const approach = longRun || Math.abs(p.y) < HL - 2.5 || -(p.vys || 0) * sideSign(p.team) > 1.0; // 前に出て打つ（アプローチ）
         if (bounces === 1 && ball.z > (longRun ? 0.6 : approach ? 0.8 : 1.0) && d < 4 && tti < 0.42 && lat > 0.3 && lat < 1.5 && (p.jumpT ?? 9) > 1.2 && p.akDecided !== rallyHits) {
           p.akDecided = rallyHits;
-          const chance = longRun ? (p.isHuman ? 1 : 0.85) : p.isHuman ? (approach ? 0.95 : 0.8) : [0.2, 0.35, 0.5][level] * (approach ? 1.8 : 1);
+          const akMul = (p.char && p.char.airK) || 1;
+          const chance = akMul * (longRun ? (p.isHuman ? 1 : 0.85) : p.isHuman ? (approach ? 0.95 : 0.8) : [0.2, 0.35, 0.5][level] * (approach ? 1.8 : 1));
           if (Math.random() < chance) { p.jumpT = 0; p.jumpAmp = 0.6; p.akPlanned = true; p.akSide = sd; }
         }
       }
@@ -1006,7 +1137,7 @@ function update(dt){
       if (sp.isHuman && sp.serveReq) serveQueued = true;
       // サーブを打つまで、ずっとボールをつき続ける
       const q = dribbleQ(timer);
-      ball.x = sp.x + 0.4 * sg; ball.y = sp.y - sg * 0.38; ball.z = 0.06 + 0.5 * q; // 足の前、かがんだ左手の下
+      ball.x = sp.x + 0.4 * sg * (sp.lefty ? -1 : 1); ball.y = sp.y - sg * 0.38; ball.z = 0.06 + 0.5 * q; // 足の前、かがんだ左手の下
       ball.vx = ball.vy = ball.vz = 0;
       const caught = dribblePause(timer) || (q > 0.9 && ((timer % DRIB_CYCLE) % 0.5) / 0.5 > 0.5); // ボールが手に戻ってきた瞬間だけトスに移る
       if (timer >= 0.5 && caught && (sp.isHuman ? serveQueued : timer > DRIB + 0.5)) {
@@ -1015,7 +1146,7 @@ function update(dt){
         // サーブの種類でトスの位置を変える：キック＝頭の真上、フラット＝少し前、スライス＝今までどおり右前
         if (!sp.isHuman) sp.serveKind = ['flat', 'slice', 'kick'][Math.floor(Math.random() * 3)];
         const k2 = sp.serveKind, off = k2 === 'kick' ? [0.0, 0.0] : k2 === 'flat' ? [0.18, 0.22] : k2 === 'slice' ? [0.35, 0.38] : [0.25, 0.3];
-        tossing = true; tossT = 0; showMsg('', 0); ball.vz = TOSS_VZ; tossTc = TOSS_VZ / G + Math.sqrt(2 * Math.max(0, ball.z + TOSS_VZ * TOSS_VZ / (2 * G) - SERVE_HIT_Z) / G); ball.vx = (sp.x + off[0] * sg - ball.x) / tossTc; ball.vy = (sp.y - sg * off[1] - ball.y) / tossTc; // 高く上げ、落ちてきてラケットの高さに来たところで打つ
+        tossing = true; tossT = 0; showMsg('', 0); ball.vz = TOSS_VZ; tossTc = TOSS_VZ / G + Math.sqrt(2 * Math.max(0, ball.z + TOSS_VZ * TOSS_VZ / (2 * G) - SERVE_HIT_Z) / G); ball.vx = (sp.x + off[0] * sg * (sp.lefty ? -1 : 1) - ball.x) / tossTc; ball.vy = (sp.y - sg * off[1] - ball.y) / tossTc; // 高く上げ、落ちてきてラケットの高さに来たところで打つ
       }
     } else {
       tossT += dt; ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.vz -= G * dt; ball.z += ball.vz * dt;
@@ -1056,7 +1187,7 @@ function update(dt){
     // ギリギリで届かなかった球にも、ラケットを振る（空振り）
     if (p.whiff !== rallyHits && d < reach * 1.9 && ball.z < 3.3 && sideSign(p.team) * (ball.y - p.y) > 0.15 && sideSign(p.team) * ball.vy > 0) {
       p.whiff = rallyHits;
-      const sd = (ball.x - p.x) * sideSign(p.team) >= 0 ? 'f' : 'b';
+      const sd = sideOf(p, ball.x);
       p.shot = sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
       p.fromPose = (p.prep || 0) > 0.3 ? prepPose(p) : POSES[p.shot].back2;
       p.st = 0; p.prep = 0; p.serveSwing = false; p.label = 0.8; p.tag = '届かない…';
@@ -1113,8 +1244,8 @@ function aiMove(dt){
     } else if (incoming) {
       const mates = players.filter(q => q.team === p.team);
       // home line
-      const lineY = p.role === 'front' ? s * 3.2 : s * (HL - 0.3);
-      if (p.role === 'front') {
+      const lineY = (p.role === 'front' || p.netRush) ? s * 3.2 : s * (HL - 0.3);
+      if (p.role === 'front' || p.netRush) {
         tx = predictAtY(lineY); ty = lineY;
         // if lob over head, retreat
         if (ball.vz > 6) ty = s * 6;
@@ -1132,12 +1263,12 @@ function aiMove(dt){
     } else {
       // recover to formation, shading toward ball
       const bx = ball.x * 0.4;
-      if (p.role === 'front') { tx = bx * 0.8 + (mode === 'doubles' ? 0 : 0); ty = s * 3.5; }
+      if (p.role === 'front' || p.netRush) { tx = bx * 0.8; ty = s * 3.5; }
       else { tx = bx; ty = s * (HL - 0.3); }
       if (mode === 'doubles' && p.role === 'back') tx = bx * 0.6;
     }
     if ((p.fallT ?? 9) < FALL_T) { accelerate(p, 0, 0, dt); clampSide(p); continue; }
-    movePlayer(p, tx, ty, dt, spdAI);
+    movePlayer(p, tx, ty, dt, spdAI * (0.85 + 0.05 * stK(p, 'spd')));
     clampSide(p);
   }
 }
@@ -1316,6 +1447,7 @@ const SKIN = '#e2b48c';
 const geoCyl = new THREE.CylinderGeometry(1, 1, 1, 10);
 const geoSph = new THREE.SphereGeometry(1, 14, 10);
 function limbMesh(r, mat){ const m = new THREE.Mesh(geoCyl, mat); m.userData.r = r; m.castShadow = true; return m; }
+function setLimbMesh(m, a, b){ const d = new V3().subVectors(b, a); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize()); }
 function setLimb(m, a, b){
   const d = new V3().subVectors(b, a), len = d.length();
   m.position.copy(a).addScaledVector(d, 0.5);
@@ -1354,16 +1486,24 @@ const rigs = [];
 })();
 function buildRig(p){
   const g = new THREE.Group(); scene.add(g);
-  const skin = M(SKIN, { roughness: 0.6 }), shirt = M(p.color, { roughness: 0.55 });
+  const ch = p.char || {};
+  const skin = M(ch.skin || SKIN, { roughness: 0.6 }), shirt = M(p.color, { roughness: 0.55 });
   const shorts = M(p.team === 0 ? '#1d2b5a' : '#f4f4f4'), shoe = M('#fafafa', { roughness: 0.4 });
+  const hairM = M(ch.hairC || '#3b2a1e', { roughness: 0.9 });
   // 胴体はお腹で2つに分ける：上（胸）はひねり・反り・前かがみで大きく動き、下（お腹）は腰に近い動き
   const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.165, 0.32, 16), shirt); torso.scale.z = 0.62; torso.castShadow = true;
   const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.168, 0.155, 0.22, 16), shirt); belly.scale.z = 0.64; belly.castShadow = true;
   const chest = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), shirt); chest.scale.set(1, 0.5, 0.62); chest.castShadow = true;
-  const hips = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.24, 14), shorts); hips.scale.z = 0.7; hips.castShadow = true;
+  const hips = new THREE.Mesh(ch.sex === 'f' ? new THREE.CylinderGeometry(0.16, 0.27, 0.28, 16) : new THREE.CylinderGeometry(0.16, 0.19, 0.24, 14), shorts); // 女子はスカート hips.scale.z = 0.7; hips.castShadow = true;
   const neck = limbMesh(0.05, skin);
   const head = ball3(0.115, skin);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.122, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), M('#3b2a1e', { roughness: 0.9 }));
+  const hair = new THREE.Mesh(ch.hair === 'curly' ? new THREE.IcosahedronGeometry(0.135, 1) : new THREE.SphereGeometry(ch.hair === 'crop' ? 0.119 : 0.122, 14, 10, 0, Math.PI * 2, 0, Math.PI * (ch.hair === 'crop' ? 0.45 : ch.hair === 'bob' ? 0.68 : 0.55)), hairM);
+  // 髪型ごとの追加パーツ：長髪（後ろに垂らす）、おだんご、ボブ。ヘアバンド
+  let hairX = null;
+  if (ch.hair === 'long') hairX = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.075, 0.26, 10), hairM);
+  else if (ch.hair === 'bun') hairX = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), hairM);
+  else if (ch.hair === 'bob') hairX = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.135, 0.12, 16, 1, true), hairM);
+  const band = ch.band ? new THREE.Mesh(new THREE.TorusGeometry(0.118, 0.016, 6, 24), M(ch.band)) : null;
   const ua = [limbMesh(0.05, shirt), limbMesh(0.05, shirt)], fa = [limbMesh(0.04, skin), limbMesh(0.04, skin)];
   const fistGeo = new THREE.BoxGeometry(0.075, 0.1, 0.085), fists = [new THREE.Mesh(fistGeo, skin), new THREE.Mesh(fistGeo, skin)]; fists.forEach(f => f.castShadow = true);
   const hands = [ball3(0.04, skin), ball3(0.04, skin)], elbows = [ball3(0.045, skin), ball3(0.045, skin)], shoulders = [ball3(0.07, shirt), ball3(0.07, shirt)];
@@ -1381,8 +1521,9 @@ function buildRig(p){
     const top = new V3(0, -0.29, 0);
     for (const sx of [-1, 1]) seg(top, new V3(sx * 0.075, -0.145, 0), 0.011);
     seg(new V3(-0.05, -0.19, 0), new V3(0.05, -0.19, 0), 0.008); }
+  if (hairX) { hairX.castShadow = true; g.add(hairX); } if (band) g.add(band);
   g.add(...fists, torso, belly, chest, hips, neck, head, hair, ...ua, ...fa, ...hands, ...elbows, ...shoulders, ...th, ...sh, ...knees, ...shoes, handle, racket);
-  return { p, g, fists, torso, belly, chest, hips, neck, head, hair, ua, fa, hands, elbows, shoulders, th, sh, knees, shoes, handle, racket };
+  return { p, g, hairX, band, fists, torso, belly, chest, hips, neck, head, hair, ua, fa, hands, elbows, shoulders, th, sh, knees, shoes, handle, racket };
 }
 
 function computePose(p){
@@ -1407,9 +1548,10 @@ function computePose(p){
   const netPos = Math.abs(p.y) < 7;
   const sideStep = (p.mv || 0) > 0.2 && Math.abs(latV) > Math.abs(fwdV) * 1.2 && (netPos || spd < 2.2) && state === 'rally';
   if (sideStep) yaw = Math.max(-0.25, Math.min(0.25, latV * 0.08));
-  if (state === 'serve' && p === servingPlayer()) yaw = 0.9;
-  else if (p.prepType === 'sm' && (p.prep || 0) > 0.03 && (p.st ?? 9) > 0.7) yaw = 0.9 * p.prep; // スマッシュの構えも横向き
-  else if (p.shot === 'sm' && (p.st ?? 9) < 0.5) { const st = p.st ?? 9; yaw = 0.9 * Math.max(0, 1 - st / 0.3) - 0.25 * Math.min(1, st / 0.3) * Math.max(0, 1 - (st - 0.3) / 0.2); }
+  const handY = p.lefty ? -1 : 1;
+  if (state === 'serve' && p === servingPlayer()) yaw = 0.9 * handY;
+  else if (p.prepType === 'sm' && (p.prep || 0) > 0.03 && (p.st ?? 9) > 0.7) yaw = 0.9 * p.prep * handY; // スマッシュの構えも横向き
+  else if (p.shot === 'sm' && (p.st ?? 9) < 0.5) { const st = p.st ?? 9; yaw = handY * (0.9 * Math.max(0, 1 - st / 0.3) - 0.25 * Math.min(1, st / 0.3) * Math.max(0, 1 - (st - 0.3) / 0.2)); }
   let pose;
   const D = 0.5, st = p.st ?? 9;
   if (st < D && POSES[p.shot]) {
@@ -1437,7 +1579,8 @@ function computePose(p){
     if (sideStep && netPos) { pose = READY_NET; return { pose, yaw, ph, mv, sprint, sideStep }; }
     const a = Math.sin(ph) * mv;
     // 右へ動くときはフォア側（右手だけで引き、左手は斜め前）、左へ動くときはバック側（両手で引く）
-    const side = Math.abs(latV) > 0.4 ? (latV > 0 ? 'fs' : 'bs') : (state === 'rally' && p.prepType && POSES[p.prepType] && p.prepType[1] === 's' ? p.prepType : 'fs');
+    const side0 = Math.abs(latV) > 0.4 ? (latV * (p.lefty ? -1 : 1) > 0 ? 'fs' : 'bs') : (state === 'rally' && p.prepType && POSES[p.prepType] && p.prepType[1] === 's' ? p.prepType : 'fs');
+    const side = shotKey(p, side0);
     const base = lerpPose(READY, POSES[side].back1, 0.6);
     pose = { h: [base.h[0], base.h[1] + a * 0.06, base.h[2] + Math.abs(a) * 0.03], r: base.r, l: base.l === 'grip' ? 'grip' : [base.l[0], base.l[1] - a * 0.08, base.l[2]], tw: (base.tw || 0) * 0.8, bend: 0.12 + 0.15 * sprint, cr: 0.04 + 0.04 * sprint };
   } else pose = netPos && state === 'rally' ? READY_NET : READY;
@@ -1458,7 +1601,8 @@ function updateRig(R){
   sm.yaw += (cp.yaw - sm.yaw) * (1 - Math.exp(-frameDt * 12));
   const pose = { h: sm.h, r: sm.r, l: tl ? sm.l : 'grip', tw: sm.tw, cr: sm.cr, sl: sm.sl, sr: sm.sr, kr: sm.kr, kl: sm.kl, bend: sm.bend, eu: sm.eu, yw: sm.yw };
   if (!tl) sm.l = [sm.h[0] - 0.02, sm.h[1] - 0.04, sm.h[2] - 0.1];
-  const yaw = sm.yaw + (pose.yw || 0); // 体全体（足ごと）の向き：フォアは右向き、バックは左向き
+  const hand = p.lefty ? -1 : 1, hsc = (p.char ? p.char.h : 1.8) / 1.8; // 左利きは左右反転、身長で大きさを変える
+  const yaw = sm.yaw + hand * (pose.yw || 0); // 体全体（足ごと）の向き：フォアは右向き、バックは左向き
   const st0 = p.st ?? 9;
   const receiving = state === 'serve' && p.team !== server;
   const wideOK = (state === 'serve' && p !== servingPlayer()) || Math.abs(p.y) < HL / 2;
@@ -1481,11 +1625,11 @@ function updateRig(R){
   const LEG = 0.12; // 脚を長くした分だけ上半身を持ち上げる
   // 転んだとき：体ごと横に倒れて、しばらくして起き上がる
   const ft = p.fallT ?? 9, fallK = ft < FALL_T ? (ft < 0.3 ? ft / 0.3 : ft < 0.9 ? 1 : Math.max(0, 1 - (ft - 0.9) / 0.45)) : 0, fallDir = p.lungeDir || 1;
-  const W0 = (a, f, u, noBob) => { if (!noBob) u += LEG; if (!noBob && bendV) { const hgt = Math.max(0, u - 0.66 - LEG); f += bendV * 0.55 * hgt; u -= Math.abs(bendV) * 0.25 * hgt * Math.abs(bendV); } if (!noBob && lean) { a += lean * 0.32 * Math.max(0, u - 0.3); u -= Math.abs(lean) * 0.14 * Math.min(1, u); } const a2 = a * yc + f * ys, f2 = -a * ys + f * yc; return new V3(p.x + rx * a2, u + (noBob ? 0 : bob) + jumpH, p.y + fz * f2); };
+  const W0 = (a, f, u, noBob) => { a *= hand; if (!noBob) u += LEG; if (!noBob && bendV) { const hgt = Math.max(0, u - 0.66 - LEG); f += bendV * 0.55 * hgt; u -= Math.abs(bendV) * 0.25 * hgt * Math.abs(bendV); } if (!noBob && lean) { a += lean * 0.32 * Math.max(0, u - 0.3); u -= Math.abs(lean) * 0.14 * Math.min(1, u); } const a2 = a * yc + f * ys, f2 = -a * ys + f * yc; return new V3(p.x + rx * a2 * hsc, (u + (noBob ? 0 : bob)) * hsc + jumpH, p.y + fz * f2 * hsc); };
   const W = !fallK ? W0 : (a, f, u, noBob) => { const v = W0(a, f, u, noBob), h = v.y; const k = fallK * 0.85; // 足元を軸に倒す
     v.x += rx * fallDir * h * Math.sin(k * 1.3) * (fz === -1 || fz === 1 ? 1 : 1); v.y = h * Math.cos(k * 1.3) + 0.08 * k; return v; };
   const heading = (T) => { const a2 = Math.cos(T + yaw), f2 = -Math.sin(T + yaw); return Math.atan2(-(fz * f2), rx * a2); }; // ローカル右軸の向き
-  const twist = pose.tw || 0, twc = Math.cos(twist), tws = Math.sin(twist);
+  const twist = hand * (pose.tw || 0), twc = Math.cos(twist), tws = Math.sin(twist);
   // 胴体・腰・頭
   const tilt = Math.atan(0.55 * (pose.bend || 0)); // ＋で前かがみ、−で背中を反らす
   R.belly.position.copy(W(0, 0, 0.81)); R.belly.rotation.set(-tilt * 0.35, heading(twist * 0.45), 0, 'YXZ');
@@ -1496,10 +1640,16 @@ function updateRig(R){
   R.head.position.copy(W(0, 0.0, 1.46));
   R.hair.position.copy(W(0, -0.015, 1.475)); R.hair.rotation.set(0, heading(twist * 0.5), 0);
   R.hair.rotateX(-0.35 * (1)); // 後頭部側を厚く
+  if (R.hairX) {
+    if (p.char.hair === 'long') setLimbMesh(R.hairX, W(0, -0.09, 1.47), W(0, -0.13, 1.2));
+    else if (p.char.hair === 'bun') R.hairX.position.copy(W(0, -0.07, 1.6));
+    else { R.hairX.position.copy(W(0, -0.01, 1.45)); R.hairX.rotation.set(0, heading(twist * 0.5), 0); }
+  }
+  if (R.band) { R.band.position.copy(W(0, 0, 1.5)); R.band.rotation.set(Math.PI / 2, 0, heading(twist * 0.5)); }
   // 腕
   const lh = pose.l === 'grip' ? [pose.h[0] - 0.02, pose.h[1] - 0.04, pose.h[2] - 0.1] : pose.l;
   // 肩→肘→手首を2本の骨として解く（IK）。肘は外側・下・後ろ寄りに自然に曲がる
-  const L1 = 0.36, L2 = 0.35;
+  const L1 = 0.36 * hsc, L2 = 0.35 * hsc;
   const handsW = [];
   [[0.24, pose.h], [-0.24, lh]].forEach(([sa, hand], i) => {
     const s = [sa * twc, -sa * tws, 1.17];
@@ -1584,6 +1734,7 @@ function render3d(){
     }
     if (p === human) html += '<div style="color:#fff;font-size:16px">▼</div>';
     else if (online && p.isHuman) html += `<div style="color:#fff;font-size:12px;opacity:.85">P${p.seat + 1}</div>`;
+    else if (!online && p.char) html += `<div style="color:#fff;font-size:11px;opacity:.8">${p.char.name}</div>`;
     el.innerHTML = html; el.style.left = sx + 'px'; el.style.top = sy + 'px';
   }
   if (ball) {
@@ -1605,9 +1756,10 @@ function render3d(){
     let pt;
     if (a >= 3 && b >= 3) pt = a === b ? 'デュース' : (a > b ? 'Ad あなた' : 'Ad CPU');
     else pt = `${names[Math.min(a, 3)]} - ${names[Math.min(b, 3)]}`;
-    const mt = myTeam(), ot = 1 - mt, nm = t => online ? (t === 0 ? '青' : '赤') + (t === mt ? '(あなた)' : '') : (t === 0 ? 'あなた' : 'CPU');
+    const mt = myTeam(), ot = 1 - mt, cn = t => players.filter(p => p.team === t && p.char).map(p => p.char.name).join('・'), nm = t => online ? (t === 0 ? '青' : '赤') + (t === mt ? '(あなた)' : '') : (cn(t) || (t === 0 ? 'あなた' : 'CPU'));
+    const sets = score.sets || [0, 0];
     const ptS = (a >= 3 && b >= 3) ? (a === b ? 'デュース' : 'Ad ' + nm(a > b ? 0 : 1)) : `${names[Math.min(score.pts[mt], 3)]} - ${names[Math.min(score.pts[ot], 3)]}`;
-    hud.innerHTML = `${nm(mt)} <b>${score.games[mt]}</b> - <b>${score.games[ot]}</b> ${nm(ot)}　|　${ptS}　🎾${nm(server)}のサーブ${faults ? '（2nd）' : ''}`;
+    hud.innerHTML = `${nm(mt)} <small>セット</small><b>${sets[mt]}-${sets[ot]}</b> <small>ゲーム</small><b>${score.games[mt]}-${score.games[ot]}</b> ${nm(ot)}　|　${ptS}　🎾${nm(server)}のサーブ${faults ? '（2nd）' : ''}`;
   }
 }
 
@@ -1657,6 +1809,12 @@ const POSES = {
         hit:   { tw: -0.1, h: [-0.25, 0.5, 1.45], r: [-0.6, 0.25, 0.15], l: 'grip', sr: 0.05, sl: -0.35, kl: 0.5 },
         mid:   { tw: 0.6, h: [0.25, 0.45, 1.75], r: [0.4, 0.1, 0.4], l: 'grip', sr: 0.2, kl: 0.4 },
         fol:   { tw: 1.0, h: [0.32, 0.0, 1.7], r: [0.2, -0.45, -0.25], l: 'grip', sr: 0.1, sl: -0.1, kl: 0.25 } },
+  // 片手バックハンド（メデラーなど）：左肩の上に高く引き、右足の前で打って、両腕を大きく開く
+  bs1: { back1: { tw: -1.3, h: [-0.35, -0.15, 1.45], r: [-0.05, -0.15, 0.65], l: 'grip', cr: 0.08, sr: 0.3 },
+        back2: { tw: -1.35, h: [-0.5, -0.4, 0.9], r: [-0.15, -0.45, -0.4], l: [-0.35, -0.25, 0.95], cr: 0.12, sr: 0.35 },
+        hit:   { tw: -0.4, h: [0.05, 0.5, 0.95], r: [-0.6, 0.2, 0.05], l: [-0.45, -0.35, 1.0], cr: 0.08, sr: 0.35 },
+        mid:   { tw: -0.1, h: [0.45, 0.4, 1.35], r: [0.1, 0.2, 0.6], l: [-0.55, -0.4, 1.1], cr: 0.04, sr: 0.35 },
+        fol:   { tw: 0.1, h: [0.65, 0.1, 1.7], r: [0.15, -0.25, 0.6], l: [-0.65, -0.35, 1.25], cr: 0.02, sr: 0.25, sl: 0.4 } },
   // 正面のバックボレー：体は正面のまま、ひじを横に張ってラケットを体の前（左寄り）に構え、前へ押し出す
   bvc: { back1: { tw: -0.35, h: [-0.05, 0.25, 1.15], r: [-0.55, 0.3, 0.25], l: [-0.25, 0.45, 1.3], cr: 0.15, eu: 0.6 },
         back2: { tw: -0.45, h: [-0.1, 0.2, 1.15], r: [-0.55, 0.2, 0.3], l: [-0.25, 0.45, 1.3], cr: 0.16, eu: 0.65 },
@@ -1669,7 +1827,7 @@ const POSES = {
         mid:   { tw: -0.4, h: [0.0, 0.6, 1.3], r: [-0.1, 0.5, -0.3], l: [-0.35, 0.1, 1.0], cr: 0.05, sl: 0.3, sr: -0.35, kr: 0.32, bend: 0.25 },
         fol:   { tw: -0.7, h: [-0.35, 0.25, 0.75], r: [-0.3, 0.0, -0.55], l: [-0.4, -0.2, 1.0], cr: 0.1, sl: 0.4, sr: -0.4, kr: 0.2, bend: 0.3 } },
 };
-const SHOT_NAME = { bvc: 'バックボレー（正面）', jk: 'エアK！', bjk: 'ジャンプバック！', fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
+const SHOT_NAME = { bs1: 'バックストローク（片手）', bvc: 'バックボレー（正面）', jk: 'エアK！', bjk: 'ジャンプバック！', fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
 function lerp3(a, b, t){ return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 function lerpPose(A, B, t){
   t = Math.max(0, Math.min(1, t)); t = t * t * (3 - 2 * t);
@@ -1717,7 +1875,7 @@ function viewerSetup(){
   // 1人だけ（サーブの確認のため後衛・自分のサーブ）
   mode = 'singles';
   players = [mkPlayer(0, 'back', true, '#2f7cf6')]; human = players[0];
-  score = { pts: [0, 0], games: [0, 0] }; server = 0; serveSide = 1; faults = 0;
+  score = { pts: [0, 0], games: [0, 0], sets: [0, 0] }; server = 0; serveSide = 1; faults = 0;
   ball = { x: 99, y: 0, z: 0, vx: 0, vy: 0, vz: 0, live: false };
   // カメラの回転（ドラッグ）と拡大（ホイール・ピンチ）
   const pts = new Map();
@@ -1807,7 +1965,7 @@ function viewerCamera(){
 // どの画面でも：保存した手直し（localStorage）をポーズに反映する。ゲームにもそのまま効く
 const POSE_PHASES = ['back1', 'back2', 'hit', 'mid', 'fol'];
 const PHASE_NAME = { back1: '①テイクバック（高く引く）', back2: '②テイクバック（落とす）', hit: '③打点', mid: '④振り抜き途中', fol: '⑤フィニッシュ' };
-const POSE_GROUP = { fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', bvc: 'バックボレー（正面）', sm: 'サーブ・スマッシュ（打つ）', jk: 'エアK', bjk: 'ジャンプバック' };
+const POSE_GROUP = { fs: 'フォアストローク', bs: 'バックストローク', bs1: 'バックストローク（片手）', fv: 'フォアボレー', bv: 'バックボレー', bvc: 'バックボレー（正面）', sm: 'サーブ・スマッシュ（打つ）', jk: 'エアK', bjk: 'ジャンプバック' };
 const POSE_REG = {};
 POSE_REG['READY'] = { name: '構え（後ろ）', pose: READY };
 POSE_REG['READY_NET'] = { name: '構え（ネット前）', pose: READY_NET };
@@ -1817,7 +1975,7 @@ POSE_REG['SERVE_DROP'] = { name: 'サーブ：ラケットを背中に落とす'
 for (const k of Object.keys(POSE_GROUP)) for (const ph of POSE_PHASES) if (POSES[k] && POSES[k][ph]) POSE_REG[k + '.' + ph] = { name: POSE_GROUP[k] + ' ' + PHASE_NAME[ph], pose: POSES[k][ph] };
 // 体全体の向き（yw）の初期値：フォアは少し右向き、バックは少し左向き（打ち終わりに近いほど正面へ戻る）
 { const YW = { back1: 0.3, back2: 0.35, hit: 0.2, mid: 0.1, fol: 0.05 };
-  for (const [k, sg] of [['fs', 1], ['fv', 1], ['jk', 1], ['bs', -1], ['bv', -1], ['bjk', -1]])
+  for (const [k, sg] of [['fs', 1], ['fv', 1], ['jk', 1], ['bs', -1], ['bs1', -1], ['bv', -1], ['bjk', -1]])
     for (const ph of POSE_PHASES) if (POSES[k] && POSES[k][ph] && POSES[k][ph].yw === undefined) POSES[k][ph].yw = sg * YW[ph]; }
 const POSE_KEYS_ALL = ['h', 'r', 'l', 'yw', 'tw', 'bend', 'cr', 'sl', 'sr', 'kl', 'kr', 'eu'];
 const clonePose = (o) => JSON.parse(JSON.stringify(o));

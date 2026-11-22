@@ -92,6 +92,34 @@ const MAX_MESSAGES = 10;
 const MAX_TEXT = 500;
 const allow = createLimiter({ max: 20, windowMs: 60_000 });
 
+// 質問の言葉に合わせて必ず付ける参考ページ（実在を確認した URL だけ）。上から順に優先。
+export const LINKS = [
+  { title: "d払い よくある質問（ネットでの支払い）", url: "https://service.smt.docomo.ne.jp/keitai_payment/faq/?tab=net", words: ["ネット", "通販", "オンライン", "サイト", "amazon", "アマゾン"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い アプリのヘルプ（エラー・使えないとき）", url: "https://service.smt.docomo.ne.jp/keitai_payment/app/help/", words: ["エラー", "使えない", "できない", "表示", "アプリ", "ログイン", "不具合", "困"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い 初心者ガイド（始め方・使い方）", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/beginner_guide/index.html", words: ["始め", "はじめ", "使い方", "登録", "初めて", "設定", "ダウンロード", "お店", "支払い方法"], topics: ["dpay"] },
+  { title: "d払い よくある質問", url: "https://service.smt.docomo.ne.jp/keitai_payment/faq/", words: ["ポイント", "キャンセル", "返金", "解約", "上限", "限度", "残高", "チャージ", "カード"], topics: ["dpay", "dpay_faq"] },
+  { title: "dカード よくある質問", url: "https://fw.dcard.docomo.ne.jp/st/faq/", words: ["年会費", "審査", "明細", "引き落とし", "暗証", "紛失", "再発行", "限度", "支払"], topics: ["dcard"] },
+  { title: "dカードの種類と年会費（ドコモ）", url: "https://www.docomo.ne.jp/service/dcard/", words: ["年会費", "gold", "ゴールド", "プラチナ", "種類", "違い", "おすすめ", "特典"], topics: ["dcard"] },
+  { title: "dカード 公式サイト", url: "https://dcard.docomo.ne.jp/st/", words: ["入会", "申込", "申し込み", "キャンペーン"], topics: ["dcard"] },
+  { title: "d払い（ドコモ）", url: "https://www.docomo.ne.jp/service/d_payment/", words: [], topics: ["dpay"] },
+  { title: "永野の note", url: "https://note.com/mute_phlox837", words: [], topics: ["nagano"] },
+  { title: "ドコモフィナンシャルグループ", url: "https://www.docomo-fg.com/", words: [], topics: ["dfg"] },
+  { title: "NTTドコモ", url: "https://www.docomo.ne.jp/", words: [], topics: ["docomo"] },
+];
+
+// 話題が合うページのうち、質問の言葉に多く当たるものを最大 2 件。当たらなければ話題の代表ページ。
+export function curatedLinks(text, topics) {
+  const t = text.toLowerCase();
+  const pool = LINKS.filter((l) => l.topics.some((k) => topics.includes(k)));
+  const hit = pool
+    .map((l, i) => ({ l, i, score: l.words.filter((w) => t.includes(w.toLowerCase())).length }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map((x) => x.l);
+  const out = hit.length ? hit : pool.filter((l) => !l.words.length).concat(pool).slice(0, 1);
+  return out.slice(0, 2).map(({ title, url }) => ({ title, url }));
+}
+
 // 公式とみなすサイト（参考リンクはここに含まれるものだけ出す）
 const OFFICIAL = /(^|\.)(docomo\.ne\.jp|docomo-fg\.com|note\.com)$/;
 
@@ -110,9 +138,9 @@ export function stripUrls(text) {
 //  1. Google 検索で根拠にしたページ（説明が載っている個別ページ。リンクは Google 経由で本来のページへ転送される）
 //  2. 読み取れた公式ページのうち、トップより深いもの
 //  3. どちらもなければ、話題の公式ページ
-export function pickLinks(response, fallbackUrls) {
+export function pickLinks(response, fallbackUrls, curated = []) {
   const cand = response?.candidates?.[0] ?? {};
-  const links = [];
+  const links = [...curated];
   const add = (url, title) => {
     if (!url || links.some((l) => l.url === url) || links.length >= 3) return;
     links.push({ url, title: title || url });
@@ -121,7 +149,7 @@ export function pickLinks(response, fallbackUrls) {
     const w = c.web;
     if (!w?.uri) continue;
     const host = String(w.domain || w.title || "").toLowerCase();
-    if (OFFICIAL.test(host)) add(w.uri, w.title);
+    if (OFFICIAL.test(host)) add(w.uri, `${w.title}（検索で見つけたページ）`);
   }
   for (const m of cand.urlContextMetadata?.urlMetadata ?? []) {
     if (!String(m.urlRetrievalStatus ?? "").includes("SUCCESS")) continue;
@@ -176,7 +204,7 @@ export default async function handler(req, res) {
       thinking: u.thoughtsTokenCount ?? 0,
       total: u.totalTokenCount ?? 0,
     };
-    return res.status(200).json({ reply: stripUrls(reply), topics: topics.map((k) => TOPICS[k].label), links: pickLinks(response, urls), usage });
+    return res.status(200).json({ reply: stripUrls(reply), topics: topics.map((k) => TOPICS[k].label), links: pickLinks(response, urls, curatedLinks(messages.at(-1).text, topics)), usage });
   } catch (err) {
     return sendAiError(res, err);
   }

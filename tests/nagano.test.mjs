@@ -26,3 +26,11 @@ test("参考リンクは検索の根拠になった公式ページを優先", ()
   assert.deepEqual(pickLinks(r, ["https://top/"]).map((l) => l.url), ["https://g/redirect1"]);
   assert.deepEqual(pickLinks({}, ["https://top/"]).map((l) => l.url), ["https://top/"]);
 });
+
+const { curatedLinks } = await import("../api/nagano.js");
+test("質問に合う説明ページを選ぶ", () => {
+  assert.match(curatedLinks("d払いが使えない", ["dpay_faq"])[0].url, /app\/help/);
+  assert.match(curatedLinks("d払いの始め方", ["dpay"])[0].url, /beginner_guide/);
+  assert.match(curatedLinks("dカードの年会費", ["dcard"])[0].url, /faq|dcard/);
+  assert.match(curatedLinks("自己紹介", ["nagano"])[0].url, /note\.com/);
+});

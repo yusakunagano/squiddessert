@@ -190,17 +190,18 @@ const VIEW_W = 16;
 // ---- settings ----
 let mode = 'singles', pos = 'back', level = 1;
 // ---- 選手（実在の名選手をもじった架空のキャラクター）----
-// 能力は 1〜5 で、全員の合計を同じ（15）にして、だれかが一方的に強くならないようにしている
+// 能力は 1〜5。歴史的な名選手（メデラー・ナダレ・シャコビッチ）は合計18と少し高め、ほかは15〜17。
+// 能力1つあたりの効き目は小さめにしてあるので、だれかが一方的に勝つことはない
 // spd=足の速さ, str=ストローク, srv=サーブ, con=ミスの少なさ, net=前に出る
 const CHARS = [
-  { id: 'mederer', name: 'メデラー', sex: 'm', h: 1.85, lefty: false, oneBH: true, hair: 'short', hairC: '#5a3a22', band: '#ffffff', skin: '#f0c8a6', shirt: '#d93b3b', st: { spd: 2, str: 3, srv: 4, con: 2, net: 4 }, note: '前に出るのが好き。サーブとネットプレーがうまい。片手バック。' },
-  { id: 'cinnamon', name: 'シナモン', sex: 'm', h: 1.91, lefty: false, oneBH: false, hair: 'curly', hairC: '#c0582b', skin: '#f3cfb3', shirt: '#2fbf71', st: { spd: 3, str: 4, srv: 3, con: 3, net: 2 }, note: '長身から打つ、伸びのある強いストローク。' },
-  { id: 'nadare', name: 'ナダレ', sex: 'm', h: 1.85, lefty: true, oneBH: false, hair: 'long', hairC: '#2a1a10', band: '#d23a2a', skin: '#d9a982', shirt: '#ff8a1f', st: { spd: 4, str: 3, srv: 2, con: 4, net: 2 }, note: '左利き。足が速く、粘り強くてミスが少ない。' },
-  { id: 'alcaros', name: 'アルカロス', sex: 'm', h: 1.83, lefty: false, oneBH: false, hair: 'short', hairC: '#2b1d14', skin: '#d6a37c', shirt: '#3a7bd5', st: { spd: 4, str: 3, srv: 3, con: 2, net: 3 }, note: '足が速くて何でもできる。前にも出てくる。' },
-  { id: 'shakovic', name: 'シャコビッチ', sex: 'm', h: 1.88, lefty: false, oneBH: false, hair: 'crop', hairC: '#3a2a20', skin: '#ecc4a2', shirt: '#1f2a44', st: { spd: 3, str: 3, srv: 2, con: 5, net: 2 }, note: 'とにかくミスが少ない、鉄壁の守り。' },
+  { id: 'mederer', name: 'メデラー', sex: 'm', h: 1.85, lefty: false, oneBH: true, hair: 'short', hairC: '#5a3a22', band: '#ffffff', skin: '#f0c8a6', shirt: '#d93b3b', st: { spd: 3, str: 4, srv: 4, con: 3, net: 4 }, note: '前に出るのが好き。サーブとネットプレーがうまい。片手バック。' },
+  { id: 'cinnamon', name: 'シナモン', sex: 'm', h: 1.91, lefty: false, oneBH: false, hair: 'curly', hairC: '#c0582b', skin: '#f3cfb3', shirt: '#2fbf71', st: { spd: 3, str: 5, srv: 3, con: 3, net: 2 }, note: '長身から打つ、伸びのある強いストローク。' },
+  { id: 'nadare', name: 'ナダレ', sex: 'm', h: 1.85, lefty: true, oneBH: false, hair: 'long', hairC: '#2a1a10', band: '#d23a2a', skin: '#d9a982', shirt: '#ff8a1f', st: { spd: 5, str: 4, srv: 2, con: 5, net: 2 }, note: '左利き。足が速く、粘り強くてミスが少ない。' },
+  { id: 'alcaros', name: 'アルカロス', sex: 'm', h: 1.83, lefty: false, oneBH: false, hair: 'short', hairC: '#2b1d14', skin: '#d6a37c', shirt: '#3a7bd5', st: { spd: 5, str: 4, srv: 3, con: 2, net: 3 }, note: '足が速くて何でもできる。前にも出てくる。' },
+  { id: 'shakovic', name: 'シャコビッチ', sex: 'm', h: 1.88, lefty: false, oneBH: false, hair: 'crop', hairC: '#3a2a20', skin: '#ecc4a2', shirt: '#1f2a44', st: { spd: 4, str: 4, srv: 3, con: 5, net: 2 }, note: 'とにかくミスが少ない、鉄壁の守り。' },
   { id: 'nishikigoi', name: '錦鯉', sex: 'm', h: 1.78, lefty: false, oneBH: false, hair: 'short', hairC: '#111111', skin: '#e6b98f', shirt: '#f0f0f0', st: { spd: 4, str: 3, srv: 2, con: 3, net: 3 }, airK: 1.6, note: '足が速く、ジャンプして打つエアKが得意。' },
   { id: 'naoko', name: '東京なおこ', sex: 'f', h: 1.80, lefty: false, oneBH: false, hair: 'bun', hairC: '#2a1a12', band: '#ff4fa3', skin: '#8d5a3b', shirt: '#ff4fa3', st: { spd: 2, str: 4, srv: 5, con: 2, net: 2 }, note: '強烈なサーブと強いストローク。' },
-  { id: 'kimiko', name: '伊藤きみこ', sex: 'f', h: 1.63, lefty: false, oneBH: false, hair: 'bob', hairC: '#111111', skin: '#efc9a4', shirt: '#ffd23f', st: { spd: 3, str: 2, srv: 3, con: 4, net: 3 }, note: '小柄だがミスが少なく、前に出てボレーもうまい。' },
+  { id: 'kimiko', name: '伊藤きみこ', sex: 'f', h: 1.63, lefty: false, oneBH: false, hair: 'bob', hairC: '#111111', skin: '#efc9a4', shirt: '#ffd23f', st: { spd: 3, str: 3, srv: 2, con: 4, net: 4 }, note: '小柄だがミスが少なく、前に出てボレーもうまい。' },
 ];
 const ST_NAME = { spd: '足の速さ', str: 'ストローク', srv: 'サーブ', con: 'ミスの少なさ', net: '前に出る' };
 let myChar = CHARS[0], fmt = 'match', gamesPerSet = 1; // fmt: 'match'（1試合）/ 'tour'（トーナメント）
@@ -221,6 +222,7 @@ document.getElementById('start').onclick = () => { online = false; if (fmt === '
   grid.innerHTML = CHARS.map((c, i) => `<button class="cc${i === 0 ? ' sel' : ''}" data-ch="${i}"><b><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c.shirt};border:1px solid #fff;margin-right:5px"></i>${c.name}</b>
     <div class="meta">${c.sex === 'f' ? '女子' : '男子'}・${Math.round(c.h * 100)}cm・${c.lefty ? '左利き' : '右利き'}・バック${c.oneBH ? '片手' : '両手'}</div>
     ${Object.keys(ST_NAME).map(k => `<div class="bar"><span>${ST_NAME[k]}</span><span class="stars">${stars(c.st[k])}</span></div>`).join('')}
+    <div class="bar"><span>総合</span><b>${Object.values(c.st).reduce((x, y) => x + y, 0)}</b></div>
     <div class="meta">${c.note}</div></button>`).join('');
   grid.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => { myChar = CHARS[+b.dataset.ch]; sel('#charGrid [data-ch]', b); }); }
 document.querySelectorAll('[data-fmt2]').forEach(b => b.onclick = () => { fmt = b.dataset.fmt2; sel('[data-fmt2]', b); });

@@ -16,7 +16,7 @@ h1{font-size:20px;margin:0 0 4px}h1 b{color:var(--accent)}.note{font-size:12px;c
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chips button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
 form{display:flex;gap:8px}input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:16px}
 form button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:0 18px;font-size:15px}form button:disabled{opacity:.5}
-a{color:var(--accent)}
+a{color:var(--accent)}.refs{margin-top:10px;font-size:13px;display:flex;flex-direction:column;gap:4px}
 </style>
 </head>
 <body>
@@ -32,10 +32,15 @@ const API_ORIGIN = location.hostname.endsWith("github.io") ? "https://squiddesse
 const SAMPLES = ["自己紹介して", "d払いの始め方は？", "d払いが使えないときは？", "dカードの年会費は？", "どんな会社で働いてるの？"];
 const log = document.getElementById("log"), q = document.getElementById("q"), send = document.getElementById("send");
 const history = [];
-function add(text, me, tag) {
+function add(text, me, tag, links) {
   const d = document.createElement("div"); d.className = "msg" + (me ? " me" : "");
   d.textContent = text;
   if (!me) d.innerHTML = d.innerHTML.replace(/https?:\/\/[^\s<）)」]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+  if (links && links.length) {
+    const box = document.createElement("div"); box.className = "refs"; box.append("参考：");
+    for (const l of links) { const a = document.createElement("a"); a.href = l.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = l.title; box.append(a); }
+    d.append(box);
+  }
   if (tag) { const t = document.createElement("div"); t.className = "tag"; t.textContent = tag; d.append(t); }
   log.append(d); log.scrollTop = log.scrollHeight; return d;
 }
@@ -50,7 +55,7 @@ async function ask(text) {
     if (!r.ok) { add(j.error || "エラーが発生しました"); history.pop(); return; }
     const u = j.usage || {}, n = (x) => Number(x || 0).toLocaleString();
     const ctx = `コンテキスト量：合計 ${n(u.total)} トークン（入力 ${n(u.input)}・ページ/検索 ${n(u.tools)}・思考 ${n(u.thinking)}・出力 ${n(u.output)}）｜${u.model || ""}`;
-    add(j.reply, false, "話題：" + j.topics.join("・") + "\n" + ctx); history.push({ role: "assistant", text: j.reply });
+    add(j.reply, false, "話題：" + j.topics.join("・") + "\n" + ctx, j.links); history.push({ role: "assistant", text: j.reply });
   } catch { wait.remove(); add("通信に失敗しました（サーバーに届きませんでした）"); history.pop(); }
   finally { send.disabled = false; q.focus(); }
 }

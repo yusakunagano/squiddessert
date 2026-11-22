@@ -34,3 +34,8 @@ test("質問に合う説明ページを選ぶ", () => {
   assert.match(curatedLinks("dカードの年会費", ["dcard"])[0].url, /faq|dcard/);
   assert.match(curatedLinks("自己紹介", ["nagano"])[0].url, /note\.com/);
 });
+
+test("送金・チャージは専用ページ", () => {
+  assert.match(curatedLinks("d払いで送金したい", ["dpay"])[0].url, /remit\.html/);
+  assert.match(curatedLinks("d払いのチャージ方法", ["dpay"])[0].url, /deposit\.html/);
+});

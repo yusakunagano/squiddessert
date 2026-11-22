@@ -29,7 +29,7 @@ export const TOPICS = {
   },
   dpay: {
     label: "d払い",
-    words: ["d払い", "dばらい", "ｄ払い", "決済", "支払", "チャージ", "qr", "バーコード", "お店", "使い方", "始め方", "設定", "送金", "ポイント"],
+    words: ["d払い", "dばらい", "ｄ払い", "決済", "支払", "チャージ", "qr", "バーコード", "お店", "使い方", "始め方", "設定", "送金", "割り勘", "わりかん", "受け取", "残高", "入金", "ポイント"],
     urls: ["https://service.smt.docomo.ne.jp/keitai_payment/", "https://service.smt.docomo.ne.jp/keitai_payment/guide/"],
   },
   dcard: {
@@ -94,9 +94,14 @@ const allow = createLimiter({ max: 20, windowMs: 60_000 });
 
 // 質問の言葉に合わせて必ず付ける参考ページ（実在を確認した URL だけ）。上から順に優先。
 export const LINKS = [
+  { title: "d払い 送金のガイド（送り方・受け取り方・上限）", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/wallet/remit.html", words: ["送金", "送る", "受け取", "割り勘", "わりかん", "友達", "友だち"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い残高へのチャージ方法", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/wallet/deposit.html", words: ["チャージ", "入金", "atm", "銀行", "オートチャージ"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い残高のガイド", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/wallet/zandaka.html", words: ["残高", "本人確認", "出金", "現金バリュー", "プリペイド"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い 支払い方法の選び方", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/beginner_guide/payment.html", words: ["支払い方法", "支払方法", "合算", "電話料金", "クレジットカード", "切り替え", "変更"], topics: ["dpay"] },
+  { title: "dカードのお問い合わせ（不正利用・紛失など）", url: "https://www.docomo.ne.jp/support/inquiry/dcard/", words: ["紛失", "盗難", "不正", "覚えのない", "問い合わせ", "電話番号", "窓口"], topics: ["dcard"] },
   { title: "d払い よくある質問（ネットでの支払い）", url: "https://service.smt.docomo.ne.jp/keitai_payment/faq/?tab=net", words: ["ネット", "通販", "オンライン", "サイト", "amazon", "アマゾン"], topics: ["dpay", "dpay_faq"] },
   { title: "d払い アプリのヘルプ（エラー・使えないとき）", url: "https://service.smt.docomo.ne.jp/keitai_payment/app/help/", words: ["エラー", "使えない", "できない", "表示", "アプリ", "ログイン", "不具合", "困"], topics: ["dpay", "dpay_faq"] },
-  { title: "d払い 初心者ガイド（始め方・使い方）", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/beginner_guide/index.html", words: ["始め", "はじめ", "使い方", "登録", "初めて", "設定", "ダウンロード", "お店", "支払い方法"], topics: ["dpay"] },
+  { title: "d払い 初心者ガイド（始め方・使い方）", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/beginner_guide/index.html", words: ["始め", "はじめ", "使い方", "登録", "初めて", "設定", "ダウンロード", "お店", "お店"], topics: ["dpay"] },
   { title: "d払い よくある質問", url: "https://service.smt.docomo.ne.jp/keitai_payment/faq/", words: ["ポイント", "キャンセル", "返金", "解約", "上限", "限度", "残高", "チャージ", "カード"], topics: ["dpay", "dpay_faq"] },
   { title: "dカード よくある質問", url: "https://fw.dcard.docomo.ne.jp/st/faq/", words: ["年会費", "審査", "明細", "引き落とし", "暗証", "紛失", "再発行", "限度", "支払"], topics: ["dcard"] },
   { title: "dカードの種類と年会費（ドコモ）", url: "https://www.docomo.ne.jp/service/dcard/", words: ["年会費", "gold", "ゴールド", "プラチナ", "種類", "違い", "おすすめ", "特典"], topics: ["dcard"] },
@@ -159,6 +164,22 @@ export function pickLinks(response, fallbackUrls, curated = []) {
   return links;
 }
 
+// Google 検索の根拠リンクは転送用の URL なので、転送先（本来のページ）を調べて置き換える。
+// 公式サイトでなければ外す。調べられなければそのまま残す。
+export async function resolveLinks(links) {
+  return Promise.all(links.map(async (l) => {
+    if (!/grounding-api-redirect/.test(l.url)) return l;
+    try {
+      const r = await fetch(l.url, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(3000) });
+      const loc = r.headers.get("location");
+      if (!loc) return l;
+      const u = new URL(loc);
+      if (!OFFICIAL.test(u.hostname)) return null;
+      return { url: u.href, title: l.title.replace(/^[^（]+/, u.hostname + u.pathname.replace(/\/index\.html$/, "/")) };
+    } catch { return l; }
+  })).then((xs) => xs.filter(Boolean).filter((l, i, a) => a.findIndex((m) => m.url === l.url) === i));
+}
+
 export default async function handler(req, res) {
   if (!acceptPost(req, res)) return;
   if (!allow(clientIp(req))) return res.status(429).json({ error: "少し時間をおいてからお試しください。" });
@@ -204,7 +225,7 @@ export default async function handler(req, res) {
       thinking: u.thoughtsTokenCount ?? 0,
       total: u.totalTokenCount ?? 0,
     };
-    return res.status(200).json({ reply: stripUrls(reply), topics: topics.map((k) => TOPICS[k].label), links: pickLinks(response, urls, curatedLinks(messages.at(-1).text, topics)), usage });
+    return res.status(200).json({ reply: stripUrls(reply), topics: topics.map((k) => TOPICS[k].label), links: await resolveLinks(pickLinks(response, urls, curatedLinks(messages.at(-1).text, topics))), usage });
   } catch (err) {
     return sendAiError(res, err);
   }

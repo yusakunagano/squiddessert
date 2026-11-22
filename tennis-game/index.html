@@ -22,6 +22,58 @@
   button.sub{background:#cfd8d3}
   .help{font-size:14px;opacity:.85;max-width:420px;text-align:center;line-height:1.6}
   .hidden{display:none!important}
+  /* ---- スタート画面 ---- */
+  #menu{justify-content:flex-start;padding:0;background:radial-gradient(1200px 600px at 50% -10%,#24543a 0%,#10241a 60%,#0b1a12 100%)}
+  #menu .mwrap{width:min(860px,100%);padding:20px 16px 28px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px}
+  #menu .hero{text-align:center;padding:10px 0 2px}
+  #menu .kicker{display:inline-block;font:800 12px/1 system-ui;letter-spacing:.35em;color:#0b1a12;background:#f2d43d;padding:6px 10px 6px 14px;border-radius:999px}
+  #menu .hero h1{font-size:44px;margin:10px 0 4px;letter-spacing:.06em}
+  #menu .hero p{margin:0;opacity:.8;font-size:14px}
+  #menu .panel{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:16px}
+  #menu .ph{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  #menu .ph h2{margin:0;font-size:18px;font-weight:800;opacity:1}
+  #menu .num{width:28px;height:28px;border-radius:50%;background:#f2d43d;color:#0b1a12;font-weight:900;display:grid;place-items:center;font-size:15px}
+  #menu .pick{margin-left:auto;font-size:13px;opacity:.85}
+  #charGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:10px;width:100%}
+  .cc{all:unset;box-sizing:border-box;cursor:pointer;background:rgba(0,0,0,.25);border:2px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:transform .12s,border-color .12s,background .12s;color:#eef5f0}
+  .cc:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.25)}
+  .cc.sel{border-color:#f2d43d;background:rgba(242,212,61,.12);box-shadow:0 0 0 3px rgba(242,212,61,.18)}
+  .cc .top{display:flex;align-items:center;gap:10px}
+  .cc .av{width:44px;height:44px;border-radius:50%;flex:none;border:3px solid;box-sizing:border-box}
+  .cc .nm{font-size:16px;font-weight:800;line-height:1.2}
+  .cc .tot{margin-left:auto;text-align:center;font-size:10px;opacity:.75;line-height:1.1}
+  .cc .tot b{display:block;font-size:20px;opacity:1;color:#f2d43d}
+  .cc .chips{display:flex;flex-wrap:wrap;gap:4px}
+  .cc .chip{font-size:11px;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.1)}
+  .cc .chip.hl{background:rgba(242,212,61,.22);color:#ffe98a}
+  .cc .stats{display:grid;gap:4px}
+  .cc .sr{display:grid;grid-template-columns:72px 1fr;align-items:center;gap:6px;font-size:11px;opacity:.9}
+  .cc .tr{height:6px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
+  .cc .fl{height:100%;border-radius:999px;background:linear-gradient(90deg,#9be36c,#f2d43d)}
+  .cc .fl.max{background:linear-gradient(90deg,#f2d43d,#ff8a1f)}
+  .cc .note{font-size:12px;opacity:.75;line-height:1.5}
+  #menu .opts{display:grid;gap:12px}
+  #menu .opt{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  #menu .ol{width:84px;font-size:13px;opacity:.8;flex:none}
+  #menu .on{font-size:12px;opacity:.7}
+  .seg{display:inline-flex;flex-wrap:wrap;gap:4px;background:rgba(0,0,0,.3);padding:4px;border-radius:999px}
+  .seg button{background:transparent;color:#eef5f0;font-size:14px;padding:8px 14px;border-radius:999px;font-weight:700}
+  .seg button.sel{background:#f2d43d;color:#10241a;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  #menu .startbar{position:sticky;bottom:0;padding:10px 0;background:linear-gradient(to top,#0b1a12 55%,rgba(11,26,18,0));display:flex;justify-content:center;z-index:2}
+  #menu .cta{font-size:22px;font-weight:900;padding:16px 56px;border-radius:999px;background:linear-gradient(180deg,#ffe36b,#f2c21d);color:#10241a;box-shadow:0 8px 24px rgba(242,194,29,.35);letter-spacing:.08em}
+  #menu .cta:active{transform:translateY(1px)}
+  #menu .more{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+  #menu .mcard{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+  #menu .mcard h3{margin:0;font-size:15px}
+  #menu .mcard p{margin:0;font-size:12px;opacity:.75;line-height:1.5}
+  #menu .mrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  #menu .mbtn{font-size:13px;padding:8px 12px;border-radius:10px;background:#f2d43d;color:#10241a;font-weight:800;text-decoration:none;border:none;cursor:pointer}
+  #menu .mbtn.ghost{background:rgba(255,255,255,.12);color:#eef5f0}
+  #menu .mcard input{font-size:16px;width:90px;text-align:center;padding:7px;border-radius:10px;border:none;letter-spacing:.2em}
+  #menu details.help{max-width:none;text-align:left;background:rgba(255,255,255,.04);border-radius:14px;padding:10px 14px;font-size:13px}
+  #menu details.help summary{cursor:pointer;font-weight:700}
+  #menu details.help ul{margin:8px 0 0;padding-left:18px;line-height:1.7;opacity:.85}
+  @media (max-width:520px){ #menu .hero h1{font-size:34px} #menu .hero p{font-size:13px} #menu .ol{width:100%} #charGrid{grid-template-columns:1fr 1fr;gap:8px} .cc{padding:9px;gap:6px} .cc .note{display:none} .cc .top{gap:6px} .cc .av{width:30px;height:30px;border-width:2px} .cc .nm{font-size:13px;white-space:nowrap;letter-spacing:-.02em} .cc .tot b{font-size:15px} .cc .chip{font-size:10px;padding:1px 6px} .cc .sr{grid-template-columns:62px 1fr;font-size:10px;white-space:nowrap} #menu .panel{padding:12px} }
   #vwPanel{position:absolute;left:8px;top:8px;max-width:min(420px,calc(100% - 16px));background:rgba(10,30,20,.82);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;font-size:14px;max-height:calc(100% - 16px);overflow-y:auto}
   #vwPanel .vwHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
   #vwPanel a{color:#f2d43d;font-weight:bold;text-decoration:none}
@@ -48,13 +100,6 @@
   #vwPanel .vwBody{display:flex;flex-direction:column;gap:8px}
   .online{margin-top:6px;padding:12px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:440px}
   .online h2{margin:0}
-  #charGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;width:min(680px,100%)}
-  .cc{background:rgba(255,255,255,.08);border:2px solid transparent;border-radius:10px;padding:8px;cursor:pointer;font-size:12px;line-height:1.45;text-align:left;color:#fff}
-  .cc.sel{border-color:#f2d43d;background:rgba(242,212,61,.18)}
-  .cc b{font-size:15px;display:block}
-  .cc .meta{opacity:.8}
-  .cc .bar{display:flex;justify-content:space-between;gap:4px}
-  .cc .stars{color:#f2d43d;letter-spacing:1px}
   #result,#bracket{position:absolute;inset:0;background:rgba(10,30,20,.93);display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:14px;padding:16px;text-align:center;overflow-y:auto;z-index:20}
   #result .big{font-size:110px;line-height:1;filter:drop-shadow(0 6px 16px rgba(242,212,61,.7));animation:pop .7s ease-out}
   #result h1{margin:0;font-size:32px}
@@ -120,58 +165,56 @@
     <div class="row"><button id="lbStart">試合開始</button><button id="lbLeave" class="sub">やめる</button></div>
   </div>
   <div class="menu" id="menu">
-    <h1>🎾 テニス</h1>
-    <h2>あなたの選手を選ぶ</h2>
-    <div id="charGrid"></div>
-    <h2>試合形式</h2>
-    <div class="row">
-      <button data-fmt2="match" class="sel">1試合</button>
-      <button data-fmt2="tour">トーナメント（8人）</button>
-    </div>
-    <div class="row" style="font-size:14px;align-items:center;gap:8px"><span>1セット</span>
-      <button data-gps="1" class="sub sel">1ゲーム</button><button data-gps="3" class="sub">3ゲーム</button><button data-gps="6" class="sub">6ゲーム</button>
-      <span>・2セット先取</span></div>
-    <h2>モードを選択</h2>
-    <div class="row">
-      <button data-mode="singles" class="sel">シングルス</button>
-      <button data-mode="doubles">ダブルス</button>
-    </div>
-    <div id="posBox" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:10px">
-      <h2>ポジション（ダブルス）</h2>
-      <div class="row">
-        <button data-pos="back" class="sel">後衛（ベースライン）</button>
-        <button data-pos="front">前衛（ネット）</button>
-      </div>
-    </div>
-    <h2>強さ</h2>
-    <div class="row">
-      <button data-lv="0" class="sub">やさしい</button>
-      <button data-lv="1" class="sub sel">ふつう</button>
-      <button data-lv="2" class="sub">つよい</button>
-    </div>
-    <button id="start" style="margin-top:10px;font-size:22px">試合開始</button>
-    <div class="online">
-      <h2>オンラインで遊ぶ（最大4人）</h2>
-      <div style="font-size:13px;opacity:.85;text-align:center">そろってから、各自が青／赤チームと後衛／前衛を選びます。<br>人どうしが分かれれば対戦、同じチームならCPUと協力して戦います。</div>
-      <div class="row"><button id="hostBtn">部屋を作る</button></div>
-      <div class="row"><input id="code" inputmode="numeric" maxlength="4" placeholder="1234"><button id="joinBtn" class="sub">部屋に入る</button></div>
-    </div>
-    <div class="online">
-      <h2>テニスの動き方</h2>
-      <div style="font-size:13px;opacity:.85;text-align:center">ダブルスの後衛・前衛の動き方を、OK・NGの30パターンで解説。<br>4人とボールを動かせる作戦ボードもあります。</div>
-      <div class="row"><a class="lbtn" href="learn.html">OK・NG パターン</a><a class="lbtn sub" href="learn.html#board">作戦ボード</a></div>
-    </div>
-    <a href="?viewer" style="color:#f2d43d;font-size:15px;text-decoration:underline">選手の動きを確認する（ボタンで再生・360度回して見る）</a>
-    <div class="help">
-      移動：矢印キー / WASD（スマホは画面をドラッグ）<br>
-      ボールに近づくと自動で打ちます。打つ瞬間の ←→ でコースを狙えます。<br>
-      打つ瞬間に ↑（前）を押すと強打（速いがブレる）。ボールに近すぎると詰まってミスしやすい。<br>
-      ボールを体の少し右か左でとらえると力が伝わる（正面だと弱い球）。<br>
-      Shift を押しながら打つとロブ。<br>
-      サーブ：スペース（スマホはタップ）<br>
-      画面の左下のスティックで移動。右下のボタンは、サーブの時は「フラット／スライス／キック」、ラリー中は「強（強打）／上（ロブ）／弱（ドロップ）／スライス」。何も押さなければ普通に返します（キーボードは X でドロップ、C でスライス）。<br>
-      1セットマッチ（6ゲーム先取・2ゲーム差）<br>
-      オンライン：ひとりが「部屋を作る」、ほかの人は4桁の番号で「部屋に入る」（最大4人）。部屋の画面で各自がチームと位置を選びます。空いた所はCPU。
+    <div class="mwrap">
+      <header class="hero">
+        <div class="kicker">ACE OPEN</div>
+        <h1>🎾 テニス</h1>
+        <p>どこかで見たような名選手8人から1人を選んで、CPUと対戦しよう。</p>
+      </header>
+      <section class="panel">
+        <div class="ph"><span class="num">1</span><h2>選手を選ぶ</h2><span class="pick" id="pickName"></span></div>
+        <div id="charGrid"></div>
+      </section>
+      <section class="panel">
+        <div class="ph"><span class="num">2</span><h2>試合のルール</h2></div>
+        <div class="opts">
+          <div class="opt"><span class="ol">試合形式</span><div class="seg"><button data-fmt2="match" class="sel">1試合</button><button data-fmt2="tour">トーナメント（8人）</button></div></div>
+          <div class="opt"><span class="ol">種目</span><div class="seg"><button data-mode="singles" class="sel">シングルス</button><button data-mode="doubles">ダブルス</button></div></div>
+          <div class="opt hidden" id="posBox"><span class="ol">ポジション</span><div class="seg"><button data-pos="back" class="sel">後衛</button><button data-pos="front">前衛</button></div></div>
+          <div class="opt"><span class="ol">1セット</span><div class="seg"><button data-gps="1" class="sel">1ゲーム</button><button data-gps="3">3ゲーム</button><button data-gps="6">6ゲーム</button></div><span class="on">2セット先取</span></div>
+          <div class="opt"><span class="ol">CPUの強さ</span><div class="seg"><button data-lv="0">やさしい</button><button data-lv="1" class="sel">ふつう</button><button data-lv="2">つよい</button></div></div>
+        </div>
+      </section>
+      <div class="startbar"><button id="start" class="cta">試合開始 ▶</button></div>
+      <section class="more">
+        <div class="mcard">
+          <h3>🌐 オンラインで遊ぶ</h3>
+          <p>最大4人。ひとりが部屋を作り、ほかの人は4桁の番号で入ります。</p>
+          <div class="mrow"><button id="hostBtn" class="mbtn">部屋を作る</button></div>
+          <div class="mrow"><input id="code" inputmode="numeric" maxlength="4" placeholder="1234"><button id="joinBtn" class="mbtn ghost">部屋に入る</button></div>
+        </div>
+        <div class="mcard">
+          <h3>📋 テニスの動き方</h3>
+          <p>ダブルスの後衛・前衛の動き方をOK・NGの30パターンで解説。作戦ボードつき。</p>
+          <div class="mrow"><a class="mbtn" href="learn.html">OK・NG パターン</a><a class="mbtn ghost" href="learn.html#board">作戦ボード</a></div>
+        </div>
+        <div class="mcard">
+          <h3>🕺 選手の動きを見る</h3>
+          <p>各動作をボタンで再生して、360度回して確認。ポーズをパーツごとに直すこともできます。</p>
+          <div class="mrow"><a class="mbtn" href="?viewer">モーション確認</a><a class="mbtn ghost" href="?editor">ポーズを直す</a></div>
+        </div>
+      </section>
+      <details class="help">
+        <summary>操作方法</summary>
+        <ul>
+          <li>移動：矢印キー / WASD（スマホは左下のスティック）</li>
+          <li>ボールに近づくと自動で打ちます。打つ瞬間の ←→ でコースを狙えます</li>
+          <li>↑（前）を押しながら打つと強打。Shift でロブ、X でドロップ、C でスライス</li>
+          <li>スマホ：右下のボタン。サーブの時は「フラット／スライス／キック」、ラリー中は「強／上／弱／スライス」</li>
+          <li>サーブ：スペース（スマホはサーブのボタン）</li>
+          <li>ボールを体の少し横でとらえると力が伝わり、正面や近すぎるとミスしやすくなります</li>
+        </ul>
+      </details>
     </div>
   </div>
 </div>
@@ -219,12 +262,17 @@ function sel(q, b){ document.querySelectorAll(q).forEach(x => x.classList.remove
 document.getElementById('start').onclick = () => { online = false; if (fmt === 'tour' && mode === 'singles') startTournament(); else startMatch(); };
 // 選手カード
 { const grid = document.getElementById('charGrid'), stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
-  grid.innerHTML = CHARS.map((c, i) => `<button class="cc${i === 0 ? ' sel' : ''}" data-ch="${i}"><b><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c.shirt};border:1px solid #fff;margin-right:5px"></i>${c.name}</b>
-    <div class="meta">${c.sex === 'f' ? '女子' : '男子'}・${Math.round(c.h * 100)}cm・${c.lefty ? '左利き' : '右利き'}・バック${c.oneBH ? '片手' : '両手'}</div>
-    ${Object.keys(ST_NAME).map(k => `<div class="bar"><span>${ST_NAME[k]}</span><span class="stars">${stars(c.st[k])}</span></div>`).join('')}
-    <div class="bar"><span>総合</span><b>${Object.values(c.st).reduce((x, y) => x + y, 0)}</b></div>
-    <div class="meta">${c.note}</div></button>`).join('');
-  grid.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => { myChar = CHARS[+b.dataset.ch]; sel('#charGrid [data-ch]', b); }); }
+  const best = c => Math.max(...Object.values(c.st));
+  grid.innerHTML = CHARS.map((c, i) => `<button class="cc${i === 0 ? ' sel' : ''}" data-ch="${i}">
+    <div class="top"><div class="av" style="border-color:${c.shirt};background:linear-gradient(180deg,${c.hairC} 0 40%,${c.skin} 40%)"></div>
+      <div><div class="nm">${c.name}</div></div>
+      <div class="tot">総合<b>${Object.values(c.st).reduce((x, y) => x + y, 0)}</b></div></div>
+    <div class="chips"><span class="chip">${c.sex === 'f' ? '女子' : '男子'}</span><span class="chip">${Math.round(c.h * 100)}cm</span><span class="chip${c.lefty ? ' hl' : ''}">${c.lefty ? '左利き' : '右利き'}</span><span class="chip${c.oneBH ? ' hl' : ''}">バック${c.oneBH ? '片手' : '両手'}</span></div>
+    <div class="stats">${Object.keys(ST_NAME).map(k => `<div class="sr"><span>${ST_NAME[k]}</span><div class="tr"><div class="fl${c.st[k] === 5 ? ' max' : ''}" style="width:${c.st[k] * 20}%"></div></div></div>`).join('')}</div>
+    <div class="note">${c.note}</div></button>`).join('');
+  const pickName = () => { document.getElementById('pickName').textContent = 'あなた：' + myChar.name; };
+  pickName();
+  grid.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => { myChar = CHARS[+b.dataset.ch]; sel('#charGrid [data-ch]', b); pickName(); }); }
 document.querySelectorAll('[data-fmt2]').forEach(b => b.onclick = () => { fmt = b.dataset.fmt2; sel('[data-fmt2]', b); });
 document.querySelectorAll('[data-gps]').forEach(b => b.onclick = () => { gamesPerSet = +b.dataset.gps; sel('[data-gps]', b); });
 document.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => { net.fmt = b.dataset.fmt; hostLobbyUpdate(); });

@@ -914,14 +914,14 @@ function hit(p, reach = 1.5){
     const center = lat0 < 0.35 ? (0.35 - lat0) / 0.35 : 0;
     const fast = Math.max(0, Math.min(1, (inSpd - 21) / 16));
     const pressure = Math.min(1, Math.max(quick, center * 0.8, fast) + 0.25 * (quick + center + fast - Math.max(quick, center, fast)));
-    if (Math.random() < pressure * 0.7 * (1.36 - 0.12 * stK(p, 'con'))) { // ミスの少なさで変わる
+    if (Math.random() < pressure * 0.7 * (1.36 - 0.12 * stK(p, 'con')) * (slice ? 0.5 : 1)) { // スライスはミスが少ない // ミスの少なさで変わる
       const q = Math.random();
       close = q < 0.45 ? 'ctrl' : q < 0.8 ? 'float' : 'net';
       rush = Math.max(rush, pressure);
     }
   }
   if (close === 'ctrl') { tx += (Math.random() - .5) * 6 * rush; ty += -s * (Math.random() - .4) * 5 * rush; }
-  if ((jam > 0 && Math.random() < (0.25 + jam * 0.6) * (1.36 - 0.12 * stK(p, 'con'))) || close === 'net' || close === 'wild' || (vsSmash && Math.random() < 0.4)) {
+  if ((jam > 0 && Math.random() < (0.25 + jam * 0.6) * (1.36 - 0.12 * stK(p, 'con')) * (slice ? 0.5 : 1)) || close === 'net' || close === 'wild' || (vsSmash && Math.random() < 0.4)) {
     if (close) jam = Math.max(jam, 0.7);
     if (vsSmash) jam = Math.max(jam, 0.9);
     mishit = true; jam = Math.max(jam, rush * 0.8);
@@ -941,7 +941,8 @@ function hit(p, reach = 1.5){
   if (!lob && !isSmash) spd *= pf;
   if (isVolley && !lob) spd *= 0.85;
   if (drop && !isSmash && !mishit) spd = 8.5;
-  if (slice && !isSmash && !lob) spd *= 0.75; // スライス：遅めで低く滑る
+  if (slice && !isSmash && !lob) spd *= 0.72; // スライス：遅めで、弾んだあとは伸びずに低く止まる
+  if (slice && !isSmash && !isVolley && !isAirK && !lob) p.shot = side === 'f' ? 'fsl' : 'bsl'; // 上から下へ切るように振る
   const weak = pf < 0.8 && !isSmash;
   if (isSmash) spd = (p.isHuman ? 32 : [25, 28, 31][level]) * (mishit ? 0.6 : 1);
   // ギリギリで届いた球：体勢を崩して、ゆるい球で返す
@@ -968,7 +969,7 @@ function hit(p, reach = 1.5){
   if (slice && !isSmash && !lob && !mishit) ball.curve = (side === 'f' ? -1 : 1) * s * 1.4; // スライスは少し曲がる（フォアは打った人の左へ、バックは右へ）
   p.fwdRun = 0;
   ball.volley = isVolley; ball.spin = slice && !isSmash ? 'slice' : null;
-  p.tag = approachShot && !mishit ? 'アプローチ！' : lunge ? 'ギリギリ…' : slice && !isSmash ? 'スライス' : close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
+  p.tag = approachShot && !mishit ? 'アプローチ！' : lunge ? 'ギリギリ…' : slice && !isSmash ? (p.shot === 'fsl' || p.shot === 'bsl' ? '' : 'スライス') : close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
   lastHitter = p; bounces = 0; isServe = false; rallyHits++;
   hitFrom = { x: ball.x, y: ball.y };
   p.prepType = p.prepType && p.prepType === p.shot ? p.prepType : p.shot;
@@ -1159,6 +1160,7 @@ function update(dt){
         const sd = sideOf(p, ball.x);
         p.prepType = ball.z > 2.8 && ball.vz < 3 && bounces === 0 ? 'sm' : (bounces === 0 && Math.abs(p.y) < 8 && Math.abs(ball.x - p.x) < 0.35) ? 'bvc' : sd + (bounces === 0 && Math.abs(p.y) < 8 ? 'v' : 's');
         p.prepType = shotKey(p, p.prepType);
+        if (p.isHuman && p.inp && p.inp.slice && p.prepType[1] === 's') p.prepType = sd === 'f' ? 'fsl' : 'bsl'; // スライスの構え
         // エアK：バウンド後に肩の高さへ弾んだフォア側の球が良い位置に来たら、跳び上がって打つ
         const lat = Math.abs(ball.x - p.x);
         // 跳んでから少し遅れて（頂点を過ぎたあたりで）打てるよう、ボールが届く約0.4秒前に跳ぶ
@@ -1264,7 +1266,7 @@ function stepBall(dt, dead){
     }
   }
   if (ball.z <= 0) {
-    ball.z = 0; ball.curve = 0; const bz = ball.spin === 'kick' ? 1.05 : ball.spin === 'slice' ? 0.42 : 0.62; ball.vz = -ball.vz * bz; const keep = ball.spin === 'slice' ? 0.8 : ball.spin === 'kick' ? 0.72 : ball.volley ? 0.55 : 0.68; ball.vx *= keep; ball.vy *= keep; ball.spin = null;
+    ball.z = 0; ball.curve = 0; const bz = ball.spin === 'kick' ? 1.05 : ball.spin === 'slice' ? 0.42 : 0.62; ball.vz = -ball.vz * bz; const keep = ball.spin === 'slice' ? 0.58 : ball.spin === 'kick' ? 0.72 : ball.volley ? 0.55 : 0.68; ball.vx *= keep; ball.vy *= keep; ball.spin = null;
     bounces++; playBounce();
     const opp = 1 - lastHitter.team;
     if (bounces === 1) {
@@ -1859,6 +1861,17 @@ const POSES = {
         hit:   { tw: -0.1, h: [-0.25, 0.5, 1.45], r: [-0.6, 0.25, 0.15], l: 'grip', sr: 0.05, sl: -0.35, kl: 0.5 },
         mid:   { tw: 0.6, h: [0.25, 0.45, 1.75], r: [0.4, 0.1, 0.4], l: 'grip', sr: 0.2, kl: 0.4 },
         fol:   { tw: 1.0, h: [0.32, 0.0, 1.7], r: [0.2, -0.45, -0.25], l: 'grip', sr: 0.1, sl: -0.1, kl: 0.25 } },
+  // スライス：ラケットを高い位置に引き、面を少し上に向けたまま、上から下へ切るように振り下ろす
+  fsl: { back1: { tw: 1.2, h: [0.55, -0.4, 1.5], r: [0.15, -0.3, 0.55], l: [0.1, 0.55, 1.3], cr: 0.1, sl: 0.25 },
+        back2: { tw: 1.25, h: [0.6, -0.5, 1.45], r: [0.15, -0.35, 0.5], l: [0.12, 0.55, 1.28], cr: 0.12, sl: 0.28 },
+        hit:   { tw: 0.2, h: [0.45, 0.35, 1.0], r: [0.6, 0.25, 0.15], l: [-0.3, 0.3, 1.1], cr: 0.14, sl: 0.3 },
+        mid:   { tw: -0.2, h: [0.25, 0.6, 0.8], r: [0.4, 0.55, 0.05], l: [-0.4, 0.1, 1.1], cr: 0.14, sl: 0.3 },
+        fol:   { tw: -0.4, h: [0.05, 0.65, 0.75], r: [0.2, 0.6, 0.0], l: [-0.45, 0.0, 1.1], cr: 0.12, sl: 0.3, sr: 0.1 } },
+  bsl: { back1: { tw: -1.3, h: [-0.45, -0.25, 1.55], r: [-0.1, -0.3, 0.55], l: 'grip', cr: 0.1, sr: 0.3 },
+        back2: { tw: -1.35, h: [-0.5, -0.35, 1.5], r: [-0.1, -0.35, 0.5], l: [-0.35, -0.1, 1.4], cr: 0.12, sr: 0.35 },
+        hit:   { tw: -0.4, h: [-0.15, 0.4, 1.0], r: [-0.6, 0.25, 0.15], l: [-0.5, -0.4, 1.15], cr: 0.14, sr: 0.35 },
+        mid:   { tw: -0.15, h: [0.15, 0.6, 0.85], r: [-0.3, 0.55, 0.05], l: [-0.55, -0.45, 1.15], cr: 0.14, sr: 0.38 },
+        fol:   { tw: 0, h: [0.3, 0.65, 0.8], r: [-0.1, 0.6, 0.0], l: [-0.6, -0.45, 1.15], cr: 0.12, sr: 0.38 } },
   // 片手バックハンド（メデラーなど）：左肩の上に高く引き、右足の前で打って、両腕を大きく開く
   bs1: { back1: { tw: -1.3, h: [-0.35, -0.15, 1.45], r: [-0.05, -0.15, 0.65], l: 'grip', cr: 0.08, sr: 0.3 },
         back2: { tw: -1.35, h: [-0.5, -0.4, 0.9], r: [-0.15, -0.45, -0.4], l: [-0.35, -0.25, 0.95], cr: 0.12, sr: 0.35 },
@@ -1877,7 +1890,7 @@ const POSES = {
         mid:   { tw: -0.4, h: [0.0, 0.6, 1.3], r: [-0.1, 0.5, -0.3], l: [-0.35, 0.1, 1.0], cr: 0.05, sl: 0.3, sr: -0.35, kr: 0.32, bend: 0.25 },
         fol:   { tw: -0.7, h: [-0.35, 0.25, 0.75], r: [-0.3, 0.0, -0.55], l: [-0.4, -0.2, 1.0], cr: 0.1, sl: 0.4, sr: -0.4, kr: 0.2, bend: 0.3 } },
 };
-const SHOT_NAME = { bs1: 'バックストローク（片手）', bvc: 'バックボレー（正面）', jk: 'エアK！', bjk: 'ジャンプバック！', fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
+const SHOT_NAME = { fsl: 'フォアスライス', bsl: 'バックスライス', bs1: 'バックストローク（片手）', bvc: 'バックボレー（正面）', jk: 'エアK！', bjk: 'ジャンプバック！', fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
 function lerp3(a, b, t){ return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 function lerpPose(A, B, t){
   t = Math.max(0, Math.min(1, t)); t = t * t * (3 - 2 * t);
@@ -1899,11 +1912,11 @@ resize();
 const vw = { az: 0.6, el: 0.25, dist: 5.5, act: 'ready', t: 0, speed: 1, loop: true, ph: 0, drag: null };
 const VW_ACTS = [
   ['ready', '構え（後ろ）'], ['net', '構え（ネット前）'], ['runR', '右へ走る'], ['runL', '左へ走る'], ['runF', '前へ走る'],
-  ['side', 'サイドステップ'], ['fs', 'フォアストローク'], ['bs', 'バックストローク'], ['fv', 'フォアボレー'], ['bv', 'バックボレー'], ['bvc', 'バックボレー（正面）'],
+  ['side', 'サイドステップ'], ['fs', 'フォアストローク'], ['bs', 'バックストローク'], ['fsl', 'フォアスライス'], ['bsl', 'バックスライス'], ['fv', 'フォアボレー'], ['bv', 'バックボレー'], ['bvc', 'バックボレー（正面）'],
   ['sm', 'スマッシュ'], ['jk', 'エアK'], ['bjk', 'ジャンプバック'], ['serveF', 'フラットサーブ'], ['serveS', 'スライスサーブ'], ['serveK', 'キックサーブ'],
   ['reach', 'ギリギリで返す'], ['whiff', '届かない（空振り）'], ['fall', '転ぶ'],
 ];
-const VW_LEN = { ready: 2, net: 2, runR: 2, runL: 2, runF: 2, side: 2, fs: 1.8, bs: 1.8, fv: 1.6, bv: 1.6, bvc: 1.6, sm: 1.8, jk: 1.9, bjk: 1.9, serveF: 5.2, serveS: 5.2, serveK: 5.2, reach: 1.6, whiff: 1.6, fall: 2.2 };
+const VW_LEN = { ready: 2, net: 2, runR: 2, runL: 2, runF: 2, side: 2, fs: 1.8, bs: 1.8, fv: 1.6, bv: 1.6, bvc: 1.6, fsl: 1.8, bsl: 1.8, sm: 1.8, jk: 1.9, bjk: 1.9, serveF: 5.2, serveS: 5.2, serveK: 5.2, reach: 1.6, whiff: 1.6, fall: 2.2 };
 function viewerSetup(){
   document.getElementById('menu').classList.add('hidden');
   hud.classList.add('hidden');
@@ -1967,7 +1980,7 @@ function viewerUpdate(dt){
     case 'runL': run(-3.3, 0, 3.3); break;
     case 'runF': run(0, -3.3, 3.3); break;
     case 'side': run(Math.sin(t * 2.2) > 0 ? 1.6 : -1.6, 0, 1.6); break;
-    case 'fs': case 'bs': case 'fv': case 'bv': case 'bvc': case 'sm': stroke(a, a, 0.8); break;
+    case 'fs': case 'bs': case 'fsl': case 'bsl': case 'fv': case 'bv': case 'bvc': case 'sm': stroke(a, a, 0.8); break;
     case 'jk': case 'bjk':
       p.prepType = a === 'jk' ? 'fs' : 'bs';
       if (t < 0.5) p.prep = Math.min(1, t / 0.4);
@@ -2015,7 +2028,7 @@ function viewerCamera(){
 // どの画面でも：保存した手直し（localStorage）をポーズに反映する。ゲームにもそのまま効く
 const POSE_PHASES = ['back1', 'back2', 'hit', 'mid', 'fol'];
 const PHASE_NAME = { back1: '①テイクバック（高く引く）', back2: '②テイクバック（落とす）', hit: '③打点', mid: '④振り抜き途中', fol: '⑤フィニッシュ' };
-const POSE_GROUP = { fs: 'フォアストローク', bs: 'バックストローク', bs1: 'バックストローク（片手）', fv: 'フォアボレー', bv: 'バックボレー', bvc: 'バックボレー（正面）', sm: 'サーブ・スマッシュ（打つ）', jk: 'エアK', bjk: 'ジャンプバック' };
+const POSE_GROUP = { fs: 'フォアストローク', fsl: 'フォアスライス', bsl: 'バックスライス', bs: 'バックストローク', bs1: 'バックストローク（片手）', fv: 'フォアボレー', bv: 'バックボレー', bvc: 'バックボレー（正面）', sm: 'サーブ・スマッシュ（打つ）', jk: 'エアK', bjk: 'ジャンプバック' };
 const POSE_REG = {};
 POSE_REG['READY'] = { name: '構え（後ろ）', pose: READY };
 POSE_REG['READY_NET'] = { name: '構え（ネット前）', pose: READY_NET };
@@ -2025,7 +2038,7 @@ POSE_REG['SERVE_DROP'] = { name: 'サーブ：ラケットを背中に落とす'
 for (const k of Object.keys(POSE_GROUP)) for (const ph of POSE_PHASES) if (POSES[k] && POSES[k][ph]) POSE_REG[k + '.' + ph] = { name: POSE_GROUP[k] + ' ' + PHASE_NAME[ph], pose: POSES[k][ph] };
 // 体全体の向き（yw）の初期値：フォアは少し右向き、バックは少し左向き（打ち終わりに近いほど正面へ戻る）
 { const YW = { back1: 0.3, back2: 0.35, hit: 0.2, mid: 0.1, fol: 0.05 };
-  for (const [k, sg] of [['fs', 1], ['fv', 1], ['jk', 1], ['bs', -1], ['bs1', -1], ['bv', -1], ['bjk', -1]])
+  for (const [k, sg] of [['fs', 1], ['fsl', 1], ['bsl', -1], ['fv', 1], ['jk', 1], ['bs', -1], ['bs1', -1], ['bv', -1], ['bjk', -1]])
     for (const ph of POSE_PHASES) if (POSES[k] && POSES[k][ph] && POSES[k][ph].yw === undefined) POSES[k][ph].yw = sg * YW[ph]; }
 const POSE_KEYS_ALL = ['h', 'r', 'l', 'yw', 'tw', 'bend', 'cr', 'sl', 'sr', 'kl', 'kr', 'eu'];
 const clonePose = (o) => JSON.parse(JSON.stringify(o));

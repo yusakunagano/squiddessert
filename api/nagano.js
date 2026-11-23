@@ -7,12 +7,22 @@
 // 読ませる URL はここに書いたものだけ（利用者が URL を指定することはできない）。
 import { ApiError } from "@google/genai";
 import { acceptPost, ai, MODEL as LITE_MODEL, readBody, sendAiError } from "./_shared.js";
-// 無料枠で回数を確保するため lite を使う。まず Google 検索つきで答え、
-// 検索の回数上限（429）に当たったら、公式ページの読み取りだけで答え直す。
-const ATTEMPTS = [
-  { model: LITE_MODEL, tools: [{ urlContext: {} }, { googleSearch: {} }] },
-  { model: LITE_MODEL, tools: [{ urlContext: {} }] },
-];
+// 画面で選べる 2 つのモード。どちらも回数上限（429）に当たったら、次の方式で答え直す。
+//  smart … 高性能（Flash＋Google 検索）。答えの質が高いが、無料枠の回数が少ない
+//  lite  … 節約（lite＋Google 検索）。無料枠の回数が多い
+const SEARCH = [{ urlContext: {} }, { googleSearch: {} }];
+const NO_SEARCH = [{ urlContext: {} }];
+export const MODES = {
+  smart: [
+    { model: "gemini-flash-latest", tools: SEARCH },
+    { model: LITE_MODEL, tools: SEARCH },
+    { model: LITE_MODEL, tools: NO_SEARCH },
+  ],
+  lite: [
+    { model: LITE_MODEL, tools: SEARCH },
+    { model: LITE_MODEL, tools: NO_SEARCH },
+  ],
+};
 import { clientIp, createLimiter } from "./_ratelimit.js";
 
 export const TOPICS = {
@@ -199,7 +209,8 @@ export default async function handler(req, res) {
 
   try {
     let response, usedModel;
-    for (const [i, { model, tools }] of ATTEMPTS.entries()) {
+    const attempts = MODES[body.mode] ?? MODES.lite;
+    for (const [i, { model, tools }] of attempts.entries()) {
       try {
         response = await ai.models.generateContent({
           model,
@@ -209,7 +220,7 @@ export default async function handler(req, res) {
         usedModel = model;
         break;
       } catch (err) {
-        if (!(err instanceof ApiError) || err.status !== 429 || i === ATTEMPTS.length - 1) throw err;
+        if (!(err instanceof ApiError) || err.status !== 429 || i === attempts.length - 1) throw err;
         console.warn(`${model} hit the rate limit, falling back`);
       }
     }

@@ -13,7 +13,7 @@ h1{font-size:20px;margin:0 0 4px}h1 b{color:var(--accent)}.note{font-size:12px;c
 #log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:8px}
 .msg{max-width:88%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;line-height:1.6;background:var(--card);border:1px solid var(--line);overflow-wrap:anywhere}
 .me{align-self:flex-end;background:var(--me);border:none}.tag{font-size:11px;color:var(--sub);margin-top:6px}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chips button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+.mode{display:flex;gap:14px;font-size:13px;color:var(--sub);margin:0 0 8px}.mode label{display:flex;align-items:center;gap:4px;cursor:pointer}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chips button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
 form{display:flex;gap:8px}input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:16px}
 form button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:0 18px;font-size:15px}form button:disabled{opacity:.5}
 a{color:var(--accent)}.refs{margin-top:10px;font-size:13px;display:flex;flex-direction:column;gap:4px}
@@ -25,6 +25,10 @@ a{color:var(--accent)}.refs{margin-top:10px;font-size:13px;display:flex;flex-dir
   <p class="note">永野の note と、d払い・dカード・ドコモフィナンシャルグループ・ドコモの公式ページをもとに AI が答えます。AI の回答は公式な案内ではありません。暗証番号やカード番号は入力しないでください。</p>
   <div id="log"></div>
   <div class="chips" id="chips"></div>
+  <div class="mode" role="radiogroup" aria-label="AI の種類">
+    <label><input type="radio" name="mode" value="smart"> 高性能（Gemini Flash）</label>
+    <label><input type="radio" name="mode" value="lite"> 節約（Flash-Lite）</label>
+  </div>
   <form id="f"><input id="q" maxlength="500" placeholder="永野に質問する" autocomplete="off"><button id="send">送信</button></form>
 </div>
 <script>
@@ -32,6 +36,14 @@ const API_ORIGIN = location.hostname.endsWith("github.io") ? "https://squiddesse
 const SAMPLES = ["自己紹介して", "d払いの始め方は？", "d払いが使えないときは？", "dカードの年会費は？", "どんな会社で働いてるの？"];
 const log = document.getElementById("log"), q = document.getElementById("q"), send = document.getElementById("send");
 const history = [];
+// AI の種類（高性能／節約）。選んだものはこのブラウザに覚えておく
+const modeKey = "naganoMode";
+let saved = "lite"; try { saved = localStorage.getItem(modeKey) || "lite"; } catch {}
+for (const r of document.querySelectorAll('input[name="mode"]')) {
+  r.checked = r.value === saved;
+  r.onchange = () => { try { localStorage.setItem(modeKey, r.value); } catch {} };
+}
+const currentMode = () => document.querySelector('input[name="mode"]:checked')?.value || "lite";
 function add(text, me, tag, links) {
   const d = document.createElement("div"); d.className = "msg" + (me ? " me" : "");
   d.textContent = text;
@@ -49,7 +61,7 @@ async function ask(text) {
   add(text, true); history.push({ role: "user", text }); q.value = ""; send.disabled = true;
   const wait = add("考え中…");
   try {
-    const r = await fetch(API_ORIGIN + "/api/nagano", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history.slice(-10) }) });
+    const r = await fetch(API_ORIGIN + "/api/nagano", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history.slice(-10), mode: currentMode() }) });
     const raw = await r.text(); wait.remove();
     let j; try { j = JSON.parse(raw); } catch { add(`サーバーから正しい返事がありませんでした（ステータス ${r.status}）${/TIMEOUT/i.test(raw) ? "：時間切れ" : ""}`); history.pop(); return; }
     if (!r.ok) { add(j.error || "エラーが発生しました"); history.pop(); return; }

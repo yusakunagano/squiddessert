@@ -14,7 +14,7 @@ h2{font-size:16px;margin:24px 0 8px}.sub{color:var(--sub);font-size:12px;margin:
 .calc{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.calc label{font-size:12px;color:var(--sub);display:flex;flex-direction:column;gap:4px}
 .calc input{width:130px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font-size:16px}
 .presets button{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:999px;padding:6px 10px;font-size:12px;cursor:pointer;margin:0 4px 8px 0}
-.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
 th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--sub);font-weight:600;font-size:12px}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}code{font-size:11px;color:var(--sub)}
 .v{font-size:11px;white-space:nowrap}.v.ok{color:var(--ok)}.v.ng{color:var(--warn)}.memo{font-size:11px;color:var(--sub)}
@@ -27,15 +27,18 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
   <h1><b>AI</b>永野 管理画面</h1>
   <p class="sub" id="meta"></p>
 
-  <h2>1回の会話の料金シミュレーション</h2>
+  <h2>料金シミュレーション（1回・利用人数・年間）</h2>
   <div class="card">
     <div class="presets" id="presets"></div>
     <div class="calc">
       <label>入力トークン（ページ/検索を含む）<input id="in" type="number" min="0" value="8000"></label>
       <label>出力トークン（思考を含む）<input id="out" type="number" min="0" value="500"></label>
-      <label>1日の会話数<input id="n" type="number" min="0" value="100"></label>
+      <label>利用人数<input id="users" type="number" min="0" value="100"></label>
+      <label>1人あたり1日の会話数<input id="n" type="number" min="0" step="0.1" value="3"></label>
+      <label>1年の利用日数<input id="days" type="number" min="1" max="366" value="365"></label>
       <label>為替（円/ドル）<input id="fx" type="number" min="1" value="155"></label>
     </div>
+    <p class="sub" id="total" style="margin:10px 0 0"></p>
   </div>
 
   <div id="tables"></div>
@@ -48,17 +51,20 @@ let data;
 const yen = (x) => (x < 0.01 ? "0.01円未満" : x < 100 ? `${x.toFixed(2)}円` : `${Math.round(x).toLocaleString()}円`);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 function render() {
-  const inT = +$("in").value || 0, outT = +$("out").value || 0, n = +$("n").value || 0, fx = +$("fx").value || 155;
+  const inT = +$("in").value || 0, outT = +$("out").value || 0, fx = +$("fx").value || 155;
+  const users = +$("users").value || 0, days = +$("days").value || 365;
+  const n = users * (+$("n").value || 0); // 全員の 1 日の会話数
+  $("total").textContent = `全員で 1 日 ${n.toLocaleString()} 回、1 年 ${(n * days).toLocaleString()} 回の会話として計算`;
   const cost = (m) => ((inT * m.input + outT * m.output) / 1e6) * fx;
   const min = Math.min(...data.providers.flatMap((p) => p.models.map(cost)));
   $("tables").innerHTML = data.providers.map((p) => `
     <h2>${esc(p.name)} <a class="memo" href="${esc(p.source)}" target="_blank" rel="noopener">公式の料金ページ</a></h2>
     <div class="card wrap"><table>
-      <tr><th>モデル</th><th class="num">入力 $/100万</th><th class="num">出力 $/100万</th><th class="num">1回</th><th class="num">1日</th><th class="num">30日</th><th>確認</th></tr>
+      <tr><th>モデル</th><th class="num">入力 $/100万</th><th class="num">出力 $/100万</th><th class="num">1回</th><th class="num">1人・1年</th><th class="num">全員・1日</th><th class="num">全員・1か月</th><th class="num">全員・1年</th><th>確認</th></tr>
       ${p.models.map((m) => { const c = cost(m); return `
       <tr><td>${esc(m.name)}<br><code>${esc(m.id)}</code>${m.memo ? `<div class="memo">${esc(m.memo)}</div>` : ""}</td>
       <td class="num">$${m.input.toFixed(2)}</td><td class="num">$${m.output.toFixed(2)}</td>
-      <td class="num ${c === min ? "cheap" : ""}">${yen(c)}</td><td class="num">${yen(c * n)}</td><td class="num">${yen(c * n * 30)}</td>
+      <td class="num ${c === min ? "cheap" : ""}">${yen(c)}</td><td class="num">${yen(c * (+$("n").value || 0) * days)}</td><td class="num">${yen(c * n)}</td><td class="num">${yen(c * n * days / 12)}</td><td class="num"><b>${yen(c * n * days)}</b></td>
       <td><span class="v ${m.verified ? "ok" : "ng"}">${m.verified ? "公式で確認済" : "要確認"}</span></td></tr>`; }).join("")}
     </table></div>`).join("");
 }
@@ -72,7 +78,7 @@ fetch("prices.json", { cache: "no-store" }).then((r) => r.json()).then((d) => {
     b.onclick = () => { $("in").value = i; $("out").value = o; render(); };
     $("presets").append(b);
   }
-  for (const id of ["in", "out", "n", "fx"]) $(id).oninput = render;
+  for (const id of ["in", "out", "users", "n", "days", "fx"]) $(id).oninput = render;
   render();
 }).catch(() => { $("tables").textContent = "料金表を読み込めませんでした"; });
 </script>

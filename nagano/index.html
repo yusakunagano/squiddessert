@@ -16,7 +16,7 @@ h1{font-size:20px;margin:0 0 4px}h1 b{color:var(--accent)}.note{font-size:12px;c
 .mode{display:flex;gap:14px;font-size:13px;color:var(--sub);margin:0 0 8px}.mode label{display:flex;align-items:center;gap:4px;cursor:pointer}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chips button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
 form{display:flex;gap:8px}input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:16px}
 form button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:0 18px;font-size:15px}form button:disabled{opacity:.5}
-a{color:var(--accent)}.refs{margin-top:10px;font-size:13px;display:flex;flex-direction:column;gap:4px}
+a{color:var(--accent)}.trace{margin-top:8px;font-size:11px;color:var(--sub)}.trace summary{cursor:pointer}.trace div{margin:3px 0 0 4px;overflow-wrap:anywhere}.trace .ng{color:var(--accent)}.refs{margin-top:10px;font-size:13px;display:flex;flex-direction:column;gap:4px}
 </style>
 </head>
 <body>
@@ -44,7 +44,7 @@ for (const r of document.querySelectorAll('input[name="mode"]')) {
   r.onchange = () => { try { localStorage.setItem(modeKey, r.value); } catch {} };
 }
 const currentMode = () => document.querySelector('input[name="mode"]:checked')?.value || "lite";
-function add(text, me, tag, links) {
+function add(text, me, tag, links, trace) {
   const d = document.createElement("div"); d.className = "msg" + (me ? " me" : "");
   d.textContent = text;
   if (!me) d.innerHTML = d.innerHTML.replace(/https?:\/\/[^\s<）)」]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
@@ -52,6 +52,13 @@ function add(text, me, tag, links) {
     const box = document.createElement("div"); box.className = "refs"; box.append("参考：");
     for (const l of links) { const a = document.createElement("a"); a.href = l.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = l.title; box.append(a); }
     d.append(box);
+  }
+  if (trace && trace.length) {
+    const det = document.createElement("details"); det.className = "trace";
+    const sum = document.createElement("summary"); sum.textContent = trace.some((t) => !t.ok) ? "処理の詳細（エラーあり）" : "処理の詳細";
+    det.append(sum);
+    for (const t of trace) { const li = document.createElement("div"); li.className = t.ok ? "ok" : "ng"; li.textContent = `${t.ok ? "✔" : "✖"} ${t.step}${t.detail ? "：" + t.detail : ""}`; det.append(li); }
+    d.append(det);
   }
   if (tag) { const t = document.createElement("div"); t.className = "tag"; t.textContent = tag; d.append(t); }
   log.append(d); log.scrollTop = log.scrollHeight; return d;
@@ -64,18 +71,18 @@ async function ask(text) {
     const r = await fetch(API_ORIGIN + "/api/nagano", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history.slice(-10), mode: currentMode() }) });
     const raw = await r.text(); wait.remove();
     let j; try { j = JSON.parse(raw); } catch { add(`サーバーから正しい返事がありませんでした（ステータス ${r.status}）${/TIMEOUT/i.test(raw) ? "：時間切れ" : ""}`); history.pop(); return; }
-    if (!r.ok) { add(j.error || "エラーが発生しました"); history.pop(); return; }
+    if (!r.ok) { add(j.error || "エラーが発生しました", false, "", null, j.trace); history.pop(); return; }
     const u = j.usage || {}, n = (x) => Number(x || 0).toLocaleString();
     const ctx = `コンテキスト量：合計 ${n(u.total)} トークン（入力 ${n(u.input)}・ページ/検索 ${n(u.tools)}・思考 ${n(u.thinking)}・出力 ${n(u.output)}）｜${u.model || ""}`;
     const yen = (x) => (x == null ? "-" : x < 0.01 ? "0.01円未満" : `約${x.toFixed(2)}円`);
     const price = u.cost ? `\n1回の料金の目安：Flash-Lite ${yen(u.cost.lite)}／Gemini Flash ${yen(u.cost.flash)}（有料枠の単価。無料枠内なら0円）` : "";
-    add(j.reply, false, "話題：" + j.topics.join("・") + "\n" + ctx + price, j.links); history.push({ role: "assistant", text: j.reply });
+    add(j.reply, false, "話題：" + j.topics.join("・") + "\n" + ctx + price, j.links, j.trace); history.push({ role: "assistant", text: j.reply });
   } catch { wait.remove(); add("通信に失敗しました（サーバーに届きませんでした）"); history.pop(); }
   finally { send.disabled = false; q.focus(); }
 }
 document.getElementById("f").onsubmit = (e) => { e.preventDefault(); ask(q.value); };
 for (const s of SAMPLES) { const b = document.createElement("button"); b.textContent = s; b.onclick = () => ask(s); document.getElementById("chips").append(b); }
-add("こんにちは、AI永野です。d払いやdカード、僕の会社のことなど、気軽に聞いてください！");
+add("こんにちは、AI永野です。d払いやdカード、私の会社のことなど、気軽に聞いてください！");
 </script>
 <script src="../pay-ai-support/gate.js?v=20261029"></script>
 </body>

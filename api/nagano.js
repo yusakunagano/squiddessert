@@ -87,7 +87,7 @@ const SYSTEM_PROMPT = `あなたは「AI永野」です。ドコモフィナン�
 - <sources> の公式ページを読み、手順・条件・金額・できること／できないことを、自分の言葉でかみ砕いて説明する。ページが読めなかったり情報が足りなかったりしたら、Google 検索や一般的な知識で補って答える。
 - 手順は「1. 2. 3.」の箇条書き、比較は短い一覧にする。専門用語は言い換える。
 - 利用者の状況がわからないとき（端末・支払い方法など）は、よくあるケースを想定して答えたうえで、ひとこと聞き返してよい。
-- 一人称は「僕」。気さくで丁寧に、250〜500 文字を目安にする。
+- 一人称は「私」（「僕」「俺」は使わない）。気さくで丁寧に、250〜500 文字を目安にする。
 
 ## 注意
 - 料金・還元率・キャンペーンなど変わりやすい情報は「〇〇時点のページでは」「変わることがあるので最終確認は公式で」と短く添える（答えの代わりにしない）。
@@ -200,6 +200,25 @@ export const PRICES = {
 };
 export const USD_JPY = 155;
 
+const toolLabel = (tools) => {
+  const names = tools.map((t) => (t.urlContext ? "ページ" : t.googleSearch ? "検索" : "?"));
+  return names.length ? names.join("＋") : "ツールなし";
+};
+
+// Gemini のエラーを、何が起きたかわかる言葉にする
+export function explainError(err) {
+  if (!(err instanceof ApiError)) return `プログラムのエラー：${String(err?.message ?? err).slice(0, 150)}`;
+  const s = err.status;
+  const what =
+    s === 429 ? "回数上限（無料枠を使い切った）" :
+    s === 400 ? "リクエストを受け付けない（ツールの組み合わせ・ページの読み取りなど）" :
+    s === 401 || s === 403 ? "API キーか権限の問題" :
+    s === 404 ? "モデルが見つからない" :
+    s === 408 || s === 504 ? "時間切れ" :
+    s >= 500 ? "Gemini 側の障害" : "その他のエラー";
+  return `エラー ${s}：${what}｜${String(err.message ?? "").replace(/\s+/g, " ").slice(0, 150)}`;
+}
+
 export default async function handler(req, res) {
   if (!acceptPost(req, res)) return;
   if (!allow(clientIp(req))) return res.status(429).json({ error: "少し時間をおいてからお試しください。" });
@@ -213,30 +232,57 @@ export default async function handler(req, res) {
   while (messages.length && messages[0].role !== "user") messages.shift();
   if (!messages.length || messages.at(-1).role !== "user") return res.status(400).json({ error: "質問を入力してください" });
 
+  // 処理の段階ごとの記録。成功・失敗とも画面に返し、どの段階でつまずいたかを確認できるようにする
+  const trace = [{ step: "① 受付（入力チェック・回数制限）", ok: true }];
+  const fail = (status, error) => res.status(status).json({ error, trace });
+
   const topics = route(messages.at(-1).text);
   const urls = [...new Set(topics.flatMap((k) => TOPICS[k].urls))];
   const sources = urls.map((u) => `- ${u}`).join("\n");
+  trace.push({ step: "② 話題の判定", ok: true, detail: `${topics.map((k) => TOPICS[k].label).join("・")}（読ませるページ ${urls.length} 件）` });
+
+  let response, usedModel, lastErr;
+  const attempts = MODES[body.mode] ?? MODES.lite;
+  for (const [i, { model, tools }] of attempts.entries()) {
+    const label = `③-${i + 1} AI 呼び出し：${model}＋${toolLabel(tools)}`;
+    const started = Date.now();
+    try {
+      response = await ai.models.generateContent({
+        model,
+        contents: messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
+        config: { systemInstruction: `${SYSTEM_PROMPT}\n\n<sources>\n${sources}\n</sources>`, ...(tools.length ? { tools } : {}) },
+      });
+      usedModel = model;
+      trace.push({ step: label, ok: true, detail: `成功（${((Date.now() - started) / 1000).toFixed(1)} 秒）` });
+      break;
+    } catch (err) {
+      lastErr = err;
+      trace.push({ step: label, ok: false, detail: `${explainError(err)}（${((Date.now() - started) / 1000).toFixed(1)} 秒）` });
+      console.warn(label, "failed:", err?.status, err?.message);
+      // Gemini 側のエラーなら次の方式で答え直す。プログラムの不具合などはここで止める
+      if (!(err instanceof ApiError)) break;
+    }
+  }
+  if (!response) {
+    console.error("all attempts failed", lastErr?.status, lastErr?.message);
+    const why = lastErr instanceof ApiError && lastErr.status === 429 ? "混み合っています（回数上限）" : "AI の呼び出しに失敗しました";
+    return fail(lastErr instanceof ApiError && lastErr.status === 429 ? 429 : 502, `${why}。どの段階で失敗したかは「処理の詳細」を確認してください。`);
+  }
 
   try {
-    let response, usedModel;
-    const attempts = MODES[body.mode] ?? MODES.lite;
-    for (const [i, { model, tools }] of attempts.entries()) {
-      try {
-        response = await ai.models.generateContent({
-          model,
-          contents: messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
-          config: { systemInstruction: `${SYSTEM_PROMPT}\n\n<sources>\n${sources}\n</sources>`, ...(tools.length ? { tools } : {}) },
-        });
-        usedModel = model;
-        break;
-      } catch (err) {
-        // 回数上限（429）だけでなく、Gemini 側のエラー（ページが読めない・ツールの組み合わせを受け付けない・一時的な障害など）でも次の方式で答え直す
-        if (!(err instanceof ApiError) || i === attempts.length - 1) throw err;
-        console.warn(`${model} (${tools.length} tools) failed with ${err.status}, falling back:`, err.message);
-      }
-    }
+    // ページ読み取りと検索の結果（どのページが読めたか、検索したか）
+    const cand = response.candidates?.[0] ?? {};
+    const pages = (cand.urlContextMetadata?.urlMetadata ?? []).map((m) => `${String(m.urlRetrievalStatus ?? "").includes("SUCCESS") ? "○" : "×"} ${m.retrievedUrl}`);
+    const queries = cand.groundingMetadata?.webSearchQueries ?? [];
+    trace.push({ step: "④ ページ読み取り・検索", ok: true, detail: [pages.length ? `ページ：${pages.join(" / ")}` : "ページ：読み取りなし", queries.length ? `検索：${queries.join("、")}` : "検索：なし"].join("｜") });
+
     const reply = response.text?.trim();
-    if (!reply) return res.status(422).json({ error: "この質問にはお答えできませんでした。聞き方を変えてみてください。" });
+    if (!reply) {
+      trace.push({ step: "⑤ 返答の確認", ok: false, detail: `返答が空（終了理由：${cand.finishReason ?? "不明"}）` });
+      return fail(422, "この質問にはお答えできませんでした。聞き方を変えてみてください。");
+    }
+    trace.push({ step: "⑤ 返答の確認", ok: true, detail: `${reply.length} 文字` });
+
     // 返答には必ずコンテキスト量（トークン数）を付ける
     const u = response.usageMetadata ?? {};
     // 1 回の会話の料金の目安（有料枠の単価で計算。無料枠の範囲なら実際は 0 円）
@@ -251,13 +297,12 @@ export default async function handler(req, res) {
       thinking: u.thoughtsTokenCount ?? 0,
       total: u.totalTokenCount ?? 0,
     };
-    return res.status(200).json({ reply: stripUrls(reply), topics: topics.map((k) => TOPICS[k].label), links: await resolveLinks(pickLinks(response, urls, curatedLinks(messages.at(-1).text, topics))), usage });
+    const links = await resolveLinks(pickLinks(response, urls, curatedLinks(messages.at(-1).text, topics)));
+    trace.push({ step: "⑥ 参考リンクの作成", ok: true, detail: `${links.length} 件` });
+    return res.status(200).json({ reply: stripUrls(reply), topics: topics.map((k) => TOPICS[k].label), links, usage, trace });
   } catch (err) {
-    // どの方式でも失敗したときは、原因を探せるようにステータスを画面に出す
-    if (err instanceof ApiError && err.status !== 429) {
-      console.error("Gemini API error", err.status, err.message);
-      return res.status(502).json({ error: `AI の呼び出しに失敗しました（Gemini のエラー ${err.status}）。少し待ってからもう一度お試しください。` });
-    }
-    return sendAiError(res, err);
+    console.error("post-processing failed", err);
+    trace.push({ step: "⑦ 後処理", ok: false, detail: String(err?.message ?? err).slice(0, 200) });
+    return fail(500, "返答の処理中にエラーが発生しました。「処理の詳細」を確認してください。");
   }
 }

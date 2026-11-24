@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI永野 管理画面</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1d2330;--sub:#6b7280;--accent:#cc0033;--line:#e3e6ea;--ok:#0a7d38;--warn:#a15c00}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1e2127;--fg:#e8eaed;--sub:#9aa0a6;--line:#2c3038;--ok:#4ade80;--warn:#fbbf24}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,"Hiragino Sans",sans-serif}
+main{max-width:960px;margin:0 auto;padding:16px}h1{font-size:20px;margin:8px 0 4px}h1 b{color:var(--accent)}
+h2{font-size:16px;margin:24px 0 8px}.sub{color:var(--sub);font-size:12px;margin:0 0 12px}a{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.calc{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.calc label{font-size:12px;color:var(--sub);display:flex;flex-direction:column;gap:4px}
+.calc input{width:130px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font-size:16px}
+.presets button{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:999px;padding:6px 10px;font-size:12px;cursor:pointer;margin:0 4px 8px 0}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--sub);font-weight:600;font-size:12px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}code{font-size:11px;color:var(--sub)}
+.v{font-size:11px;white-space:nowrap}.v.ok{color:var(--ok)}.v.ng{color:var(--warn)}.memo{font-size:11px;color:var(--sub)}
+.cheap{font-weight:700;color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+  <a href="./">← AI永野に戻る</a>
+  <h1><b>AI</b>永野 管理画面</h1>
+  <p class="sub" id="meta"></p>
+
+  <h2>1回の会話の料金シミュレーション</h2>
+  <div class="card">
+    <div class="presets" id="presets"></div>
+    <div class="calc">
+      <label>入力トークン（ページ/検索を含む）<input id="in" type="number" min="0" value="8000"></label>
+      <label>出力トークン（思考を含む）<input id="out" type="number" min="0" value="500"></label>
+      <label>1日の会話数<input id="n" type="number" min="0" value="100"></label>
+      <label>為替（円/ドル）<input id="fx" type="number" min="1" value="155"></label>
+    </div>
+  </div>
+
+  <div id="tables"></div>
+  <p class="sub">料金は有料枠の単価での目安です（無料枠の範囲なら0円）。「要確認」は外部サイトの情報で、公式ページと違う場合があります。値は <code>nagano/prices.json</code> を書き換えると更新されます。Google 検索などのツール利用料は含みません。</p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const PRESETS = [["自己紹介（小）", 600, 150], ["d払いの質問（中）", 3000, 400], ["dカード（ページ読込・大）", 8000, 500]];
+let data;
+const yen = (x) => (x < 0.01 ? "0.01円未満" : x < 100 ? `${x.toFixed(2)}円` : `${Math.round(x).toLocaleString()}円`);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+function render() {
+  const inT = +$("in").value || 0, outT = +$("out").value || 0, n = +$("n").value || 0, fx = +$("fx").value || 155;
+  const cost = (m) => ((inT * m.input + outT * m.output) / 1e6) * fx;
+  const min = Math.min(...data.providers.flatMap((p) => p.models.map(cost)));
+  $("tables").innerHTML = data.providers.map((p) => `
+    <h2>${esc(p.name)} <a class="memo" href="${esc(p.source)}" target="_blank" rel="noopener">公式の料金ページ</a></h2>
+    <div class="card wrap"><table>
+      <tr><th>モデル</th><th class="num">入力 $/100万</th><th class="num">出力 $/100万</th><th class="num">1回</th><th class="num">1日</th><th class="num">30日</th><th>確認</th></tr>
+      ${p.models.map((m) => { const c = cost(m); return `
+      <tr><td>${esc(m.name)}<br><code>${esc(m.id)}</code>${m.memo ? `<div class="memo">${esc(m.memo)}</div>` : ""}</td>
+      <td class="num">$${m.input.toFixed(2)}</td><td class="num">$${m.output.toFixed(2)}</td>
+      <td class="num ${c === min ? "cheap" : ""}">${yen(c)}</td><td class="num">${yen(c * n)}</td><td class="num">${yen(c * n * 30)}</td>
+      <td><span class="v ${m.verified ? "ok" : "ng"}">${m.verified ? "公式で確認済" : "要確認"}</span></td></tr>`; }).join("")}
+    </table></div>`).join("");
+}
+fetch("prices.json", { cache: "no-store" }).then((r) => r.json()).then((d) => {
+  data = d;
+  $("fx").value = d.usdJpy;
+  $("meta").textContent = `料金表の更新日：${d.updated}。${d.note}`;
+  for (const [label, i, o] of PRESETS) {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.onclick = () => { $("in").value = i; $("out").value = o; render(); };
+    $("presets").append(b);
+  }
+  for (const id of ["in", "out", "n", "fx"]) $(id).oninput = render;
+  render();
+}).catch(() => { $("tables").textContent = "料金表を読み込めませんでした"; });
+</script>
+<script src="../pay-ai-support/gate.js?v=20261029"></script>
+</body>
+</html>

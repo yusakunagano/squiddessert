@@ -1,0 +1,37 @@
+{
+  "updated": "2026-11-24",
+  "usdJpy": 155,
+  "note": "米ドル／100万トークン。verified=true は公式ページで確認できた値、false は外部サイトの情報で要確認。",
+  "providers": [
+    {
+      "name": "Google Gemini",
+      "source": "https://ai.google.dev/gemini-api/docs/pricing",
+      "models": [
+        { "name": "Gemini Flash-Lite", "id": "gemini-flash-lite-latest", "input": 0.30, "output": 1.50, "verified": false, "memo": "AI永野の「節約」。無料枠あり（1日500回前後とされる）" },
+        { "name": "Gemini Flash", "id": "gemini-flash-latest", "input": 0.75, "output": 3.75, "verified": false, "memo": "AI永野の「高性能」。2027年1月から入力1.50・出力7.50に値上げ予定とされる" }
+      ]
+    },
+    {
+      "name": "OpenAI",
+      "source": "https://developers.openai.com/api/docs/pricing",
+      "models": [
+        { "name": "GPT-5", "id": "gpt-5", "input": 1.25, "output": 10.00, "verified": false, "memo": "複数の情報源で一致" },
+        { "name": "GPT-5.4", "id": "gpt-5.4", "input": 2.50, "output": 15.00, "verified": false, "memo": "情報源により 5.00／30.00 とするものもある" },
+        { "name": "GPT-5.5", "id": "gpt-5.5", "input": 5.00, "output": 30.00, "verified": false, "memo": "" },
+        { "name": "GPT-5.6 Sol", "id": "gpt-5.6-sol", "input": 4.00, "output": 20.00, "verified": false, "memo": "キャンペーン価格の可能性あり" },
+        { "name": "GPT-5.6 Terra", "id": "gpt-5.6-terra", "input": 2.00, "output": 12.00, "verified": false, "memo": "" },
+        { "name": "GPT-5.6 Luna", "id": "gpt-5.6-luna", "input": 0.20, "output": 1.20, "verified": false, "memo": "" }
+      ]
+    },
+    {
+      "name": "Anthropic Claude",
+      "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "models": [
+        { "name": "Claude Fable 5.2", "id": "claude-fable-5-2", "input": 8.00, "output": 40.00, "verified": true, "memo": "最上位" },
+        { "name": "Claude Opus 5.5", "id": "claude-opus-5-5", "input": 4.00, "output": 20.00, "verified": true, "memo": "" },
+        { "name": "Claude Sonnet 5.5", "id": "claude-sonnet-5-5", "input": 2.00, "output": 10.00, "verified": true, "memo": "" },
+        { "name": "Claude Haiku 5.5", "id": "claude-haiku-5-5", "input": 0.10, "output": 0.50, "verified": true, "memo": "10万トークンを超える分は入力0.50・出力2.50" }
+      ]
+    }
+  ]
+}

@@ -22,7 +22,7 @@ a{color:var(--accent)}.refs{margin-top:10px;font-size:13px;display:flex;flex-dir
 <body>
 <div class="wrap">
   <h1><b>AI</b>永野</h1>
-  <p class="note">永野の note と、d払い・dカード・ドコモフィナンシャルグループ・ドコモの公式ページをもとに AI が答えます。AI の回答は公式な案内ではありません。暗証番号やカード番号は入力しないでください。</p>
+  <p class="note"><a href="admin.html" style="float:right;margin-left:8px">管理画面</a>永野の note と、d払い・dカード・ドコモフィナンシャルグループ・ドコモの公式ページをもとに AI が答えます。AI の回答は公式な案内ではありません。暗証番号やカード番号は入力しないでください。</p>
   <div id="log"></div>
   <div class="chips" id="chips"></div>
   <div class="mode" role="radiogroup" aria-label="AI の種類">
@@ -67,7 +67,9 @@ async function ask(text) {
     if (!r.ok) { add(j.error || "エラーが発生しました"); history.pop(); return; }
     const u = j.usage || {}, n = (x) => Number(x || 0).toLocaleString();
     const ctx = `コンテキスト量：合計 ${n(u.total)} トークン（入力 ${n(u.input)}・ページ/検索 ${n(u.tools)}・思考 ${n(u.thinking)}・出力 ${n(u.output)}）｜${u.model || ""}`;
-    add(j.reply, false, "話題：" + j.topics.join("・") + "\n" + ctx, j.links); history.push({ role: "assistant", text: j.reply });
+    const yen = (x) => (x == null ? "-" : x < 0.01 ? "0.01円未満" : `約${x.toFixed(2)}円`);
+    const price = u.cost ? `\n1回の料金の目安：Flash-Lite ${yen(u.cost.lite)}／Gemini Flash ${yen(u.cost.flash)}（有料枠の単価。無料枠内なら0円）` : "";
+    add(j.reply, false, "話題：" + j.topics.join("・") + "\n" + ctx + price, j.links); history.push({ role: "assistant", text: j.reply });
   } catch { wait.remove(); add("通信に失敗しました（サーバーに届きませんでした）"); history.pop(); }
   finally { send.disabled = false; q.focus(); }
 }

@@ -190,6 +190,14 @@ export async function resolveLinks(links) {
   })).then((xs) => xs.filter(Boolean).filter((l, i, a) => a.findIndex((m) => m.url === l.url) === i));
 }
 
+// 料金表（米ドル／100 万トークン）。Google の料金ページの目安で、変わることがある。思考は出力として数える。
+// Flash は 2027 年 1 月から値上げ予定（入力 1.50・出力 7.50）。Google 検索の利用料は含まない。
+export const PRICES = {
+  lite: { input: 0.30, output: 1.50 },
+  flash: { input: 0.75, output: 3.75 },
+};
+export const USD_JPY = 155;
+
 export default async function handler(req, res) {
   if (!acceptPost(req, res)) return;
   if (!allow(clientIp(req))) return res.status(429).json({ error: "少し時間をおいてからお試しください。" });
@@ -228,7 +236,11 @@ export default async function handler(req, res) {
     if (!reply) return res.status(422).json({ error: "この質問にはお答えできませんでした。聞き方を変えてみてください。" });
     // 返答には必ずコンテキスト量（トークン数）を付ける
     const u = response.usageMetadata ?? {};
+    // 1 回の会話の料金の目安（有料枠の単価で計算。無料枠の範囲なら実際は 0 円）
+    const io = { input: (u.promptTokenCount ?? 0) + (u.toolUsePromptTokenCount ?? 0), output: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0) };
+    const cost = Object.fromEntries(Object.entries(PRICES).map(([k, p]) => [k, Math.round(((io.input * p.input + io.output * p.output) / 1e6) * USD_JPY * 100) / 100]));
     const usage = {
+      cost, // 円。{ lite, flash }
       model: usedModel,
       input: u.promptTokenCount ?? 0, // 会話・指示・読み込んだページなど、AI に渡した量
       tools: u.toolUsePromptTokenCount ?? 0, // URL 読み取り・検索で取り込んだ量

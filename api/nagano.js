@@ -17,10 +17,12 @@ export const MODES = {
     { model: "gemini-flash-latest", tools: SEARCH },
     { model: LITE_MODEL, tools: SEARCH },
     { model: LITE_MODEL, tools: NO_SEARCH },
+    { model: LITE_MODEL, tools: [] },
   ],
   lite: [
     { model: LITE_MODEL, tools: SEARCH },
     { model: LITE_MODEL, tools: NO_SEARCH },
+    { model: LITE_MODEL, tools: [] }, // 最後の手段：ページも検索も使わず、AI の知識だけで答える
   ],
 };
 import { clientIp, createLimiter } from "./_ratelimit.js";
@@ -223,13 +225,14 @@ export default async function handler(req, res) {
         response = await ai.models.generateContent({
           model,
           contents: messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
-          config: { systemInstruction: `${SYSTEM_PROMPT}\n\n<sources>\n${sources}\n</sources>`, tools },
+          config: { systemInstruction: `${SYSTEM_PROMPT}\n\n<sources>\n${sources}\n</sources>`, ...(tools.length ? { tools } : {}) },
         });
         usedModel = model;
         break;
       } catch (err) {
-        if (!(err instanceof ApiError) || err.status !== 429 || i === attempts.length - 1) throw err;
-        console.warn(`${model} hit the rate limit, falling back`);
+        // 回数上限（429）だけでなく、Gemini 側のエラー（ページが読めない・ツールの組み合わせを受け付けない・一時的な障害など）でも次の方式で答え直す
+        if (!(err instanceof ApiError) || i === attempts.length - 1) throw err;
+        console.warn(`${model} (${tools.length} tools) failed with ${err.status}, falling back:`, err.message);
       }
     }
     const reply = response.text?.trim();
@@ -250,6 +253,11 @@ export default async function handler(req, res) {
     };
     return res.status(200).json({ reply: stripUrls(reply), topics: topics.map((k) => TOPICS[k].label), links: await resolveLinks(pickLinks(response, urls, curatedLinks(messages.at(-1).text, topics))), usage });
   } catch (err) {
+    // どの方式でも失敗したときは、原因を探せるようにステータスを画面に出す
+    if (err instanceof ApiError && err.status !== 429) {
+      console.error("Gemini API error", err.status, err.message);
+      return res.status(502).json({ error: `AI の呼び出しに失敗しました（Gemini のエラー ${err.status}）。少し待ってからもう一度お試しください。` });
+    }
     return sendAiError(res, err);
   }
 }

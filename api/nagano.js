@@ -7,12 +7,22 @@
 // 読ませる URL はここに書いたものだけ（利用者が URL を指定することはできない）。
 import { ApiError } from "@google/genai";
 import { acceptPost, ai, MODEL as LITE_MODEL, readBody, sendAiError } from "./_shared.js";
-// 無料枠で回数を確保するため lite を使う。まず Google 検索つきで答え、
-// 検索の回数上限（429）に当たったら、公式ページの読み取りだけで答え直す。
-const ATTEMPTS = [
-  { model: LITE_MODEL, tools: [{ urlContext: {} }, { googleSearch: {} }] },
-  { model: LITE_MODEL, tools: [{ urlContext: {} }] },
-];
+// 画面で選べる 2 つのモード。どちらも回数上限（429）に当たったら、次の方式で答え直す。
+//  smart … 高性能（Flash＋Google 検索）。答えの質が高いが、無料枠の回数が少ない
+//  lite  … 節約（lite＋Google 検索）。無料枠の回数が多い
+const SEARCH = [{ urlContext: {} }, { googleSearch: {} }];
+const NO_SEARCH = [{ urlContext: {} }];
+export const MODES = {
+  smart: [
+    { model: "gemini-flash-latest", tools: SEARCH },
+    { model: LITE_MODEL, tools: SEARCH },
+    { model: LITE_MODEL, tools: NO_SEARCH },
+  ],
+  lite: [
+    { model: LITE_MODEL, tools: SEARCH },
+    { model: LITE_MODEL, tools: NO_SEARCH },
+  ],
+};
 import { clientIp, createLimiter } from "./_ratelimit.js";
 
 export const TOPICS = {
@@ -29,7 +39,7 @@ export const TOPICS = {
   },
   dpay: {
     label: "d払い",
-    words: ["d払い", "dばらい", "ｄ払い", "決済", "支払", "チャージ", "qr", "バーコード", "お店", "使い方", "始め方", "設定", "送金", "ポイント"],
+    words: ["d払い", "dばらい", "ｄ払い", "決済", "支払", "チャージ", "qr", "バーコード", "お店", "使い方", "始め方", "設定", "送金", "割り勘", "わりかん", "受け取", "残高", "入金", "ポイント"],
     urls: ["https://service.smt.docomo.ne.jp/keitai_payment/", "https://service.smt.docomo.ne.jp/keitai_payment/guide/"],
   },
   dcard: {
@@ -92,6 +102,39 @@ const MAX_MESSAGES = 10;
 const MAX_TEXT = 500;
 const allow = createLimiter({ max: 20, windowMs: 60_000 });
 
+// 質問の言葉に合わせて必ず付ける参考ページ（実在を確認した URL だけ）。上から順に優先。
+export const LINKS = [
+  { title: "d払い 送金のガイド（送り方・受け取り方・上限）", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/wallet/remit.html", words: ["送金", "送る", "受け取", "割り勘", "わりかん", "友達", "友だち"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い残高へのチャージ方法", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/wallet/deposit.html", words: ["チャージ", "入金", "atm", "銀行", "オートチャージ"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い残高のガイド", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/wallet/zandaka.html", words: ["残高", "本人確認", "出金", "現金バリュー", "プリペイド"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い 支払い方法の選び方", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/beginner_guide/payment.html", words: ["支払い方法", "支払方法", "合算", "電話料金", "クレジットカード", "切り替え", "変更"], topics: ["dpay"] },
+  { title: "dカードのお問い合わせ（不正利用・紛失など）", url: "https://www.docomo.ne.jp/support/inquiry/dcard/", words: ["紛失", "盗難", "不正", "覚えのない", "問い合わせ", "電話番号", "窓口"], topics: ["dcard"] },
+  { title: "d払い よくある質問（ネットでの支払い）", url: "https://service.smt.docomo.ne.jp/keitai_payment/faq/?tab=net", words: ["ネット", "通販", "オンライン", "サイト", "amazon", "アマゾン"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い アプリのヘルプ（エラー・使えないとき）", url: "https://service.smt.docomo.ne.jp/keitai_payment/app/help/", words: ["エラー", "使えない", "できない", "表示", "アプリ", "ログイン", "不具合", "困"], topics: ["dpay", "dpay_faq"] },
+  { title: "d払い 初心者ガイド（始め方・使い方）", url: "https://service.smt.docomo.ne.jp/keitai_payment/guide/beginner_guide/index.html", words: ["始め", "はじめ", "使い方", "登録", "初めて", "設定", "ダウンロード", "お店", "お店"], topics: ["dpay"] },
+  { title: "d払い よくある質問", url: "https://service.smt.docomo.ne.jp/keitai_payment/faq/", words: ["ポイント", "キャンセル", "返金", "解約", "上限", "限度", "残高", "チャージ", "カード"], topics: ["dpay", "dpay_faq"] },
+  { title: "dカード よくある質問", url: "https://fw.dcard.docomo.ne.jp/st/faq/", words: ["年会費", "審査", "明細", "引き落とし", "暗証", "紛失", "再発行", "限度", "支払"], topics: ["dcard"] },
+  { title: "dカードの種類と年会費（ドコモ）", url: "https://www.docomo.ne.jp/service/dcard/", words: ["年会費", "gold", "ゴールド", "プラチナ", "種類", "違い", "おすすめ", "特典"], topics: ["dcard"] },
+  { title: "dカード 公式サイト", url: "https://dcard.docomo.ne.jp/st/", words: ["入会", "申込", "申し込み", "キャンペーン"], topics: ["dcard"] },
+  { title: "d払い（ドコモ）", url: "https://www.docomo.ne.jp/service/d_payment/", words: [], topics: ["dpay"] },
+  { title: "永野の note", url: "https://note.com/mute_phlox837", words: [], topics: ["nagano"] },
+  { title: "ドコモフィナンシャルグループ", url: "https://www.docomo-fg.com/", words: [], topics: ["dfg"] },
+  { title: "NTTドコモ", url: "https://www.docomo.ne.jp/", words: [], topics: ["docomo"] },
+];
+
+// 話題が合うページのうち、質問の言葉に多く当たるものを最大 2 件。当たらなければ話題の代表ページ。
+export function curatedLinks(text, topics) {
+  const t = text.toLowerCase();
+  const pool = LINKS.filter((l) => l.topics.some((k) => topics.includes(k)));
+  const hit = pool
+    .map((l, i) => ({ l, i, score: l.words.filter((w) => t.includes(w.toLowerCase())).length }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map((x) => x.l);
+  const out = hit.length ? hit : pool.filter((l) => !l.words.length).concat(pool).slice(0, 1);
+  return out.slice(0, 2).map(({ title, url }) => ({ title, url }));
+}
+
 // 公式とみなすサイト（参考リンクはここに含まれるものだけ出す）
 const OFFICIAL = /(^|\.)(docomo\.ne\.jp|docomo-fg\.com|note\.com)$/;
 
@@ -110,9 +153,9 @@ export function stripUrls(text) {
 //  1. Google 検索で根拠にしたページ（説明が載っている個別ページ。リンクは Google 経由で本来のページへ転送される）
 //  2. 読み取れた公式ページのうち、トップより深いもの
 //  3. どちらもなければ、話題の公式ページ
-export function pickLinks(response, fallbackUrls) {
+export function pickLinks(response, fallbackUrls, curated = []) {
   const cand = response?.candidates?.[0] ?? {};
-  const links = [];
+  const links = [...curated];
   const add = (url, title) => {
     if (!url || links.some((l) => l.url === url) || links.length >= 3) return;
     links.push({ url, title: title || url });
@@ -121,7 +164,7 @@ export function pickLinks(response, fallbackUrls) {
     const w = c.web;
     if (!w?.uri) continue;
     const host = String(w.domain || w.title || "").toLowerCase();
-    if (OFFICIAL.test(host)) add(w.uri, w.title);
+    if (OFFICIAL.test(host)) add(w.uri, `${w.title}（検索で見つけたページ）`);
   }
   for (const m of cand.urlContextMetadata?.urlMetadata ?? []) {
     if (!String(m.urlRetrievalStatus ?? "").includes("SUCCESS")) continue;
@@ -129,6 +172,22 @@ export function pickLinks(response, fallbackUrls) {
   }
   if (!links.length) for (const u of fallbackUrls) add(u);
   return links;
+}
+
+// Google 検索の根拠リンクは転送用の URL なので、転送先（本来のページ）を調べて置き換える。
+// 公式サイトでなければ外す。調べられなければそのまま残す。
+export async function resolveLinks(links) {
+  return Promise.all(links.map(async (l) => {
+    if (!/grounding-api-redirect/.test(l.url)) return l;
+    try {
+      const r = await fetch(l.url, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(3000) });
+      const loc = r.headers.get("location");
+      if (!loc) return l;
+      const u = new URL(loc);
+      if (!OFFICIAL.test(u.hostname)) return null;
+      return { url: u.href, title: l.title.replace(/^[^（]+/, u.hostname + u.pathname.replace(/\/index\.html$/, "/")) };
+    } catch { return l; }
+  })).then((xs) => xs.filter(Boolean).filter((l, i, a) => a.findIndex((m) => m.url === l.url) === i));
 }
 
 export default async function handler(req, res) {
@@ -150,7 +209,8 @@ export default async function handler(req, res) {
 
   try {
     let response, usedModel;
-    for (const [i, { model, tools }] of ATTEMPTS.entries()) {
+    const attempts = MODES[body.mode] ?? MODES.lite;
+    for (const [i, { model, tools }] of attempts.entries()) {
       try {
         response = await ai.models.generateContent({
           model,
@@ -160,7 +220,7 @@ export default async function handler(req, res) {
         usedModel = model;
         break;
       } catch (err) {
-        if (!(err instanceof ApiError) || err.status !== 429 || i === ATTEMPTS.length - 1) throw err;
+        if (!(err instanceof ApiError) || err.status !== 429 || i === attempts.length - 1) throw err;
         console.warn(`${model} hit the rate limit, falling back`);
       }
     }
@@ -176,7 +236,7 @@ export default async function handler(req, res) {
       thinking: u.thoughtsTokenCount ?? 0,
       total: u.totalTokenCount ?? 0,
     };
-    return res.status(200).json({ reply: stripUrls(reply), topics: topics.map((k) => TOPICS[k].label), links: pickLinks(response, urls), usage });
+    return res.status(200).json({ reply: stripUrls(reply), topics: topics.map((k) => TOPICS[k].label), links: await resolveLinks(pickLinks(response, urls, curatedLinks(messages.at(-1).text, topics))), usage });
   } catch (err) {
     return sendAiError(res, err);
   }

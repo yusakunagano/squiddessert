@@ -129,6 +129,50 @@
   #result .big{font-size:110px;line-height:1;filter:drop-shadow(0 6px 16px rgba(242,212,61,.7));animation:pop .7s ease-out}
   #result h1{margin:0;font-size:32px}
   @keyframes pop{0%{transform:scale(.2) rotate(-20deg);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+  #gcard{position:absolute;inset:0;z-index:15;pointer-events:none;display:flex;align-items:center;justify-content:center;overflow:hidden;visibility:hidden}
+  #gcard.show{visibility:visible}
+  #gcard i{position:absolute;left:-10%;right:-10%;height:34%;top:33%;transform:skewY(-6deg) translateX(-110%)}
+  #gcard .gb1{background:linear-gradient(90deg,rgba(11,26,18,.0),rgba(11,26,18,.92) 20%,rgba(11,26,18,.92) 80%,rgba(11,26,18,0))}
+  #gcard .gb2{height:4%;top:64%;background:#f2d43d}
+  #gcard.opp .gb2{background:#e5483b}
+  #gcard.show .gb1{animation:gSlide 2.5s cubic-bezier(.2,.9,.2,1) both}
+  #gcard.show .gb2{animation:gSlide 2.5s .08s cubic-bezier(.2,.9,.2,1) both}
+  @keyframes gSlide{0%{transform:skewY(-6deg) translateX(-110%)}18%,82%{transform:skewY(-6deg) translateX(0)}100%{transform:skewY(-6deg) translateX(110%)}}
+  #gcard .gIn{position:relative;text-align:center;color:#fff}
+  #gcard .gBig{font:italic 900 clamp(64px,18vw,140px)/1 system-ui;letter-spacing:.04em;transform:skewX(-10deg);background:linear-gradient(180deg,#fff 35%,#f2d43d 80%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 6px 0 rgba(0,0,0,.5))}
+  #gcard.opp .gBig{background:linear-gradient(180deg,#fff 35%,#ff8a7a 80%);-webkit-background-clip:text;background-clip:text}
+  #gcard.show .gBig{animation:gSlam 2.5s both}
+  #gcard .gLine{font-weight:800;font-size:18px;margin-top:4px;text-shadow:0 2px 6px #000}
+  #gcard .gSc{font:900 26px system-ui;letter-spacing:.1em;color:#f2d43d;text-shadow:0 2px 6px #000}
+  #gcard.show .gLine,#gcard.show .gSc{animation:gFade 2.5s both}
+  @keyframes gSlam{0%,8%{opacity:0;transform:skewX(-10deg) scale(2.6)}20%{opacity:1;transform:skewX(-10deg) scale(.94)}26%{transform:skewX(-10deg) scale(1.03)}32%,80%{opacity:1;transform:skewX(-10deg) scale(1)}100%{opacity:0;transform:skewX(-10deg) translateX(60vw)}}
+  @keyframes gFade{0%,22%{opacity:0;transform:translateY(12px)}34%,80%{opacity:1;transform:none}100%{opacity:0}}
+  #result.rwin,#result.rlose{background:radial-gradient(circle at 50% 40%,#1d4a33 0%,#07140d 70%);overflow:hidden}
+  #result.rlose{background:radial-gradient(circle at 50% 40%,#2a3442 0%,#0a0d14 70%)}
+  #result .rRays{position:absolute;left:50%;top:38%;width:220vmax;height:220vmax;margin:-110vmax 0 0 -110vmax;background:repeating-conic-gradient(rgba(242,212,61,.13) 0 6deg,transparent 6deg 18deg);animation:rSpin 30s linear infinite;pointer-events:none}
+  #result.rlose .rRays{background:repeating-linear-gradient(100deg,rgba(150,180,220,.06) 0 2px,transparent 2px 22px);animation:rRain 1s linear infinite}
+  @keyframes rSpin{to{transform:rotate(360deg)}}
+  @keyframes rRain{to{transform:translate(-40px,80px)}}
+  #result .rFlash{position:absolute;inset:0;background:#fff;opacity:0;animation:rFlash .7s ease-out;pointer-events:none}
+  #result.rlose .rFlash{display:none}
+  @keyframes rFlash{0%{opacity:.9}100%{opacity:0}}
+  #result .rIn{position:relative;display:flex;flex-direction:column;align-items:center;gap:12px}
+  #result .rIcon{font-size:96px;line-height:1;filter:drop-shadow(0 0 30px rgba(242,212,61,.8));animation:pop .8s .2s both}
+  #result .lose .rIcon{filter:grayscale(.3) drop-shadow(0 6px 16px rgba(0,0,0,.6))}
+  #result .rWord{position:relative;font:italic 900 clamp(56px,16vw,130px)/1 system-ui;letter-spacing:.05em;transform:skewX(-10deg);background:linear-gradient(180deg,#fffbe0 0%,#ffe36b 40%,#e2a50c 70%,#fff3b0 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 6px 0 #5a3e00) drop-shadow(0 14px 30px rgba(0,0,0,.7));animation:rSlam .9s .35s both}
+  #result .lose .rWord{background:linear-gradient(180deg,#f2f6fb 0%,#9fb2c8 60%,#5c6e84 100%);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 6px 0 #1c2430) drop-shadow(0 14px 30px rgba(0,0,0,.7))}
+  #result .rWord::after{content:attr(data-t);position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.95) 50%,transparent 60%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:rShine 2.6s 1.3s ease-in-out infinite}
+  #result .lose .rWord::after{display:none}
+  @keyframes rShine{0%{background-position:120% 0}60%,100%{background-position:-120% 0}}
+  @keyframes rSlam{0%{opacity:0;transform:skewX(-10deg) scale(3)}60%{opacity:1;transform:skewX(-10deg) scale(.92)}100%{transform:skewX(-10deg) scale(1)}}
+  #result .rSub{font-size:18px;font-weight:800;animation:gFadeIn .6s 1s both}
+  #result .rBoard{border-collapse:separate;border-spacing:0;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.18);border-radius:12px;overflow:hidden;animation:gFadeIn .6s 1.2s both;font-size:18px}
+  #result .rBoard th{text-align:left;padding:8px 14px;font-weight:800}
+  #result .rBoard td{padding:8px 12px;min-width:22px;font-weight:900;border-left:1px solid rgba(255,255,255,.1)}
+  #result .rBoard td.rs{background:#f2d43d;color:#10241a}
+  #result.rlose .rBoard td.rs{background:#9fb2c8}
+  #result .rIn .row{animation:gFadeIn .6s 1.5s both}
+  @keyframes gFadeIn{from{opacity:0;transform:translateY(16px)}}
   .confetti{position:absolute;top:-10px;width:9px;height:14px;opacity:.9;animation:fall linear forwards;pointer-events:none}
   @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
   #bracket .round{display:flex;flex-direction:column;gap:6px;width:min(420px,100%)}
@@ -178,6 +222,7 @@
     <div class="pbtn" id="bKick">キック</div>
     <div class="pbtn" id="bCut">スライス</div>
   </div>
+  <div id="gcard"></div>
   <div id="result" class="hidden"></div>
   <div id="bracket" class="hidden"></div>
   <div class="menu hidden" id="lobby">
@@ -501,6 +546,17 @@ function wipe(cb){
 }
 function toMenu(){ wipe(toMenu0); }
 function toMenu0(){ state = 'menu'; players = []; human = null; msgEl.textContent = ''; document.getElementById('result').classList.add('hidden'); menu.classList.remove('hidden'); }
+// ゲーム／セットが終わるたびの切り替え画面（斜めの帯がすべり込み、大きな文字がたたきつけられる）
+function gameCard(big, line, score, mine){
+  if (online && net.role !== 'host') return false;
+  const el = document.getElementById('gcard');
+  el.className = mine ? 'mine' : 'opp';
+  el.innerHTML = `<i class="gb1"></i><i class="gb2"></i><div class="gIn"><div class="gBig" data-t="${big}">${big}</div><div class="gLine">${line}</div><div class="gSc">${score}</div></div>`;
+  void el.offsetWidth; el.classList.add('show'); msgEl.textContent = '';
+  if (mine) playCrowd(true);
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2500);
+  return true;
+}
 function confetti(){
   const el = document.getElementById('result'), cols = ['#f2d43d', '#ff4fa3', '#2fbf71', '#3a7bd5', '#ff8a1f', '#ffffff'];
   for (let i = 0; i < 90; i++) { const c = document.createElement('i'); c.className = 'confetti'; c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % cols.length]; c.style.animationDuration = (2.5 + Math.random() * 2.5) + 's'; c.style.animationDelay = Math.random() * 1.2 + 's'; el.appendChild(c); }
@@ -508,26 +564,26 @@ function confetti(){
 // 試合が終わったとき：勝てばトロフィー、負ければ「残念でした」
 function matchOver(won){
   const el = document.getElementById('result'), sc = score.sets ? `セット ${score.sets[myTeam()]}-${score.sets[1 - myTeam()]}` : '';
+  const me = myTeam(), hist = (score.hist || []).map(g => `<td>${g[me]}</td>`).join(''), histO = (score.hist || []).map(g => `<td>${g[1 - me]}</td>`).join('');
+  const board = `<table class="rBoard"><tr><th>${teamName(me)}</th>${hist}<td class="rs">${score.sets ? score.sets[me] : ''}</td></tr><tr><th>${teamName(1 - me)}</th>${histO}<td class="rs">${score.sets ? score.sets[1 - me] : ''}</td></tr></table>`;
+  const page = (kind, word, sub, icon, btn) => `<div class="rRays"></div><div class="rFlash"></div>
+    <div class="rIn ${kind}"><div class="rIcon">${icon}</div><div class="rWord" data-t="${word}">${word}</div><div class="rSub">${sub}</div>${board}
+    <div class="row">${btn}</div></div>`;
+  const toM = '<button id="rsMenu">メニューへ</button>';
+  let win = won;
   if (tour) {
     // ほかの試合はランダムに勝者を決める
     const pairs = roundPairs(tour.alive), next = [];
     for (const q of pairs) next.push(q.includes(myChar) ? (won ? myChar : tour.opp) : q[Math.random() < 0.5 ? 0 : 1]);
     const rName = tour.roundName;
-    if (!won) {
-      el.innerHTML = `<div class="big">😢</div><h1>残念でした</h1><div>${rName}で ${tour.opp.name} に負けました（${sc}）</div><div class="row"><button id="rsMenu">メニューへ</button></div>`;
-      tour = null;
-    } else if (next.length === 1) {
-      el.innerHTML = `<div class="big">🏆</div><h1>優勝おめでとう！</h1><div>${myChar.name} がトーナメントを制しました！（決勝 ${sc}）</div><div class="row"><button id="rsMenu">メニューへ</button></div>`;
-      tour = null; setTimeout(confetti, 50);
-    } else {
-      tour.alive = next; tour.round++;
-      el.innerHTML = `<div class="big">🎉</div><h1>${rName} 勝利！</h1><div>${sc}　次は ${ROUND_NAME[tour.round]} です</div><div class="row"><button id="rsNext">次へ</button></div>`;
-    }
+    if (!won) { el.innerHTML = page('lose', 'DEFEAT', `${rName}で ${tour.opp.name} に敗退`, '😤', toM); tour = null; }
+    else if (next.length === 1) { el.innerHTML = page('champ', 'CHAMPION', `${myChar.name} がトーナメント優勝！`, '🏆', toM); tour = null; }
+    else { tour.alive = next; tour.round++; el.innerHTML = page('win', 'VICTORY', `${rName} 突破！ 次は ${ROUND_NAME[tour.round]}`, '🎾', '<button id="rsNext">次へ ▶</button>'); win = 'round'; }
   } else {
-    el.innerHTML = won ? `<div class="big">🏆</div><h1>優勝！</h1><div>${myChar.name} の勝ち！（${sc}）</div><div class="row"><button id="rsMenu">メニューへ</button></div>`
-      : `<div class="big">😢</div><h1>残念でした</h1><div>${teamName(1)} に負けました（${sc}）</div><div class="row"><button id="rsMenu">メニューへ</button></div>`;
-    if (won) setTimeout(confetti, 50);
+    el.innerHTML = won ? page('champ', 'VICTORY', `${myChar.name} の勝利！`, '🏆', toM) : page('lose', 'DEFEAT', `${teamName(1)} に敗れました`, '😤', toM);
   }
+  el.className = win === true ? 'rwin' : win === 'round' ? 'rwin' : 'rlose';
+  if (win) { setTimeout(confetti, 600); playCrowd(true); setTimeout(() => playCrowd(true), 700); }
   el.classList.remove('hidden');
   const m = document.getElementById('rsMenu'); if (m) m.onclick = () => toMenu();
   const n = document.getElementById('rsNext'); if (n) n.onclick = () => { el.classList.add('hidden'); state = 'menu'; showBracket(); };
@@ -1103,7 +1159,7 @@ function pointTo(team, reason){
     if (!score.sets) score.sets = [0, 0];
     const G = online ? 6 : gamesPerSet, g = score.games[w], o = score.games[1 - w];
     if (G === 1 ? g >= 1 : (g >= G && (g - o >= 2 || g > G))) {
-      score.sets[w]++; const done = score.sets[w] >= SETS_TO_WIN;
+      score.sets[w]++; (score.hist = score.hist || []).push(score.games.slice()); const done = score.sets[w] >= SETS_TO_WIN;
       const setNo = score.sets[0] + score.sets[1];
       if (done) {
         state = 'over'; timer = 0;
@@ -1113,10 +1169,10 @@ function pointTo(team, reason){
         return;
       }
       score.games = [0, 0];
-      showMsg(`${teamName(w)}が第${setNo}セットを取りました（セット ${score.sets[myTeam()]}-${score.sets[1 - myTeam()]}）`, 2.2);
+      if (!gameCard('SET', `${teamName(w)} が第${setNo}セットを獲得`, `セット ${score.sets[myTeam()]} - ${score.sets[1 - myTeam()]}`, w === myTeam())) showMsg(`${teamName(w)}が第${setNo}セットを取りました（セット ${score.sets[myTeam()]}-${score.sets[1 - myTeam()]}）`, 2.2); else timer = 2.9;
       return;
     }
-    showMsg(teamName(w) + 'がゲームを取りました', 1.6);
+    if (!gameCard('GAME', `${teamName(w)} がゲームを獲得`, `ゲーム ${score.games[myTeam()]} - ${score.games[1 - myTeam()]}`, w === myTeam())) showMsg(teamName(w) + 'がゲームを取りました', 1.6); else timer = 2.9;
   }
 }
 function fault(reason){

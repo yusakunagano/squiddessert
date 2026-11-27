@@ -28,11 +28,19 @@ header.top h1{font-size:17px;margin:0}
 .card h2{font-size:12px;color:var(--sub);margin:0 0 6px;font-weight:600;letter-spacing:.05em}
 /* customer area */
 .custArea{display:grid;gap:10px;grid-template-columns:1fr}
-@media(min-width:760px){.custArea{grid-template-columns:260px 1fr 250px}}
+@media(min-width:760px){.custArea{grid-template-columns:minmax(300px,1.1fr) 1fr 240px}}
 .who{display:flex;gap:10px;align-items:center}
 .avatar{font-size:46px;line-height:1}
 .look{font-size:12px;color:var(--sub)}
-.talk{margin-top:8px;height:150px;overflow-y:auto;font-size:13px;display:flex;flex-direction:column;gap:4px;background:#f7f9fb;border-radius:8px;padding:6px}
+.scene3d{position:relative;height:300px;border-radius:8px;overflow:hidden;background:#cfd8e3}
+.scene3d canvas{display:block;width:100%;height:100%}
+.scene3d .tag{position:absolute;left:8px;top:8px;background:rgba(255,255,255,.85);border-radius:6px;padding:3px 8px;font-size:12px;max-width:calc(100% - 16px)}
+.scene3d .fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px}
+.phrTop{margin-bottom:10px}
+.phrTop .phr{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+@media(max-width:520px){.phrTop .phr{grid-template-columns:1fr 1fr}.phrTop .phr button{font-size:11.5px;padding:7px 4px}}
+.phr button:disabled{opacity:.45;cursor:default}
+.talk{margin-top:8px;height:120px;overflow-y:auto;font-size:13px;display:flex;flex-direction:column;gap:4px;background:#f7f9fb;border-radius:8px;padding:6px}
 .talk .c{align-self:flex-start;background:#fff;border:1px solid var(--line);padding:4px 8px;border-radius:10px 10px 10px 2px;max-width:92%}
 .talk .s{align-self:flex-end;background:#dbeafe;padding:4px 8px;border-radius:10px 10px 2px 10px;max-width:92%}
 .talk .sys{align-self:center;color:var(--sub);font-size:11px}
@@ -169,11 +177,25 @@ ul.tight{margin:4px 0;padding-left:20px}
       <h1>🏪 トレーニングマート</h1><span class="train">トレーニング中</span>
       <div class="stat"><span>お客様 <b id="stIdx">1</b>/<b id="stTot">5</b></span><span>経過 <b id="stTime">0</b>秒</span><span>累計 <b id="stScore">-</b>点</span></div>
     </header>
+    <div class="card phrTop">
+          <h2>接客用語（タップで話しかける）</h2>
+          <div class="phr" id="phr">
+            <button data-p="greet">いらっしゃいませ</button>
+            <button data-p="point">ポイントカードはお持ちですか？</button>
+            <button data-p="bag">袋はご利用ですか？</button>
+            <button data-p="heat">温めますか？</button>
+            <button data-p="eat">店内でお召し上がりですか？</button>
+            <button data-p="pay">お支払い方法は？</button>
+            <button data-p="age">年齢確認のタッチをお願いします</button>
+            <button data-p="id">身分証を拝見できますか？</button>
+            <button data-p="thanks">レシートのお返しです。ありがとうございました</button>
+          </div>
+        </div>
     <div class="grid">
       <div class="custArea">
         <div class="card">
           <h2>お客様</h2>
-          <div class="who"><div class="avatar" id="cAv">🙂</div><div><div id="cName" style="font-weight:700">お客様</div><div class="look" id="cLook"></div></div></div>
+          <div class="scene3d" id="scene"><div class="tag"><b id="cName">お客様</b>　<span class="look" id="cLook"></span></div><div class="fallback hidden" id="cAv">🙂</div></div>
           <div class="talk" id="talk"></div>
         </div>
         <div class="card">
@@ -211,20 +233,6 @@ ul.tight{margin:4px 0;padding-left:20px}
 
       <div class="side">
         <div class="hint" id="hint"></div>
-        <div class="card">
-          <h2>接客用語（タップで話しかける）</h2>
-          <div class="phr" id="phr">
-            <button data-p="greet">いらっしゃいませ</button>
-            <button data-p="point">ポイントカードはお持ちですか？</button>
-            <button data-p="bag">袋はご利用ですか？</button>
-            <button data-p="heat">温めますか？</button>
-            <button data-p="eat">店内でお召し上がりですか？</button>
-            <button data-p="pay">お支払い方法は？</button>
-            <button data-p="age">年齢確認のタッチをお願いします</button>
-            <button data-p="id">身分証を拝見できますか？</button>
-            <button data-p="thanks" style="grid-column:span 2">レシートのお返しです。ありがとうございました</button>
-          </div>
-        </div>
         <div class="drawer hidden" id="drawer">
           <div style="font-weight:700">💴 ドロア（クリックでお釣りトレイへ）</div>
           <div class="row" id="drBills"></div>
@@ -238,6 +246,7 @@ ul.tight{margin:4px 0;padding-left:20px}
   </section>
 </div>
 <div id="ovRoot"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
 'use strict';
@@ -273,10 +282,20 @@ const BAGS={bagS:{name:'レジ袋 S',em:'🛍️',base:3,rate:10,bag:'S'},bagM:{
 const ALLCODES={};PRODUCTS.concat(TOBACCO).forEach(p=>ALLCODES[p.code]=p);
 const DENOMS=[10000,5000,1000,500,100,50,10,5,1];
 const PEOPLE=[
-  {em:'👨‍💼',look:'スーツ姿の会社員（40代くらい）'},{em:'👩‍💼',look:'オフィスカジュアルの女性（30代くらい）'},{em:'👴',look:'年配の男性（70代くらい）'},
-  {em:'👵',look:'年配の女性（70代くらい）'},{em:'👷',look:'作業着の男性（50代くらい）'},{em:'🧔',look:'私服の男性（30代くらい）'},{em:'👩',look:'私服の女性（40代くらい）'},
-  {em:'👨‍🔧',look:'整備士風の男性（40代くらい）'},{em:'👩‍🍳',look:'エプロン姿の女性（50代くらい）'}];
-const YOUNG=[{em:'🧑',look:'パーカー姿の若者（10代後半〜20代前半？）'},{em:'👦',look:'童顔の若者（高校生くらいにも見える）'},{em:'👧',look:'若い女性（10代後半〜20代前半？）'},{em:'🧑‍🎓',look:'リュックを背負った学生風'}];
+  {em:'👨‍💼',look:'スーツ姿の会社員（40代くらい）',b:{top:'#f4f4f4',jacket:'#2b3445',tie:'#a12a2a',bottom:'#2b3445',hair:'#1a1a1a',style:'short',h:1.0}},
+  {em:'👩‍💼',look:'オフィスカジュアルの女性（30代くらい）',b:{top:'#eadccb',jacket:'#6b7a8f',bottom:'#3a3a44',skirt:1,hair:'#3b2a20',style:'long',h:.94}},
+  {em:'👴',look:'年配の男性（70代くらい）',b:{top:'#8a7a62',bottom:'#5a5a5a',hair:'#d0d0d0',style:'bald',glasses:1,h:.95,old:1}},
+  {em:'👵',look:'年配の女性（70代くらい）',b:{top:'#b27a8c',bottom:'#4a4a52',skirt:1,hair:'#dadada',style:'bun',glasses:1,h:.9,old:1}},
+  {em:'👷',look:'作業着の男性（50代くらい）',b:{top:'#3b5f8a',bottom:'#3b5f8a',hair:'#2a2a2a',style:'short',hat:'hard',h:1.02}},
+  {em:'🧔',look:'私服の男性（30代くらい）',b:{top:'#4f7a4a',bottom:'#34507e',hair:'#1f1a16',style:'short',beard:1,h:1.0}},
+  {em:'👩',look:'私服の女性（40代くらい）',b:{top:'#d98c5f',bottom:'#e7e1d5',hair:'#4a3426',style:'long',h:.93}},
+  {em:'👨‍🔧',look:'整備士風の男性（40代くらい）',b:{top:'#6b6b6b',bottom:'#6b6b6b',hair:'#222',style:'short',hat:'cap',hatColor:'#c03030',h:.99}},
+  {em:'👩‍🍳',look:'エプロン姿の女性（50代くらい）',b:{top:'#efe6d8',bottom:'#4a4a4a',apron:'#3f7a5c',hair:'#2a201a',style:'bun',h:.92}}];
+const YOUNG=[
+  {em:'🧑',look:'パーカー姿の若者（10代後半〜20代前半？）',b:{top:'#7a3fbf',hood:1,bottom:'#34507e',hair:'#2a1d14',style:'short',h:.98}},
+  {em:'👦',look:'童顔の若者（高校生くらいにも見える）',b:{top:'#ffffff',bottom:'#1f2a44',hair:'#111',style:'short',hat:'cap',hatColor:'#1f4fa8',h:.95}},
+  {em:'👧',look:'若い女性（10代後半〜20代前半？）',b:{top:'#f2b8c6',bottom:'#2f2f3a',skirt:1,hair:'#6b4630',style:'long',h:.92}},
+  {em:'🧑‍🎓',look:'リュックを背負った学生風',b:{top:'#24324f',bottom:'#2a2a2a',backpack:'#c94d2b',hair:'#151515',style:'short',glasses:1,h:.97}}];
 const NAMES=['山田 太郎','佐藤 花子','鈴木 一郎','高橋 美咲','田中 健太','伊藤 さくら','渡辺 翔','中村 葵','小林 大輝','加藤 優奈'];
 
 /* ========== ユーティリティ ========== */
@@ -334,7 +353,7 @@ function makeCustomer(){
   const hasAge=wantAlcohol||wantTobacco;
   c.young=hasAge&&chance(.35);
   c.age=c.young?(chance(.4)?17+rnd(3):20+rnd(4)):28+rnd(45);
-  const pp=c.young?pick(YOUNG):pick(PEOPLE);c.em=pp.em;c.look=pp.look;
+  const pp=c.young?pick(YOUNG):pick(PEOPLE);c.em=pp.em;c.look=pp.look;c.body=pp.b;
   const t=new Date();c.birth=new Date(t.getFullYear()-c.age,t.getMonth(),t.getDate()-1-rnd(300));
   // 誕生日直前の微妙なケースも作る
   if(c.young&&chance(.3)){c.birth=new Date(t.getFullYear()-20,t.getMonth(),t.getDate()+1+rnd(20));}
@@ -383,7 +402,7 @@ function due(){return Math.max(0,totals().total-T.pointsUsed)}
 
 /* ========== 会話 ========== */
 function say(who,text){const d=document.createElement('div');d.className=who;d.textContent=text;$('talk').appendChild(d);$('talk').scrollTop=1e6}
-function cust(text,delay=350){setTimeout(()=>{say('c',text);render()},delay)}
+function cust(text,delay=350){setTimeout(()=>{say('c',text);Store3D.nod();render()},delay)}
 function posMsg(m,err){$('posMsg').textContent=m||'';if(err)SND.err()}
 function ded(pts,reason){T.ded.push({pts,reason})}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>{d.style.opacity=0;setTimeout(()=>d.remove(),400)},1800)}
@@ -400,19 +419,23 @@ function nextCustomer(){
   closeOv();
   C=makeCustomer();newTx();
   $('talk').innerHTML='';
-  say('sys',`— ${G.idx+1}人目のお客様が来店しました —`);
   $('cAv').textContent=C.em;$('cName').textContent=`お客様 ${G.idx+1}`;$('cLook').textContent=C.look;
   $('termScr').innerHTML='いらっしゃいませ';
-  posMsg('');
-  clearInterval(timer);timer=setInterval(()=>{$('stTime').textContent=Math.floor((Date.now()-T.start)/1000)},500);
+  posMsg('');clearInterval(timer);$('stTime').textContent=0;
+  C.arrived=false;
+  say('sys',`— ピンポーン♪ ${G.idx+1}人目のお客様が来店 —`);
+  const arrive=()=>{if(!C||C.arrived)return;C.arrived=true;T.start=Date.now();
+    say('sys','お客様がレジに来ました（商品をカウンターに置く）');
+    timer=setInterval(()=>{$('stTime').textContent=Math.floor((Date.now()-T.start)/1000)},500);render()};
+  if(!Store3D.spawn(C.body,arrive))arrive();
   render();
 }
 
 /* ---- 接客用語 ---- */
 function phrase(p){
   const txt={greet:'いらっしゃいませ！',point:'ポイントカードはお持ちですか？',bag:'袋はご利用ですか？',heat:'こちら温めますか？',eat:'店内でお召し上がりですか？',pay:'お支払い方法はいかがなさいますか？',age:'恐れ入ります、画面の年齢確認ボタンのタッチをお願いします。',id:'恐れ入ります、年齢の確認できる身分証を拝見できますか？',thanks:'レシートのお返しです。ありがとうございました！'}[p];
-  if(T.payStage==='left')return;
-  say('s',txt);
+  if(T.payStage==='left'||!C.arrived)return;
+  say('s',txt);Store3D.listen();
   const first=!T.said[p];T.said[p]=(T.said[p]||0)+1;
   switch(p){
     case'greet':
@@ -820,6 +843,7 @@ function finishTx(){
      <li>支払い：${PAYNAME[C.pay]}${C.emBrand?'（'+C.emBrand+'）':''}</li>${C.young?`<li>年齢：${C.age}歳（${C.age<20?'販売不可':'販売可'}）</li>`:''}</ul></details>
    <div style="margin-top:14px;text-align:right"><button class="btn" onclick="${last?'showFinal()':'nextCustomer()'}">${last?'研修結果を見る':'次のお客様 →'}</button></div>`,true);
   say('c',pick(['ありがとうございました〜','どうも。','（会釈して退店）']));
+  Store3D.leave();
   render();
 }
 function showFinal(){
@@ -839,6 +863,7 @@ function showFinal(){
 /* ---- ガイド ---- */
 function hintText(){
   if(T.payStage==='left')return'評価を確認して次のお客様へ。';
+  if(!C.arrived)return'お客様が入店しました。レジに来るまで待ちましょう。';
   const s=T.said;
   if(!s.greet)return'まずは<b>「いらっしゃいませ」</b>と挨拶しましょう。';
   if(!s.point&&!T.member)return'<b>「ポイントカードはお持ちですか？」</b>と聞きましょう。';
@@ -878,7 +903,7 @@ function render(){
   $('stIdx').textContent=Math.min(G.idx+1,G.total);$('stTot').textContent=G.total;
   // counter
   const card=(it)=>`<div class="item ${it.damaged?'damaged':''} ${it.scanned?'scanned':''}" onclick="scanItem(${it.uid})"><div class="em">${it.prod.em}</div><div class="nm">${esc(it.prod.name)}</div><div class="bc">${barcode(it.prod.code)}</div></div>`;
-  let inH=C.items.filter(i=>!i.scanned).map(card).join('');
+  let inH=C.arrived?C.items.filter(i=>!i.scanned).map(card).join(''):'<div style="color:#9aa3ae;font-size:12px;padding:6px">お客様がレジに来るのを待っています…</div>';
   if(T.cardOnCounter)inH=`<div class="item special" onclick="scanCard()"><div class="em">💳</div><div class="nm">ポイントカード</div><div class="bc">${barcode(C.cardCode)}</div></div>`+inH;
   if(T.phoneOnCounter)inH=`<div class="item phone special" onclick="scanPhone()"><div class="em">📱</div><div class="nm" style="color:#fff">QRコード決済<br>バーコード画面</div><div class="bc">${barcode(jan(8800000000+rnd(9999)))}</div></div>`+inH;
   $('zoneIn').innerHTML=inH+'<span class="lbl">未スキャン</span>';
@@ -895,7 +920,7 @@ function render(){
   $('totVal').textContent=yen(T.subtotal?due():t.total);
   $('entry').textContent=T.entry;
   // phrases
-  document.querySelectorAll('#phr button').forEach(b=>b.classList.toggle('used',!!T.said[b.dataset.p]));
+  document.querySelectorAll('#phr button').forEach(b=>{b.classList.toggle('used',!!T.said[b.dataset.p]);b.disabled=!C.arrived});
   // hint
   $('hint').classList.toggle('hidden',G.mode!=='guide');
   $('hint').innerHTML='💡 <b>次にやること：</b>'+hintText();
@@ -912,6 +937,161 @@ function renderDrawer(){
 }
 function ov(html,sticky){$('ovRoot').innerHTML=`<div class="ov" ${sticky?'':'onclick="if(event.target===this)closeOv()"'}><div class="modal">${html}</div></div>`}
 function closeOv(){$('ovRoot').innerHTML=''}
+
+/* ========== 3D 店内とお客様 ========== */
+const Store3D=(()=>{
+  const stub={spawn:()=>false,leave(){},nod(){},listen(){}};
+  const box=$('scene');
+  const fallback=()=>{$('cAv').classList.remove('hidden');return stub};
+  if(!window.THREE)return fallback();
+  let renderer;
+  try{renderer=new THREE.WebGLRenderer({antialias:true});}catch(e){return fallback()}
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  renderer.outputEncoding=THREE.sRGBEncoding;
+  box.prepend(renderer.domElement);
+  const scene=new THREE.Scene();scene.background=new THREE.Color('#dfe6ee');scene.fog=new THREE.Fog('#dfe6ee',12,24);
+  const cam=new THREE.PerspectiveCamera(48,1,.1,60);cam.position.set(0,1.6,2.35);cam.lookAt(0,1.12,-2);
+  scene.add(new THREE.HemisphereLight('#ffffff','#9a9a90',.85));
+  const dl=new THREE.DirectionalLight('#ffffff',.55);dl.position.set(2,6,4);scene.add(dl);
+  const M=c=>new THREE.MeshLambertMaterial({color:c});
+  const B=(w,h,d,c,x,y,z,par)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof c==='string'?M(c):c);m.position.set(x,y,z);(par||scene).add(m);return m};
+  // 床（タイル）
+  const cv=document.createElement('canvas');cv.width=cv.height=128;const g2=cv.getContext('2d');
+  g2.fillStyle='#ecebe4';g2.fillRect(0,0,128,128);g2.strokeStyle='#cfcdc4';g2.lineWidth=3;g2.strokeRect(0,0,128,128);
+  const tex=new THREE.CanvasTexture(cv);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(16,16);
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(16,16),new THREE.MeshLambertMaterial({map:tex}));floor.rotation.x=-Math.PI/2;floor.position.z=-4;scene.add(floor);
+  // 壁・天井
+  B(16,3.2,.1,'#f3f3ef',0,1.6,-8);B(.1,3.2,16,'#f1f1ec',-5,1.6,-2);B(.1,3.2,16,'#f1f1ec',5,1.6,-2);
+  B(16,.1,16,'#fafafa',0,3.2,-2);
+  for(let z=-7;z<=0;z+=2.2)for(const x of[-2.5,0,2.5])B(1.4,.03,.25,new THREE.MeshBasicMaterial({color:'#ffffff'}),x,3.14,z);
+  // 店名サイン（帯）
+  B(16,.35,.05,'#2563eb',0,2.85,-7.94);B(16,.12,.05,'#f97316',0,2.6,-7.94);
+  // 自動ドア
+  const DX=-3.3,DZ=-7.98;
+  B(2.2,.12,.15,'#888',DX,2.3,DZ);B(.1,2.3,.15,'#888',DX-1.1,1.15,DZ);B(.1,2.3,.15,'#888',DX+1.1,1.15,DZ);
+  const outside=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.3),new THREE.MeshBasicMaterial({color:'#bfe3ff'}));outside.position.set(DX,1.15,DZ-.3);scene.add(outside);
+  B(2.2,.02,1.4,'#9aa0a6',DX,.01,DZ-.8);
+  const glass=new THREE.MeshLambertMaterial({color:'#d8f0ff',transparent:true,opacity:.35});
+  const dL=B(1.05,2.18,.04,glass,DX-.53,1.12,DZ+.05),dR=B(1.05,2.18,.04,glass,DX+.53,1.12,DZ+.05);
+  let doorOpen=0;
+  // 商品棚（ゴンドラ）
+  const pal=['#e74c3c','#f1c40f','#2ecc71','#3498db','#9b59b6','#e67e22','#ecf0f1','#1abc9c','#ff7aa2','#8d6e63'];
+  const prodGeo=new THREE.BoxGeometry(.16,.2,.16),pm=new THREE.MeshLambertMaterial({color:'#fff'});
+  const N=900;const inst=new THREE.InstancedMesh(prodGeo,pm,N);let ni=0;const o3=new THREE.Object3D(),col=new THREE.Color();
+  function gondola(x,z,len,rot){
+    const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot||0;scene.add(g);
+    B(len,1.5,.08,'#cfd3d8',0,.75,0,g);
+    for(const side of[-1,1])for(let lv=0;lv<4;lv++){
+      const y=.15+lv*.38;B(len,.03,.4,'#b9bec4',0,y,side*.22,g);
+      for(let i=0;i<Math.floor(len/.19)&&ni<N;i++){
+        o3.position.set(-len/2+.1+i*.19,y+.115,side*.22);o3.rotation.set(0,0,0);o3.scale.set(1,.7+Math.random()*.6,1);
+        g.updateMatrixWorld();o3.updateMatrix();o3.matrix.premultiply(g.matrixWorld);
+        inst.setMatrixAt(ni,o3.matrix);inst.setColorAt(ni,col.set(pal[(i*7+lv*3+Math.floor(x*5))%pal.length]));ni++;
+      }
+    }
+  }
+  gondola(2.6,-2.6,3,Math.PI/2);gondola(1.2,-3.2,2.4,Math.PI/2);gondola(-.6,-5.6,3.2,0);
+  inst.count=ni;inst.instanceMatrix.needsUpdate=true;if(inst.instanceColor)inst.instanceColor.needsUpdate=true;scene.add(inst);
+  // 冷蔵ケース（右壁・奥壁）
+  for(let i=0;i<4;i++){B(.6,2.1,1.1,'#d0d4da',4.6,1.05,-6.5+i*1.15);const gl=B(.03,1.8,1,new THREE.MeshLambertMaterial({color:'#9fd3ff',emissive:'#2a5c80',emissiveIntensity:.35}),4.28,1.1,-6.5+i*1.15);}
+  for(let i=0;i<4;i++)B(1.1,2.1,.6,'#d0d4da',.6+i*1.15,1.05,-7.6);
+  for(let i=0;i<4;i++)B(1,1.8,.03,new THREE.MeshLambertMaterial({color:'#9fd3ff',emissive:'#2a5c80',emissiveIntensity:.35}),.6+i*1.15,1.1,-7.28);
+  // 雑誌ラック（窓際）
+  B(.4,1,2.4,'#a3a8ae',-4.75,.5,-3.6);
+  // レジカウンター（手前）
+  B(3.6,.95,.7,'#7a5c3e',0,.475,.62);B(3.6,.04,.74,'#e9e4da',0,.97,.62);
+  B(.26,.2,.04,'#222',-1.05,1.13,.36);B(.05,.15,.05,'#555',-1.05,1.02,.4); // 客面ディスプレイ
+  B(.5,.26,.05,'#1e3a5f',1.2,1.1,.4); // ホットスナックケース風
+  B(.5,.04,.32,'#ccc',1.2,.99,.45);
+
+  // ---- 人物 ----
+  const SKIN=['#f1d3b8','#e8c2a0','#dcb08a','#f5dcc6'];
+  function person(b){
+    const root=new THREE.Group(),skin=M(pick(SKIN)),dark=M('#2a2a2a');
+    const hips=new THREE.Group();hips.position.y=.88;root.add(hips);
+    const legC=b.skirt?'#3b3030':b.bottom;
+    const leg=x=>{const l=new THREE.Group();l.position.set(x,0,0);hips.add(l);B(.15,.84,.17,legC,0,-.42,0,l);B(.16,.08,.27,dark,0,-.84,.04,l);return l};
+    const lL=leg(-.1),lR=leg(.1);
+    if(b.skirt){const sk=new THREE.Mesh(new THREE.CylinderGeometry(.2,.29,.42,16),M(b.bottom));sk.position.y=-.12;hips.add(sk)}
+    const up=new THREE.Group();hips.add(up);if(b.old)up.rotation.x=.14;
+    const torsoC=b.jacket||b.top;
+    B(.44,.62,.25,torsoC,0,.31,0,up);
+    if(b.jacket){B(.13,.42,.01,b.top,0,.38,.127,up);if(b.tie)B(.05,.34,.012,b.tie,0,.36,.135,up)}
+    if(b.apron)B(.38,.62,.012,b.apron,0,.18,.13,up);
+    if(b.hood)B(.3,.14,.12,b.top,0,.6,-.14,up);
+    if(b.backpack)B(.34,.42,.16,b.backpack,0,.33,-.21,up);
+    const neck=new THREE.Mesh(new THREE.CylinderGeometry(.05,.055,.08,10),skin);neck.position.y=.66;up.add(neck);
+    const arm=x=>{const a=new THREE.Group();a.position.set(x,.58,0);up.add(a);B(.11,.56,.12,torsoC,0,-.28,0,a);const h=new THREE.Mesh(new THREE.SphereGeometry(.05,10,8),skin);h.position.y=-.6;a.add(h);return a};
+    const aL=arm(-.28),aR=arm(.28);
+    const head=new THREE.Group();head.position.y=.7;up.add(head);
+    const hd=new THREE.Mesh(new THREE.SphereGeometry(.13,20,16),skin);hd.scale.set(1,1.13,1.02);hd.position.y=.14;head.add(hd);
+    for(const x of[-.045,.045]){const e=new THREE.Mesh(new THREE.SphereGeometry(.016,8,6),M('#1a1a1a'));e.position.set(x,.16,.122);head.add(e)}
+    B(.05,.012,.01,'#a0524d',0,.075,.128,head);B(.025,.04,.03,skin,0,.12,.135,head);
+    const hairM=M(b.hair);
+    if(b.style==='bald'){const ring=new THREE.Mesh(new THREE.SphereGeometry(.137,20,12,0,Math.PI*2,Math.PI*.38,Math.PI*.22),hairM);ring.position.y=.14;ring.scale.set(1,1.13,1.02);ring.rotation.x=-.25;head.add(ring)}
+    else{const cap=new THREE.Mesh(new THREE.SphereGeometry(.139,20,12,0,Math.PI*2,0,Math.PI*.5),hairM);cap.position.set(0,.15,-.01);cap.scale.set(1,1.15,1.05);cap.rotation.x=-.2;head.add(cap)}
+    if(b.style==='long')B(.27,.34,.08,b.hair,0,.03,-.09,head);
+    if(b.style==='bun'){const bn=new THREE.Mesh(new THREE.SphereGeometry(.06,12,10),hairM);bn.position.set(0,.27,-.1);head.add(bn)}
+    if(b.beard)B(.2,.07,.06,b.hair,0,.06,.1,head);
+    if(b.glasses)for(const x of[-.048,.048]){const gl=new THREE.Mesh(new THREE.TorusGeometry(.03,.006,6,14),dark);gl.position.set(x,.16,.132);head.add(gl)}
+    if(b.hat==='hard'){const h=new THREE.Mesh(new THREE.SphereGeometry(.16,16,10,0,Math.PI*2,0,Math.PI/2),M('#f2c200'));h.position.y=.2;head.add(h);const br=new THREE.Mesh(new THREE.CylinderGeometry(.19,.19,.015,18),M('#f2c200'));br.position.y=.2;head.add(br)}
+    if(b.hat==='cap'){const h=new THREE.Mesh(new THREE.SphereGeometry(.145,16,10,0,Math.PI*2,0,Math.PI/2),M(b.hatColor));h.position.y=.2;head.add(h);B(.2,.015,.12,b.hatColor,0,.2,.15,head)}
+    root.scale.setScalar(1.0*(b.h||1));
+    scene.add(root);
+    return{root,hips,up,lL,lR,aL,aR,head,phase:0,path:[],speed:b.old?1.05:1.55,onDone:null,nodT:0,bowT:0,baseUp:up.rotation.x,state:'walk'};
+  }
+  const STAND=new THREE.Vector3(0,0,-.35);
+  const IN=[new THREE.Vector3(DX,0,-10),new THREE.Vector3(DX,0,-6.6),new THREE.Vector3(-1.4,0,-3),new THREE.Vector3(-.3,0,-1.2),STAND];
+  let people=[],cur=null;
+  function chime(){tone(1318,.5,0,'sine',.07);tone(1046,.7,.35,'sine',.07)}
+  const api={
+    spawn(b,onArrive){
+      const p=person(b);p.root.position.copy(IN[0]);p.path=IN.slice(1).map(v=>v.clone());p.onDone=()=>{p.state='idle';onArrive()};
+      people.push(p);cur=p;setTimeout(chime,300);return true;
+    },
+    leave(){const p=cur;if(!p)return;cur=null;p.bowT=1;p.state='bow';
+      setTimeout(()=>{p.state='walk';p.path=[new THREE.Vector3(-.6,0,-1.6),new THREE.Vector3(-1.6,0,-3.2),new THREE.Vector3(DX,0,-6.6),new THREE.Vector3(DX,0,-11)];
+        p.onDone=()=>{scene.remove(p.root);people=people.filter(x=>x!==p)}},900)},
+    nod(){if(cur&&cur.state==='idle')cur.nodT=1},
+    listen(){},
+  };
+  function resize(){const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);cam.aspect=w/h;cam.fov=w<420?58:48;cam.updateProjectionMatrix()}
+  new ResizeObserver(resize).observe(box);resize();
+  let last=performance.now();
+  function loop(now){
+    const dt=Math.min(.05,(now-last)/1000);last=now;
+    let near=false;
+    for(const p of people){
+      const r=p.root;
+      if(Math.hypot(r.position.x-DX,r.position.z-DZ)<2.6)near=true;
+      if(p.state==='walk'&&p.path.length){
+        const t=p.path[0],dx=t.x-r.position.x,dz=t.z-r.position.z,d=Math.hypot(dx,dz);
+        const want=Math.atan2(dx,dz);let diff=want-r.rotation.y;diff=Math.atan2(Math.sin(diff),Math.cos(diff));r.rotation.y+=diff*Math.min(1,dt*8);
+        const step=p.speed*dt;
+        if(d<=step){r.position.x=t.x;r.position.z=t.z;p.path.shift();if(!p.path.length){p.state='idle';p.onDone&&p.onDone()}}
+        else{r.position.x+=dx/d*step;r.position.z+=dz/d*step}
+        p.phase+=dt*p.speed*5.2;
+        const s=Math.sin(p.phase);
+        p.lL.rotation.x=s*.55;p.lR.rotation.x=-s*.55;p.aL.rotation.x=-s*.45;p.aR.rotation.x=s*.45;
+        p.hips.position.y=.88+Math.abs(Math.cos(p.phase))*.025;
+      } else {
+        // 待機：正面を向いて呼吸
+        if(p===cur){let diff=0-r.rotation.y;diff=Math.atan2(Math.sin(diff),Math.cos(diff));r.rotation.y+=diff*Math.min(1,dt*6)}
+        for(const k of['lL','lR','aL','aR'])p[k].rotation.x*=1-Math.min(1,dt*8);
+        p.hips.position.y=.88+Math.sin(now/700)*.004;
+        p.aL.rotation.z=-.05;p.aR.rotation.z=.05;
+      }
+      if(p.nodT>0){p.nodT=Math.max(0,p.nodT-dt*2.5);p.head.rotation.x=Math.sin((1-p.nodT)*Math.PI)*.35}else p.head.rotation.x=0;
+      if(p.state==='bow'||p.bowT>0){p.bowT=Math.max(0,p.bowT-dt*1.2);p.up.rotation.x=p.baseUp+Math.sin((1-p.bowT)*Math.PI)*.45}
+    }
+    doorOpen+=((near?1:0)-doorOpen)*Math.min(1,dt*4);
+    dL.position.x=DX-.53-doorOpen*1;dR.position.x=DX+.53+doorOpen*1;
+    renderer.render(scene,cam);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  return api;
+})();
 
 /* ========== イベント ========== */
 $('startBtn').onclick=startShift;

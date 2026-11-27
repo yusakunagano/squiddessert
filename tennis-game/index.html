@@ -12,7 +12,7 @@
   #wrap{position:relative;width:100%;height:100%;display:flex;justify-content:center;align-items:center}
   canvas{display:block;position:absolute;inset:0}
   #hud{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);padding:6px 14px;border-radius:8px;font-size:15px;white-space:nowrap;text-align:center}
-  #msg{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);font-size:26px;font-weight:bold;text-shadow:0 2px 6px #000;pointer-events:none;text-align:center}
+  #msg{white-space:pre-line;position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);font-size:26px;font-weight:bold;text-shadow:0 2px 6px #000;pointer-events:none;text-align:center}
   .menu{position:absolute;inset:0;background:rgba(10,30,20,.92);display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;padding:16px;overflow-y:auto;box-sizing:border-box;touch-action:pan-y}
   .menu h1{margin:0 0 8px;font-size:34px}
   .menu h2{margin:8px 0 0;font-size:18px;font-weight:normal;opacity:.85}
@@ -23,6 +23,31 @@
   .help{font-size:14px;opacity:.85;max-width:420px;text-align:center;line-height:1.6}
   .hidden{display:none!important}
   /* ---- スタート画面 ---- */
+  #title{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;background:#06120c;cursor:pointer}
+  #title.hidden{display:none}
+  #title .tBg{position:absolute;inset:-20%;background:radial-gradient(60% 50% at 50% 40%,rgba(242,212,61,.25),transparent 70%),repeating-linear-gradient(115deg,#0d2a1c 0 60px,#0b2318 60px 120px);animation:tPan 18s linear infinite}
+  #title .tBg::after{content:'';position:absolute;left:50%;top:52%;width:120vmax;height:2px;background:linear-gradient(90deg,transparent,#fff,transparent);transform:translateX(-50%);opacity:.35}
+  @keyframes tPan{to{transform:translateX(120px)}}
+  #title .tIn{position:relative;text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px;padding:16px}
+  #title .tKick{font:900 13px/1 system-ui;letter-spacing:.5em;padding:7px 10px 7px 16px;border:2px solid #f2d43d;color:#f2d43d;border-radius:4px;animation:tIn .6s .1s both}
+  #title .tLogo{margin:0;line-height:.9;animation:tIn .7s .25s both}
+  #title .tLogo span{display:block;font:italic 900 clamp(64px,17vw,150px)/.9 system-ui;letter-spacing:.02em;background:linear-gradient(180deg,#fff 30%,#f2d43d 75%,#d9a40f);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 6px 0 #0b1a12) drop-shadow(0 10px 24px rgba(0,0,0,.6));transform:skewX(-8deg)}
+  #title .tLogo b{display:block;font-size:clamp(20px,5vw,32px);letter-spacing:.6em;margin-top:8px;padding-left:.6em}
+  #title .tPlay{font:900 26px system-ui;letter-spacing:.12em;padding:18px 64px;border:none;border-radius:999px;background:linear-gradient(180deg,#ffe36b,#f2c21d);color:#10241a;box-shadow:0 0 0 4px rgba(242,212,61,.25),0 10px 30px rgba(242,194,29,.45);cursor:pointer;animation:tIn .6s .45s both,tPulse 1.6s 1.2s ease-in-out infinite}
+  #title .tTap{font-size:13px;opacity:.7;animation:tBlink 1.4s infinite}
+  #title .tSub{display:flex;gap:18px;margin-top:6px;font-size:13px;animation:tIn .6s .6s both}
+  #title .tSub a{color:rgba(255,255,255,.75);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.3);padding-bottom:2px}
+  @keyframes tIn{from{opacity:0;transform:translateY(24px) scale(.96)}}
+  @keyframes tPulse{50%{transform:scale(1.05)}}
+  @keyframes tBlink{50%{opacity:.25}}
+  #wipe{position:absolute;inset:0;z-index:30;pointer-events:none;overflow:hidden}
+  #wipe i{position:absolute;top:-20%;bottom:-20%;left:-220%;width:140%;transform:skewX(-18deg);background:#f2d43d}
+  #wipe i:nth-child(2){background:#10241a}
+  #wipe i:nth-child(3){background:#2f7cf6}
+  #wipe.go i{animation:wipeGo .9s cubic-bezier(.7,0,.3,1) both}
+  #wipe.go i:nth-child(2){animation-delay:.06s}
+  #wipe.go i:nth-child(3){animation-delay:.12s}
+  @keyframes wipeGo{0%{left:-220%}45%,55%{left:-20%}100%{left:130%}}
   #menu{justify-content:flex-start;padding:0;background:radial-gradient(1200px 600px at 50% -10%,#24543a 0%,#10241a 60%,#0b1a12 100%)}
   #menu .mwrap{width:min(860px,100%);padding:20px 16px 28px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px}
   #menu .hero{text-align:center;padding:10px 0 2px}
@@ -134,8 +159,8 @@
   #bFlat{right:0;bottom:40px;width:72px;height:72px;background:rgba(242,212,61,.8);color:#222;text-shadow:none}
   #bSlice{right:84px;bottom:80px;width:64px;height:64px;background:rgba(190,120,255,.78)}
   #bKick{right:84px;bottom:6px;width:64px;height:64px;background:rgba(255,120,170,.78)}
-  #bCut{right:168px;bottom:40px;background:rgba(190,120,255,.72)}
-  #pad{width:250px!important}
+  #bCut{right:5px;bottom:132px;background:rgba(190,120,255,.72)}
+  #pad{height:205px!important}
 </style>
 </head>
 <body>
@@ -164,7 +189,18 @@
     <div id="netst"></div>
     <div class="row"><button id="lbStart">試合開始</button><button id="lbLeave" class="sub">やめる</button></div>
   </div>
-  <div class="menu" id="menu">
+  <div id="title">
+    <div class="tBg"></div>
+    <div class="tIn">
+      <div class="tKick">ACE OPEN</div>
+      <h1 class="tLogo"><span>TENNIS</span><b>テニス</b></h1>
+      <button id="tPlay" class="tPlay">▶ プレイ</button>
+      <div class="tTap">タップしてスタート</div>
+      <nav class="tSub"><a href="#" id="tOnline">オンライン</a><a href="learn.html">動き方</a><a href="?viewer">モーション確認</a></nav>
+    </div>
+  </div>
+  <div id="wipe"><i></i><i></i><i></i></div>
+  <div class="menu hidden" id="menu">
     <div class="mwrap">
       <header class="hero">
         <div class="kicker">ACE OPEN</div>
@@ -195,7 +231,7 @@
         </div>
         <div class="mcard">
           <h3>📋 テニスの動き方</h3>
-          <p>ダブルスの後衛・前衛の動き方をOK・NGの30パターンで解説。作戦ボードつき。</p>
+          <p>ダブルスの後衛・前衛の動き方をOK・NGの60パターンで解説。作戦ボードつき。</p>
           <div class="mrow"><a class="mbtn" href="learn.html">OK・NG パターン</a><a class="mbtn ghost" href="learn.html#board">作戦ボード</a></div>
         </div>
         <div class="mcard">
@@ -259,7 +295,7 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
 document.querySelectorAll('[data-pos]').forEach(b => b.onclick = () => { pos = b.dataset.pos; sel('[data-pos]', b); });
 document.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => { level = +b.dataset.lv; sel('[data-lv]', b); });
 function sel(q, b){ document.querySelectorAll(q).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); }
-document.getElementById('start').onclick = () => { online = false; if (fmt === 'tour' && mode === 'singles') startTournament(); else startMatch(); };
+document.getElementById('start').onclick = () => { online = false; wipe(() => { if (fmt === 'tour' && mode === 'singles') startTournament(); else startMatch(); }); };
 // 選手カード
 { const grid = document.getElementById('charGrid'), stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
   const best = c => Math.max(...Object.values(c.st));
@@ -317,6 +353,17 @@ function playHit(power = 1){
   // ガットの響き：ごく小さく短い
   const s1 = a.createOscillator(), gs = a.createGain(); s1.type = 'sine'; s1.frequency.value = 520 + Math.random() * 60;
   env(a, gs, t, 0.08 * v, 0.07); s1.connect(gs); gs.connect(o); s1.start(t); s1.stop(t + 0.08);
+}
+function playCrowd(mine){ // 点が入ったとき：観客のざわめき（ノイズを重ねてふくらませる）
+  const a = actx; if (!a || a.state !== 'running') return;
+  const t = a.currentTime, dur = 1.6 + Math.random() * 0.4;
+  for (let i = 0; i < 3; i++) {
+    const n = noise(a); n.loop = true; const bp = a.createBiquadFilter(), g = a.createGain();
+    bp.type = 'bandpass'; bp.frequency.value = 450 + i * 380 + Math.random() * 120; bp.Q.value = 0.7;
+    const pk = (mine ? 0.16 : 0.1) / (i + 1);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(pk, t + 0.25); g.gain.setValueAtTime(pk, t + 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    n.connect(bp); bp.connect(g); g.connect(out(a)); n.start(t, Math.random() * 0.2); n.stop(t + dur + 0.05);
+  }
 }
 function playBounce(){
   const a = actx; if (!a || a.state !== 'running') return;
@@ -441,7 +488,19 @@ function showBracket(){
   document.getElementById('brGo').onclick = () => { el.classList.add('hidden'); startMatch(); };
   document.getElementById('brQuit').onclick = () => { tour = null; el.classList.add('hidden'); toMenu(); };
 }
-function toMenu(){ state = 'menu'; players = []; human = null; msgEl.textContent = ''; document.getElementById('result').classList.add('hidden'); menu.classList.remove('hidden'); }
+// 画面切り替え：斜めの帯が横切り、隠れている間に画面を差し替える
+function wipe(cb){
+  const w = document.getElementById('wipe'); w.classList.remove('go'); void w.offsetWidth; w.classList.add('go');
+  setTimeout(cb, 430); setTimeout(() => w.classList.remove('go'), 1050);
+}
+{ const t = document.getElementById('title');
+  if (VIEWER || /[?&](host|join|localsig|room)/.test(location.search)) t.classList.add('hidden');
+  const go = () => { audio(); wipe(() => { t.classList.add('hidden'); menu.classList.remove('hidden'); }); };
+  t.onclick = e => { if (e.target.closest('a')) return; go(); };
+  document.getElementById('tOnline').onclick = e => { e.preventDefault(); audio(); wipe(() => { t.classList.add('hidden'); menu.classList.remove('hidden'); setTimeout(() => document.getElementById('hostBtn').scrollIntoView({ block: 'center' }), 50); }); };
+}
+function toMenu(){ wipe(toMenu0); }
+function toMenu0(){ state = 'menu'; players = []; human = null; msgEl.textContent = ''; document.getElementById('result').classList.add('hidden'); menu.classList.remove('hidden'); }
 function confetti(){
   const el = document.getElementById('result'), cols = ['#f2d43d', '#ff4fa3', '#2fbf71', '#3a7bd5', '#ff8a1f', '#ffffff'];
   for (let i = 0; i < 90; i++) { const c = document.createElement('i'); c.className = 'confetti'; c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % cols.length]; c.style.animationDuration = (2.5 + Math.random() * 2.5) + 's'; c.style.animationDelay = Math.random() * 1.2 + 's'; el.appendChild(c); }
@@ -920,6 +979,8 @@ function hit(p, reach = 1.5){
       rush = Math.max(rush, pressure);
     }
   }
+  // 近くからのアプローチ（ネットへ詰めてくる強い球）を受けた時：相手が近くて焦り、ミスが出やすい
+  if (!close && !isSmash && ball.approach && Math.random() < 0.42 * (1.36 - 0.12 * stK(p, 'con'))) { const q = Math.random(); close = q < 0.45 ? 'ctrl' : q < 0.75 ? 'net' : 'float'; rush = Math.max(rush, 0.6); }
   if (close === 'ctrl') { tx += (Math.random() - .5) * 6 * rush; ty += -s * (Math.random() - .4) * 5 * rush; }
   if ((jam > 0 && Math.random() < (0.25 + jam * 0.6) * (1.36 - 0.12 * stK(p, 'con')) * (slice ? 0.5 : 1)) || close === 'net' || close === 'wild' || (vsSmash && Math.random() < 0.4)) {
     if (close) jam = Math.max(jam, 0.7);
@@ -955,12 +1016,20 @@ function hit(p, reach = 1.5){
     ty = -s * (5 + Math.random() * 5.5);
     dist = Math.hypot(tx - ball.x, ty - ball.y);
     p.lungeT = 0; p.lungeDir = Math.sign((ball.x - p.x) * s) || 1; // 体を傾ける向き（その人の右=+1）
+    if (isVolley) { // ボレーで手を伸ばして何とか当てる：ポヨーンと短く浮く
+      p.shot = side === 'f' ? 'fvs' : 'bvs';
+      tx = Math.max(-W2 + 0.8, Math.min(W2 - 0.8, ball.x * 0.6 + (Math.random() - .5) * 3));
+      ty = -s * (2.5 + Math.random() * 4);
+      dist = Math.hypot(tx - ball.x, ty - ball.y);
+      p.stretchV = true;
+    }
   }
-  const approachShot = isAirK && (p.fwdRun || 0) > 3;
+  const approachShot = isAirK && (p.fwdRun || 0) > 3; p.fwdRun0 = p.fwdRun || 0;
   if (isAirK && !lob && !drop && !mishit) { spd *= approachShot ? 1.5 : 1.3; ty = -s * (HL - 1.2 - Math.random() * 2); } // 長く走ってきたエアKはさらに強いアプローチショット
   t = dist / spd;
   if (lob) t = Math.max(t, close === 'float' ? 1.4 : lunge ? 1.3 : p.isHuman ? 1.7 : 1.9);
   if (lunge) t = Math.max(t, dist / (8 + Math.random() * 3));
+  if (lunge && p.stretchV) { t = Math.max(t, 1.25 + Math.random() * 0.35); p.stretchV = false; }
   const z = Math.max(ball.z, 0.4);
   const v = launch(ball.x, ball.y, z, tx, ty, t);
   Object.assign(ball, v); ball.z = z;
@@ -968,8 +1037,9 @@ function hit(p, reach = 1.5){
   ball.smash = isSmash && !mishit; ball.curve = 0;
   if (slice && !isSmash && !lob && !mishit) ball.curve = (side === 'f' ? -1 : 1) * s * 1.4; // スライスは少し曲がる（フォアは打った人の左へ、バックは右へ）
   p.fwdRun = 0;
+  ball.approach = !lob && !drop && !mishit && !isSmash && (approachShot || (p.fwdRun0 || 0) > 2.5 || (!isVolley && Math.abs(p.y) < 8.5 && spd > 18)); // 前へ詰めながら打った球
   ball.volley = isVolley; ball.spin = slice && !isSmash ? 'slice' : null;
-  p.tag = approachShot && !mishit ? 'アプローチ！' : lunge ? 'ギリギリ…' : slice && !isSmash ? (p.shot === 'fsl' || p.shot === 'bsl' ? '' : 'スライス') : close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
+  p.tag = approachShot && !mishit ? 'アプローチ！' : lunge ? (p.shot === 'fvs' || p.shot === 'bvs' ? 'なんとか…！' : 'ギリギリ…') : slice && !isSmash ? (p.shot === 'fsl' || p.shot === 'bsl' ? '' : 'スライス') : close === 'ctrl' ? 'ブレた！' : drop && !isSmash ? 'ドロップ' : close === 'float' ? 'ふわっ…' : close === 'good' ? 'ナイス反応！' : mishit ? '詰まった！' : weak ? '正面…' : power ? '強打！' : '';
   lastHitter = p; bounces = 0; isServe = false; rallyHits++;
   hitFrom = { x: ball.x, y: ball.y };
   p.prepType = p.prepType && p.prepType === p.shot ? p.prepType : p.shot;
@@ -1024,7 +1094,7 @@ function serve(p){
 function pointTo(team, reason){
   if (state === 'dead') return;
   state = 'dead'; timer = 1.6; ball.live = false;
-  showMsg(reason + '  ' + teamName(team) + 'のポイント' + (team === myTeam() ? '！' : ''), 1.6);
+  playCrowd(team === myTeam()); showMsg(reason + '\n' + teamName(team) + 'のポイント' + (team === myTeam() ? '！' : ''), 1.6);
   score.pts[team]++;
   const [a, b] = score.pts;
   if ((a >= 4 || b >= 4) && Math.abs(a - b) >= 2) {
@@ -1039,7 +1109,7 @@ function pointTo(team, reason){
         state = 'over'; timer = 0;
         const [s0, s1] = score.sets;
         if (online) showMsg((w === myTeam() ? `🏆 ${teamName(myTeam())}の勝ち！` : `${teamName(w)}の勝ち…`) + `  セット ${s0}-${s1}\nクリック/タップでメニュー`, 999);
-        else { msgEl.textContent = ''; matchOver(w === myTeam()); }
+        else { showMsg('ゲームセット', 1.2); const won = w === myTeam(); setTimeout(() => { if (state === 'over') { msgEl.textContent = ''; matchOver(won); } }, 1200); }
         return;
       }
       score.games = [0, 0];
@@ -1333,21 +1403,27 @@ renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-{ // 空（グラデーションと雲）
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+{ // 空（グラデーションと雲）：高解像度で、雲は小さな玉を重ねて輪郭を出す
+  const W = 2048, H = 1024, c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
-  const grd = g.createLinearGradient(0, 0, 0, 512);
-  grd.addColorStop(0, '#2f7fd6'); grd.addColorStop(0.55, '#7db8ec'); grd.addColorStop(1, '#d9ecfa');
-  g.fillStyle = grd; g.fillRect(0, 0, 1024, 512);
-  for (let i = 0; i < 14; i++) {
-    const cx = Math.random() * 1024, cy = 40 + Math.random() * 220, w = 60 + Math.random() * 110;
-    for (let k = 0; k < 7; k++) {
-      const rg = g.createRadialGradient(cx + (k - 3) * w * 0.3, cy + Math.sin(k) * 10, 0, cx + (k - 3) * w * 0.3, cy + Math.sin(k) * 10, w * 0.45);
-      rg.addColorStop(0, 'rgba(255,255,255,.85)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = rg; g.fillRect(0, 0, 1024, 512);
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#2a74cc'); grd.addColorStop(0.55, '#79b4ea'); grd.addColorStop(1, '#dcedfa');
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  const puff = (x, y, r, a) => { const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, `rgba(255,255,255,${a})`); rg.addColorStop(0.6, `rgba(255,255,255,${a * 0.6})`); rg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = rg; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+  for (let i = 0; i < 11; i++) { // ふんわりした積雲：横長の楕円に玉を敷き、底は平らに、上はもこもこ
+    const cx = Math.random() * W, cy = 140 + Math.random() * 380, w = 160 + Math.random() * 240, h = w * (0.32 + Math.random() * 0.15);
+    g.save(); g.filter = 'blur(3px)';
+    for (let k = 0; k < 55; k++) {
+      const u = (Math.random() - .5) * 2, top = Math.sqrt(1 - u * u);
+      const x = cx + u * w, y = cy - Math.random() * h * top, r = (0.25 + 0.35 * top) * h * (0.7 + Math.random() * 0.5);
+      puff(x, Math.min(y, cy - r * 0.35), r, 0.5);
     }
+    g.globalCompositeOperation = 'source-atop'; // 下側に薄い影
+    const sh = g.createLinearGradient(0, cy - h, 0, cy + h * 0.3); sh.addColorStop(0, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(150,175,205,.35)');
+    g.restore();
   }
-  scene.background = new THREE.CanvasTexture(c);
+  const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.anisotropy = 4;
+  scene.background = tex;
 }
 scene.fog = new THREE.Fog('#cfe3f2', 70, 140);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 300);
@@ -1862,16 +1938,27 @@ const POSES = {
         mid:   { tw: 0.6, h: [0.25, 0.45, 1.75], r: [0.4, 0.1, 0.4], l: 'grip', sr: 0.2, kl: 0.4 },
         fol:   { tw: 1.0, h: [0.32, 0.0, 1.7], r: [0.2, -0.45, -0.25], l: 'grip', sr: 0.1, sl: -0.1, kl: 0.25 } },
   // スライス：ラケットを高い位置に引き、面を少し上に向けたまま、上から下へ切るように振り下ろす
-  fsl: { back1: { tw: 1.2, h: [0.55, -0.4, 1.5], r: [0.15, -0.3, 0.55], l: [0.1, 0.55, 1.3], cr: 0.1, sl: 0.25 },
-        back2: { tw: 1.25, h: [0.6, -0.5, 1.45], r: [0.15, -0.35, 0.5], l: [0.12, 0.55, 1.28], cr: 0.12, sl: 0.28 },
-        hit:   { tw: 0.2, h: [0.45, 0.35, 1.0], r: [0.6, 0.25, 0.15], l: [-0.3, 0.3, 1.1], cr: 0.14, sl: 0.3 },
-        mid:   { tw: -0.2, h: [0.25, 0.6, 0.8], r: [0.4, 0.55, 0.05], l: [-0.4, 0.1, 1.1], cr: 0.14, sl: 0.3 },
-        fol:   { tw: -0.4, h: [0.05, 0.65, 0.75], r: [0.2, 0.6, 0.0], l: [-0.45, 0.0, 1.1], cr: 0.12, sl: 0.3, sr: 0.1 } },
-  bsl: { back1: { tw: -1.3, h: [-0.45, -0.25, 1.55], r: [-0.1, -0.3, 0.55], l: 'grip', cr: 0.1, sr: 0.3 },
-        back2: { tw: -1.35, h: [-0.5, -0.35, 1.5], r: [-0.1, -0.35, 0.5], l: [-0.35, -0.1, 1.4], cr: 0.12, sr: 0.35 },
-        hit:   { tw: -0.4, h: [-0.15, 0.4, 1.0], r: [-0.6, 0.25, 0.15], l: [-0.5, -0.4, 1.15], cr: 0.14, sr: 0.35 },
-        mid:   { tw: -0.15, h: [0.15, 0.6, 0.85], r: [-0.3, 0.55, 0.05], l: [-0.55, -0.45, 1.15], cr: 0.14, sr: 0.38 },
-        fol:   { tw: 0, h: [0.3, 0.65, 0.8], r: [-0.1, 0.6, 0.0], l: [-0.6, -0.45, 1.15], cr: 0.12, sr: 0.38 } },
+  fsl: { back1: { tw: 0.95, h: [0.6, -0.25, 1.45], r: [0.1, -0.15, 0.6], l: [0.0, 0.5, 1.25], cr: 0.1, sl: 0.2 },
+        back2: { tw: 1.0, h: [0.65, -0.3, 1.5], r: [0.15, -0.2, 0.6], l: [0.05, 0.5, 1.25], cr: 0.12, sl: 0.3 },
+        hit:   { tw: 0.15, h: [0.5, 0.45, 1.05], r: [0.45, 0.35, 0.3], l: [-0.3, 0.25, 1.05], cr: 0.15, sl: 0.4 },
+        mid:   { tw: -0.05, h: [0.3, 0.68, 0.88], r: [0.3, 0.5, 0.15], l: [-0.38, 0.1, 1.05], cr: 0.14, sl: 0.42 },
+        fol:   { tw: -0.2, h: [0.1, 0.7, 0.85], r: [0.15, 0.55, 0.15], l: [-0.42, 0.0, 1.05], cr: 0.12, sl: 0.42 } },
+  bsl: { back1: { tw: -1.05, h: [-0.5, -0.2, 1.45], r: [-0.1, -0.15, 0.6], l: [-0.32, -0.08, 1.38], cr: 0.1, sr: 0.2 }, // 片手：左手はラケットの首に添えて引く
+        back2: { tw: -1.1, h: [-0.55, -0.25, 1.5], r: [-0.15, -0.2, 0.6], l: [-0.38, -0.12, 1.42], cr: 0.12, sr: 0.3 },
+        hit:   { tw: -0.35, h: [-0.3, 0.45, 1.05], r: [-0.45, 0.35, 0.3], l: [-0.55, -0.35, 1.15], cr: 0.15, sr: 0.4 }, // 左手は後ろへ開いてバランス
+        mid:   { tw: -0.25, h: [-0.05, 0.68, 0.9], r: [-0.3, 0.5, 0.15], l: [-0.6, -0.45, 1.15], cr: 0.14, sr: 0.42 },
+        fol:   { tw: -0.2, h: [0.12, 0.68, 0.88], r: [-0.15, 0.55, 0.15], l: [-0.62, -0.48, 1.15], cr: 0.12, sr: 0.42 } },
+  // ギリギリのボレー：横へ大きく踏み出し、腕を伸ばしきって何とか当てる
+  fvs: { back1: { tw: 0.6, h: [0.9, 0.0, 1.0], r: [0.3, 0.3, 0.3], l: [-0.35, 0.2, 1.1], bend: 0.21, cr: 0.14, sl: 0.1, sr: 0.5 },
+        back2: { tw: 0.6, h: [0.95, 0.0, 0.95], r: [0.35, 0.3, 0.25], l: [-0.4, 0.15, 1.1], bend: 0.02, cr: 0.01, sr: 0.55 },
+        hit:   { tw: 0.35, h: [1.05, 0.35, 0.8], r: [0.55, 0.3, 0.1], l: [-0.55, -0.1, 1.2], bend: 0.03, cr: 0.17, sr: 0.6 },
+        mid:   { tw: 0.3, h: [1.0, 0.4, 0.8], r: [0.5, 0.35, 0.1], l: [-0.55, -0.15, 1.2], bend: 0.03, cr: 0.17, sr: 0.6 },
+        fol:   { tw: 0.2, h: [0.9, 0.45, 0.85], r: [0.4, 0.4, 0.15], l: [-0.5, -0.1, 1.15], bend: 0.02, cr: 0.01, sr: 0.55 } },
+  bvs: { back1: { tw: -0.7, h: [-0.9, 0.0, 1.0], r: [-0.3, 0.3, 0.3], l: [0.3, 0.1, 1.1], bend: 0.21, cr: 0.14, sr: 0.1, sl: 0.5 },
+        back2: { tw: -0.7, h: [-0.95, 0.0, 0.95], r: [-0.35, 0.3, 0.25], l: [0.35, 0.05, 1.1], bend: 0.02, cr: 0.01, sl: 0.55 },
+        hit:   { tw: -0.45, h: [-1.05, 0.35, 0.8], r: [-0.55, 0.3, 0.1], l: [0.5, -0.15, 1.2], bend: 0.03, cr: 0.17, sl: 0.6 },
+        mid:   { tw: -0.4, h: [-1.0, 0.4, 0.8], r: [-0.5, 0.35, 0.1], l: [0.5, -0.2, 1.2], bend: 0.03, cr: 0.17, sl: 0.6 },
+        fol:   { tw: -0.3, h: [-0.9, 0.45, 0.85], r: [-0.4, 0.4, 0.15], l: [0.45, -0.15, 1.15], bend: 0.02, cr: 0.01, sl: 0.55 } },
   // 片手バックハンド（メデラーなど）：左肩の上に高く引き、右足の前で打って、両腕を大きく開く
   bs1: { back1: { tw: -1.3, h: [-0.35, -0.15, 1.45], r: [-0.05, -0.15, 0.65], l: 'grip', cr: 0.08, sr: 0.3 },
         back2: { tw: -1.35, h: [-0.5, -0.4, 0.9], r: [-0.15, -0.45, -0.4], l: [-0.35, -0.25, 0.95], cr: 0.12, sr: 0.35 },
@@ -1890,7 +1977,7 @@ const POSES = {
         mid:   { tw: -0.4, h: [0.0, 0.6, 1.3], r: [-0.1, 0.5, -0.3], l: [-0.35, 0.1, 1.0], cr: 0.05, sl: 0.3, sr: -0.35, kr: 0.32, bend: 0.25 },
         fol:   { tw: -0.7, h: [-0.35, 0.25, 0.75], r: [-0.3, 0.0, -0.55], l: [-0.4, -0.2, 1.0], cr: 0.1, sl: 0.4, sr: -0.4, kr: 0.2, bend: 0.3 } },
 };
-const SHOT_NAME = { fsl: 'フォアスライス', bsl: 'バックスライス', bs1: 'バックストローク（片手）', bvc: 'バックボレー（正面）', jk: 'エアK！', bjk: 'ジャンプバック！', fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
+const SHOT_NAME = { fvs: 'フォアボレー', bvs: 'バックボレー', fsl: 'フォアスライス', bsl: 'バックスライス', bs1: 'バックストローク（片手）', bvc: 'バックボレー（正面）', jk: 'エアK！', bjk: 'ジャンプバック！', fs: 'フォアストローク', bs: 'バックストローク', fv: 'フォアボレー', bv: 'バックボレー', sm: 'スマッシュ' };
 function lerp3(a, b, t){ return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 function lerpPose(A, B, t){
   t = Math.max(0, Math.min(1, t)); t = t * t * (3 - 2 * t);
@@ -1912,11 +1999,11 @@ resize();
 const vw = { az: 0.6, el: 0.25, dist: 5.5, act: 'ready', t: 0, speed: 1, loop: true, ph: 0, drag: null };
 const VW_ACTS = [
   ['ready', '構え（後ろ）'], ['net', '構え（ネット前）'], ['runR', '右へ走る'], ['runL', '左へ走る'], ['runF', '前へ走る'],
-  ['side', 'サイドステップ'], ['fs', 'フォアストローク'], ['bs', 'バックストローク'], ['fsl', 'フォアスライス'], ['bsl', 'バックスライス'], ['fv', 'フォアボレー'], ['bv', 'バックボレー'], ['bvc', 'バックボレー（正面）'],
+  ['side', 'サイドステップ'], ['fs', 'フォアストローク'], ['bs', 'バックストローク'], ['fsl', 'フォアスライス'], ['bsl', 'バックスライス'], ['fv', 'フォアボレー'], ['bv', 'バックボレー'], ['bvc', 'バックボレー（正面）'], ['fvs', 'ギリギリのボレー'],
   ['sm', 'スマッシュ'], ['jk', 'エアK'], ['bjk', 'ジャンプバック'], ['serveF', 'フラットサーブ'], ['serveS', 'スライスサーブ'], ['serveK', 'キックサーブ'],
   ['reach', 'ギリギリで返す'], ['whiff', '届かない（空振り）'], ['fall', '転ぶ'],
 ];
-const VW_LEN = { ready: 2, net: 2, runR: 2, runL: 2, runF: 2, side: 2, fs: 1.8, bs: 1.8, fv: 1.6, bv: 1.6, bvc: 1.6, fsl: 1.8, bsl: 1.8, sm: 1.8, jk: 1.9, bjk: 1.9, serveF: 5.2, serveS: 5.2, serveK: 5.2, reach: 1.6, whiff: 1.6, fall: 2.2 };
+const VW_LEN = { fvs: 1.8, ready: 2, net: 2, runR: 2, runL: 2, runF: 2, side: 2, fs: 1.8, bs: 1.8, fv: 1.6, bv: 1.6, bvc: 1.6, fsl: 1.8, bsl: 1.8, sm: 1.8, jk: 1.9, bjk: 1.9, serveF: 5.2, serveS: 5.2, serveK: 5.2, reach: 1.6, whiff: 1.6, fall: 2.2 };
 function viewerSetup(){
   document.getElementById('menu').classList.add('hidden');
   hud.classList.add('hidden');
@@ -1987,6 +2074,7 @@ function viewerUpdate(dt){
       if (t >= 0.5 && vwOnce('jump')) { p.jumpT = 0; p.jumpAmp = 0.6; }
       if (t >= 0.9 && vwOnce('hit')) { p.shot = a; p.fromPose = prepPose(p); p.prep = 0; p.st = 0; p.label = 1.1; p.tag = ''; }
       break;
+    case 'fvs': if (t < 0.5) { p.prepType = 'fv'; p.prep = Math.min(1, t / 0.4); } else if (vwOnce('hit')) { p.shot = 'fvs'; p.fromPose = prepPose(p); p.prep = 0; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.label = 1.1; p.tag = 'なんとか…！'; } break;
     case 'reach': if (t >= 0.3 && vwOnce('hit')) { p.shot = 'fs'; p.fromPose = POSES.fs.back2; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.label = 1.1; p.tag = 'ギリギリ…'; } break;
     case 'whiff': if (t >= 0.3 && vwOnce('hit')) { p.shot = 'fs'; p.fromPose = POSES.fs.back2; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.label = 1.1; p.tag = '届かない…'; } break;
     case 'fall': if (t >= 0.2 && vwOnce('hit')) { p.shot = 'fs'; p.fromPose = POSES.fs.back2; p.st = 0; p.lungeT = 0; p.lungeDir = 1; p.fallT = 0; p.label = 1.1; p.tag = 'コケた！'; } break;
@@ -2028,7 +2116,7 @@ function viewerCamera(){
 // どの画面でも：保存した手直し（localStorage）をポーズに反映する。ゲームにもそのまま効く
 const POSE_PHASES = ['back1', 'back2', 'hit', 'mid', 'fol'];
 const PHASE_NAME = { back1: '①テイクバック（高く引く）', back2: '②テイクバック（落とす）', hit: '③打点', mid: '④振り抜き途中', fol: '⑤フィニッシュ' };
-const POSE_GROUP = { fs: 'フォアストローク', fsl: 'フォアスライス', bsl: 'バックスライス', bs: 'バックストローク', bs1: 'バックストローク（片手）', fv: 'フォアボレー', bv: 'バックボレー', bvc: 'バックボレー（正面）', sm: 'サーブ・スマッシュ（打つ）', jk: 'エアK', bjk: 'ジャンプバック' };
+const POSE_GROUP = { fvs: 'ギリギリのフォアボレー', bvs: 'ギリギリのバックボレー', fs: 'フォアストローク', fsl: 'フォアスライス', bsl: 'バックスライス', bs: 'バックストローク', bs1: 'バックストローク（片手）', fv: 'フォアボレー', bv: 'バックボレー', bvc: 'バックボレー（正面）', sm: 'サーブ・スマッシュ（打つ）', jk: 'エアK', bjk: 'ジャンプバック' };
 const POSE_REG = {};
 POSE_REG['READY'] = { name: '構え（後ろ）', pose: READY };
 POSE_REG['READY_NET'] = { name: '構え（ネット前）', pose: READY_NET };
@@ -2038,7 +2126,7 @@ POSE_REG['SERVE_DROP'] = { name: 'サーブ：ラケットを背中に落とす'
 for (const k of Object.keys(POSE_GROUP)) for (const ph of POSE_PHASES) if (POSES[k] && POSES[k][ph]) POSE_REG[k + '.' + ph] = { name: POSE_GROUP[k] + ' ' + PHASE_NAME[ph], pose: POSES[k][ph] };
 // 体全体の向き（yw）の初期値：フォアは少し右向き、バックは少し左向き（打ち終わりに近いほど正面へ戻る）
 { const YW = { back1: 0.3, back2: 0.35, hit: 0.2, mid: 0.1, fol: 0.05 };
-  for (const [k, sg] of [['fs', 1], ['fsl', 1], ['bsl', -1], ['fv', 1], ['jk', 1], ['bs', -1], ['bs1', -1], ['bv', -1], ['bjk', -1]])
+  for (const [k, sg] of [['fs', 1], ['fsl', 1], ['bsl', -1], ['fvs', 1], ['bvs', -1], ['fv', 1], ['jk', 1], ['bs', -1], ['bs1', -1], ['bv', -1], ['bjk', -1]])
     for (const ph of POSE_PHASES) if (POSES[k] && POSES[k][ph] && POSES[k][ph].yw === undefined) POSES[k][ph].yw = sg * YW[ph]; }
 const POSE_KEYS_ALL = ['h', 'r', 'l', 'yw', 'tw', 'bend', 'cr', 'sl', 'sr', 'kl', 'kr', 'eu'];
 const clonePose = (o) => JSON.parse(JSON.stringify(o));

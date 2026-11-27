@@ -59,24 +59,26 @@
   #menu .ph h2{margin:0;font-size:18px;font-weight:800;opacity:1}
   #menu .num{width:28px;height:28px;border-radius:50%;background:#f2d43d;color:#0b1a12;font-weight:900;display:grid;place-items:center;font-size:15px}
   #menu .pick{margin-left:auto;font-size:13px;opacity:.85}
-  #charGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:10px;width:100%}
-  .cc{all:unset;box-sizing:border-box;cursor:pointer;background:rgba(0,0,0,.25);border:2px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:transform .12s,border-color .12s,background .12s;color:#eef5f0}
-  .cc:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.25)}
-  .cc.sel{border-color:#f2d43d;background:rgba(242,212,61,.12);box-shadow:0 0 0 3px rgba(242,212,61,.18)}
-  .cc .top{display:flex;align-items:center;gap:10px}
-  .cc .av{width:44px;height:44px;border-radius:50%;flex:none;border:3px solid;box-sizing:border-box}
-  .cc .nm{font-size:16px;font-weight:800;line-height:1.2}
-  .cc .tot{margin-left:auto;text-align:center;font-size:10px;opacity:.75;line-height:1.1}
-  .cc .tot b{display:block;font-size:20px;opacity:1;color:#f2d43d}
-  .cc .chips{display:flex;flex-wrap:wrap;gap:4px}
-  .cc .chip{font-size:11px;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.1)}
-  .cc .chip.hl{background:rgba(242,212,61,.22);color:#ffe98a}
-  .cc .stats{display:grid;gap:4px}
-  .cc .sr{display:grid;grid-template-columns:72px 1fr;align-items:center;gap:6px;font-size:11px;opacity:.9}
-  .cc .tr{height:6px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
-  .cc .fl{height:100%;border-radius:999px;background:linear-gradient(90deg,#9be36c,#f2d43d)}
-  .cc .fl.max{background:linear-gradient(90deg,#f2d43d,#ff8a1f)}
-  .cc .note{font-size:12px;opacity:.75;line-height:1.5}
+  #charGrid{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:10px 4px 16px;margin:0 -4px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .cc{all:unset;box-sizing:border-box;cursor:pointer;flex:none;width:200px;scroll-snap-align:center;position:relative;border-radius:16px;padding:10px 10px 12px;display:flex;flex-direction:column;gap:4px;color:#2a1f05;transition:transform .2s,box-shadow .2s;clip-path:polygon(0 0,100% 0,100% 92%,50% 100%,0 92%);text-align:center}
+  .cc.gold{background:linear-gradient(160deg,#fff4b8 0%,#f2c94c 35%,#c8961e 70%,#ffe68a 100%)}
+  .cc.silver{background:linear-gradient(160deg,#ffffff 0%,#d5dde6 35%,#9aa7b5 70%,#eef2f6 100%)}
+  .cc.bronze{background:linear-gradient(160deg,#ffe0c2 0%,#d89a63 35%,#9c6236 70%,#f4c69b 100%)}
+  .cc::before{content:'';position:absolute;inset:5px;border-radius:12px;border:2px solid rgba(255,255,255,.55);clip-path:inherit;pointer-events:none}
+  .cc:not(.sel){transform:scale(.9);filter:saturate(.75) brightness(.85)}
+  .cc.sel{transform:scale(1);box-shadow:0 0 0 3px #fff,0 0 28px rgba(242,212,61,.8)}
+  .cc .cTop{position:relative;height:150px;border-radius:10px;overflow:hidden;background:radial-gradient(circle at 60% 30%,rgba(255,255,255,.6),transparent 60%),linear-gradient(180deg,var(--sh),rgba(0,0,0,.25))}
+  .cc .pv{position:absolute;right:-6px;bottom:0;width:160px;height:160px}
+  .cc .cOvr{position:absolute;left:8px;top:6px;z-index:1;display:flex;flex-direction:column;align-items:center;line-height:1;text-shadow:0 1px 0 rgba(255,255,255,.5)}
+  .cc .cOvr b{font:900 34px system-ui}
+  .cc .cOvr span{font:800 10px system-ui;letter-spacing:.05em;margin-top:3px}
+  .cc .cName{font:900 19px system-ui;margin-top:4px;letter-spacing:.02em;border-bottom:1px solid rgba(0,0,0,.25);padding-bottom:3px}
+  .cc .cMeta{font-size:11px;font-weight:700;opacity:.75}
+  .cc .cStats{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;padding:4px 6px 14px;text-align:left}
+  .cc .cStats div{display:flex;align-items:baseline;gap:4px;font-size:10px;font-weight:700;white-space:nowrap;letter-spacing:-.03em}
+  .cc .cStats b{font:900 17px system-ui;min-width:24px}
+  .cc .cStats .hi b{color:#b3200e}
+  .cc .note{display:none}
   #menu .opts{display:grid;gap:12px}
   #menu .opt{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   #menu .ol{width:84px;font-size:13px;opacity:.8;flex:none}
@@ -98,7 +100,7 @@
   #menu details.help{max-width:none;text-align:left;background:rgba(255,255,255,.04);border-radius:14px;padding:10px 14px;font-size:13px}
   #menu details.help summary{cursor:pointer;font-weight:700}
   #menu details.help ul{margin:8px 0 0;padding-left:18px;line-height:1.7;opacity:.85}
-  @media (max-width:520px){ #menu .hero h1{font-size:34px} #menu .hero p{font-size:13px} #menu .ol{width:100%} #charGrid{grid-template-columns:1fr 1fr;gap:8px} .cc{padding:9px;gap:6px} .cc .note{display:none} .cc .top{gap:6px} .cc .av{width:30px;height:30px;border-width:2px} .cc .nm{font-size:13px;white-space:nowrap;letter-spacing:-.02em} .cc .tot b{font-size:15px} .cc .chip{font-size:10px;padding:1px 6px} .cc .sr{grid-template-columns:62px 1fr;font-size:10px;white-space:nowrap} #menu .panel{padding:12px} }
+  @media (max-width:520px){ #menu .hero h1{font-size:34px} #menu .hero p{font-size:13px} #menu .ol{width:100%} #menu .panel{padding:12px} }
   #vwPanel{position:absolute;left:8px;top:8px;max-width:min(420px,calc(100% - 16px));background:rgba(10,30,20,.82);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;font-size:14px;max-height:calc(100% - 16px);overflow-y:auto}
   #vwPanel .vwHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
   #vwPanel a{color:#f2d43d;font-weight:bold;text-decoration:none}
@@ -316,18 +318,19 @@ let mode = 'singles', pos = 'back', level = 1;
 // ---- 選手（実在の名選手をもじった架空のキャラクター）----
 // 能力は 1〜5。歴史的な名選手（メデラー・ナダレ・シャコビッチ）は合計18と少し高め、ほかは15〜17。
 // 能力1つあたりの効き目は小さめにしてあるので、だれかが一方的に勝つことはない
-// spd=足の速さ, str=ストローク, srv=サーブ, con=ミスの少なさ, net=前に出る
+// spd=足の速さ, str=ストローク, srv=サーブ, con=ミスの少なさ, net=前に出る, vol=ボレーのうまさ
 const CHARS = [
-  { id: 'mederer', name: 'メデラー', sex: 'm', h: 1.85, lefty: false, oneBH: true, hair: 'short', hairC: '#5a3a22', band: '#ffffff', skin: '#f0c8a6', shirt: '#d93b3b', st: { spd: 3, str: 4, srv: 4, con: 3, net: 4 }, note: '前に出るのが好き。サーブとネットプレーがうまい。片手バック。' },
-  { id: 'cinnamon', name: 'シナモン', sex: 'm', h: 1.91, lefty: false, oneBH: false, hair: 'curly', hairC: '#c0582b', skin: '#f3cfb3', shirt: '#2fbf71', st: { spd: 3, str: 5, srv: 3, con: 3, net: 2 }, note: '長身から打つ、伸びのある強いストローク。' },
-  { id: 'nadare', name: 'ナダレ', sex: 'm', h: 1.85, lefty: true, oneBH: false, hair: 'long', hairC: '#2a1a10', band: '#d23a2a', skin: '#d9a982', shirt: '#ff8a1f', st: { spd: 5, str: 4, srv: 2, con: 5, net: 2 }, note: '左利き。足が速く、粘り強くてミスが少ない。' },
-  { id: 'alcaros', name: 'アルカロス', sex: 'm', h: 1.83, lefty: false, oneBH: false, hair: 'short', hairC: '#2b1d14', skin: '#d6a37c', shirt: '#3a7bd5', st: { spd: 5, str: 4, srv: 3, con: 2, net: 3 }, note: '足が速くて何でもできる。前にも出てくる。' },
-  { id: 'shakovic', name: 'シャコビッチ', sex: 'm', h: 1.88, lefty: false, oneBH: false, hair: 'crop', hairC: '#3a2a20', skin: '#ecc4a2', shirt: '#1f2a44', st: { spd: 4, str: 4, srv: 3, con: 5, net: 2 }, note: 'とにかくミスが少ない、鉄壁の守り。' },
-  { id: 'nishikigoi', name: '錦鯉', sex: 'm', h: 1.78, lefty: false, oneBH: false, hair: 'short', hairC: '#111111', skin: '#e6b98f', shirt: '#f0f0f0', st: { spd: 4, str: 3, srv: 2, con: 3, net: 3 }, airK: 1.6, note: '足が速く、ジャンプして打つエアKが得意。' },
-  { id: 'naoko', name: '東京なおこ', sex: 'f', h: 1.80, lefty: false, oneBH: false, hair: 'bun', hairC: '#2a1a12', band: '#ff4fa3', skin: '#8d5a3b', shirt: '#ff4fa3', st: { spd: 2, str: 4, srv: 5, con: 2, net: 2 }, note: '強烈なサーブと強いストローク。' },
-  { id: 'kimiko', name: '伊藤きみこ', sex: 'f', h: 1.63, lefty: false, oneBH: false, hair: 'bob', hairC: '#111111', skin: '#efc9a4', shirt: '#ffd23f', st: { spd: 3, str: 3, srv: 2, con: 4, net: 4 }, note: '小柄だがミスが少なく、前に出てボレーもうまい。' },
+  { id: 'mederer', name: 'メデラー', sex: 'm', h: 1.85, lefty: false, oneBH: true, hair: 'short', hairC: '#5a3a22', band: '#ffffff', skin: '#f0c8a6', shirt: '#d93b3b', st: { spd: 3, str: 4, srv: 4, con: 3, net: 4, vol: 5 }, note: '前に出るのが好き。サーブとネットプレーがうまい。片手バック。' },
+  { id: 'cinnamon', name: 'シナモン', sex: 'm', h: 1.91, lefty: false, oneBH: false, hair: 'curly', hairC: '#c0582b', skin: '#f3cfb3', shirt: '#2fbf71', st: { spd: 3, str: 5, srv: 3, con: 3, net: 2, vol: 2 }, note: '長身から打つ、伸びのある強いストローク。' },
+  { id: 'nadare', name: 'ナダレ', sex: 'm', h: 1.85, lefty: true, oneBH: false, hair: 'long', hairC: '#2a1a10', band: '#d23a2a', skin: '#d9a982', shirt: '#ff8a1f', st: { spd: 5, str: 4, srv: 2, con: 5, net: 2, vol: 3 }, note: '左利き。足が速く、粘り強くてミスが少ない。' },
+  { id: 'alcaros', name: 'アルカロス', sex: 'm', h: 1.83, lefty: false, oneBH: false, hair: 'short', hairC: '#2b1d14', skin: '#d6a37c', shirt: '#3a7bd5', st: { spd: 5, str: 4, srv: 3, con: 2, net: 3, vol: 4 }, note: '足が速くて何でもできる。前にも出てくる。' },
+  { id: 'shakovic', name: 'シャコビッチ', sex: 'm', h: 1.88, lefty: false, oneBH: false, hair: 'crop', hairC: '#3a2a20', skin: '#ecc4a2', shirt: '#1f2a44', st: { spd: 4, str: 4, srv: 3, con: 5, net: 2, vol: 3 }, note: 'とにかくミスが少ない、鉄壁の守り。' },
+  { id: 'nishikigoi', name: '錦鯉', sex: 'm', h: 1.78, lefty: false, oneBH: false, hair: 'short', hairC: '#111111', skin: '#e6b98f', shirt: '#f0f0f0', st: { spd: 4, str: 3, srv: 2, con: 3, net: 3, vol: 3 }, airK: 1.6, note: '足が速く、ジャンプして打つエアKが得意。' },
+  { id: 'naoko', name: '東京なおこ', sex: 'f', h: 1.80, lefty: false, oneBH: false, hair: 'bun', hairC: '#2a1a12', band: '#ff4fa3', skin: '#8d5a3b', shirt: '#ff4fa3', st: { spd: 2, str: 4, srv: 5, con: 2, net: 2, vol: 2 }, note: '強烈なサーブと強いストローク。' },
+  { id: 'kimiko', name: '伊藤きみこ', sex: 'f', h: 1.63, lefty: false, oneBH: false, hair: 'bob', hairC: '#111111', skin: '#efc9a4', shirt: '#ffd23f', st: { spd: 3, str: 3, srv: 2, con: 4, net: 4, vol: 5 }, note: '小柄だがミスが少なく、前に出てボレーもうまい。' },
 ];
-const ST_NAME = { spd: '足の速さ', str: 'ストローク', srv: 'サーブ', con: 'ミスの少なさ', net: '前に出る' };
+const ST_NAME = { spd: '足の速さ', str: 'ストローク', srv: 'サーブ', con: 'ミスの少なさ', net: '前に出る', vol: 'ボレー' };
+const ST_SHORT = { spd: '足の速さ', str: 'ストローク', srv: 'サーブ', con: '安定感', net: '前に出る', vol: 'ボレー' };
 let myChar = CHARS[0], fmt = 'match', gamesPerSet = 1; // fmt: 'match'（1試合）/ 'tour'（トーナメント）
 const SETS_TO_WIN = 2;
 const stK = (p, k) => p && p.char ? p.char.st[k] : 3; // 能力（キャラ未設定は 3＝ふつう）
@@ -341,19 +344,45 @@ document.querySelectorAll('[data-pos]').forEach(b => b.onclick = () => { pos = b
 document.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => { level = +b.dataset.lv; sel('[data-lv]', b); });
 function sel(q, b){ document.querySelectorAll(q).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); }
 document.getElementById('start').onclick = () => { online = false; wipe(() => { if (fmt === 'tour' && mode === 'singles') startTournament(); else startMatch(); }); };
-// 選手カード
-{ const grid = document.getElementById('charGrid'), stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
-  const best = c => Math.max(...Object.values(c.st));
-  grid.innerHTML = CHARS.map((c, i) => `<button class="cc${i === 0 ? ' sel' : ''}" data-ch="${i}">
-    <div class="top"><div class="av" style="border-color:${c.shirt};background:linear-gradient(180deg,${c.hairC} 0 40%,${c.skin} 40%)"></div>
-      <div><div class="nm">${c.name}</div></div>
-      <div class="tot">総合<b>${Object.values(c.st).reduce((x, y) => x + y, 0)}</b></div></div>
-    <div class="chips"><span class="chip">${c.sex === 'f' ? '女子' : '男子'}</span><span class="chip">${Math.round(c.h * 100)}cm</span><span class="chip${c.lefty ? ' hl' : ''}">${c.lefty ? '左利き' : '右利き'}</span><span class="chip${c.oneBH ? ' hl' : ''}">バック${c.oneBH ? '片手' : '両手'}</span></div>
-    <div class="stats">${Object.keys(ST_NAME).map(k => `<div class="sr"><span>${ST_NAME[k]}</span><div class="tr"><div class="fl${c.st[k] === 5 ? ' max' : ''}" style="width:${c.st[k] * 20}%"></div></div></div>`).join('')}</div>
-    <div class="note">${c.note}</div></button>`).join('');
+// 選手カード（スポーツゲームのカード風。横にスクロールして選ぶ）
+function charSVG(c){ // 選手の上半身の絵（髪型・肌・シャツ・ヘアバンドから描く）
+  const hc = c.hairC, sk = c.skin, sh = c.shirt, f = c.sex === 'f';
+  const hair = {
+    short: `<path d="M62 58c0-22 14-34 38-34s38 12 38 34c-6-10-18-14-38-14s-32 4-38 14z" fill="${hc}"/>`,
+    crop: `<path d="M64 56c0-18 14-28 36-28s36 10 36 28c-8-8-20-10-36-10s-28 2-36 10z" fill="${hc}"/>`,
+    curly: `<g fill="${hc}">${[[66,52],[76,38],[90,30],[106,29],[120,34],[132,46],[136,58],[64,62],[84,40],[112,40]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="11"/>`).join('')}</g>`,
+    long: `<path d="M60 60c0-24 16-36 40-36s40 12 40 36v46c-6 6-12 6-14 0V66c-6-8-16-12-26-12s-20 4-26 12v40c-2 6-8 6-14 0z" fill="${hc}"/>`,
+    bun: `<circle cx="100" cy="20" r="14" fill="${hc}"/><path d="M62 58c0-22 14-34 38-34s38 12 38 34c-6-10-18-14-38-14s-32 4-38 14z" fill="${hc}"/>`,
+    bob: `<path d="M58 62c0-26 16-38 42-38s42 12 42 38v26c-4 4-10 4-12 0V64c-8-8-18-10-30-10s-22 2-30 10v24c-2 4-8 4-12 0z" fill="${hc}"/>`,
+  }[c.hair] || '';
+  const band = c.band ? `<path d="M62 54c10-6 24-9 38-9s28 3 38 9l-1 8c-10-5-23-8-37-8s-27 3-37 8z" fill="${c.band}"/>` : '';
+  return `<svg viewBox="0 0 200 200" class="pv">
+    <path d="M30 200c4-40 30-62 70-62s66 22 70 62z" fill="${sh}"/><path d="M80 140l20 22 20-22" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="5"/>
+    <rect x="88" y="104" width="24" height="30" rx="8" fill="${sk}"/>
+    ${c.hair === 'long' || c.hair === 'bob' ? hair : ''}
+    <ellipse cx="100" cy="72" rx="${f ? 33 : 35}" ry="${f ? 38 : 40}" fill="${sk}"/>
+    <ellipse cx="66" cy="76" rx="6" ry="9" fill="${sk}"/><ellipse cx="134" cy="76" rx="6" ry="9" fill="${sk}"/>
+    ${c.hair === 'long' || c.hair === 'bob' ? `<path d="M64 62c6-14 20-20 36-20s30 6 36 20c-8-6-20-9-36-9s-28 3-36 9z" fill="${hc}"/>` : hair}${band}
+    <path d="M80 70q7-4 13 0M107 70q7-4 13 0" stroke="#2a1a10" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="87" cy="80" r="3.5" fill="#1a1010"/><circle cx="113" cy="80" r="3.5" fill="#1a1010"/>
+    <path d="M90 96q10 7 20 0" stroke="#7a3a2a" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <g transform="rotate(${c.lefty ? -28 : 28} 100 100)"><ellipse cx="${c.lefty ? 30 : 170}" cy="70" rx="20" ry="27" fill="none" stroke="#e8e8e8" stroke-width="5"/><path d="M${c.lefty ? 30 : 170} 97v40" stroke="#333" stroke-width="7" stroke-linecap="round"/></g>
+  </svg>`;
+}
+{ const grid = document.getElementById('charGrid');
+  const tot = c => Object.values(c.st).reduce((x, y) => x + y, 0);
+  const ovr = c => Math.round(40 + tot(c) * 2); // 総合値（カードの大きな数字）
+  const val = n => 40 + n * 11; // 能力1〜5 → 51〜95
+  grid.innerHTML = CHARS.map((c, i) => { const o = ovr(c), tier = o >= 83 ? 'gold' : o >= 80 ? 'silver' : 'bronze';
+    return `<button class="cc ${tier}${i === 0 ? ' sel' : ''}" data-ch="${i}" style="--sh:${c.shirt}">
+      <div class="cTop"><div class="cOvr"><b>${o}</b><span>${c.lefty ? 'LEFT' : 'RIGHT'}</span><span>${c.oneBH ? '1HB' : '2HB'}</span></div>${charSVG(c)}</div>
+      <div class="cName">${c.name}</div>
+      <div class="cMeta">${c.sex === 'f' ? '女子' : '男子'}・${Math.round(c.h * 100)}cm</div>
+      <div class="cStats">${Object.keys(ST_NAME).map(k => `<div class="${c.st[k] >= 5 ? 'hi' : ''}"><b>${val(c.st[k])}</b><span>${ST_SHORT[k]}</span></div>`).join('')}</div>
+      <div class="note">${c.note}</div></button>`; }).join('');
   const pickName = () => { document.getElementById('pickName').textContent = 'あなた：' + myChar.name; };
   pickName();
-  grid.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => { myChar = CHARS[+b.dataset.ch]; sel('#charGrid [data-ch]', b); pickName(); }); }
+  grid.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => { myChar = CHARS[+b.dataset.ch]; sel('#charGrid [data-ch]', b); pickName(); b.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }); }
 document.querySelectorAll('[data-fmt2]').forEach(b => b.onclick = () => { fmt = b.dataset.fmt2; sel('[data-fmt2]', b); });
 document.querySelectorAll('[data-gps]').forEach(b => b.onclick = () => { gamesPerSet = +b.dataset.gps; sel('[data-gps]', b); });
 document.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => { net.fmt = b.dataset.fmt; hostLobbyUpdate(); });
@@ -1029,7 +1058,7 @@ function hit(p, reach = 1.5){
     const center = lat0 < 0.35 ? (0.35 - lat0) / 0.35 : 0;
     const fast = Math.max(0, Math.min(1, (inSpd - 21) / 16));
     const pressure = Math.min(1, Math.max(quick, center * 0.8, fast) + 0.25 * (quick + center + fast - Math.max(quick, center, fast)));
-    if (Math.random() < pressure * 0.7 * (1.36 - 0.12 * stK(p, 'con')) * (slice ? 0.5 : 1)) { // スライスはミスが少ない // ミスの少なさで変わる
+    if (Math.random() < pressure * 0.7 * (1.36 - 0.12 * stK(p, 'con')) * (slice ? 0.5 : 1) * (isVolley ? 1.3 - 0.1 * stK(p, 'vol') : 1)) { // スライスはミスが少ない // ミスの少なさで変わる
       const q = Math.random();
       close = q < 0.45 ? 'ctrl' : q < 0.8 ? 'float' : 'net';
       rush = Math.max(rush, pressure);
@@ -1056,7 +1085,7 @@ function hit(p, reach = 1.5){
   let pf = lat < 0.3 ? 0.55 : lat < 0.55 ? 0.55 + (lat - 0.3) / 0.25 * 0.45 : 1.0;
   if (lat >= 0.55 && lat <= 1.2) pf = 1.08;
   if (!lob && !isSmash) spd *= pf;
-  if (isVolley && !lob) spd *= 0.85;
+  if (isVolley && !lob) spd *= 0.79 + 0.03 * stK(p, 'vol'); // ボレーがうまいほど強く鋭い
   if (drop && !isSmash && !mishit) spd = 8.5;
   if (slice && !isSmash && !lob) spd *= 0.72; // スライス：遅めで、弾んだあとは伸びずに低く止まる
   if (slice && !isSmash && !isVolley && !isAirK && !lob) p.shot = side === 'f' ? 'fsl' : 'bsl'; // 上から下へ切るように振る

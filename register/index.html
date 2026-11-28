@@ -195,7 +195,6 @@ ul.tight{margin:4px 0;padding-left:20px}
     <div class="grid">
       <div class="custArea">
         <div class="card">
-          <h2>お客様</h2>
           <div class="scene3d" id="scene"><div class="tag"><b id="cName">お客様</b>　<span class="look" id="cLook"></span></div><div class="fallback hidden" id="cAv">🙂</div></div>
           <div class="talk" id="talk"></div>
         </div>
@@ -943,7 +942,7 @@ function render(){
   document.querySelectorAll('#phr button').forEach(b=>{b.classList.toggle('used',!!T.said[b.dataset.p]);b.disabled=!C.arrived});
   // hint
   $('hint').classList.toggle('hidden',G.mode!=='guide');
-  $('hint').innerHTML='💡 <b>次にやること：</b>'+hintText();
+  $('hint').innerHTML='💡 '+hintText();
   renderDrawer();
 }
 function renderDrawer(){

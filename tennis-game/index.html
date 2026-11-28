@@ -34,6 +34,7 @@
   #title .tLogo span{display:block;font:italic 900 clamp(64px,17vw,150px)/.9 system-ui;letter-spacing:.02em;background:linear-gradient(180deg,#fff 30%,#f2d43d 75%,#d9a40f);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 6px 0 #0b1a12) drop-shadow(0 10px 24px rgba(0,0,0,.6));transform:skewX(-8deg)}
   #title .tLogo b{display:block;font-size:clamp(20px,5vw,32px);letter-spacing:.6em;margin-top:8px;padding-left:.6em}
   #title .tPlay{font:900 26px system-ui;letter-spacing:.12em;padding:18px 64px;border:none;border-radius:999px;background:linear-gradient(180deg,#ffe36b,#f2c21d);color:#10241a;box-shadow:0 0 0 4px rgba(242,212,61,.25),0 10px 30px rgba(242,194,29,.45);cursor:pointer;animation:tIn .6s .45s both,tPulse 1.6s 1.2s ease-in-out infinite}
+  #title .tMusic{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:999px;padding:6px 14px;font-size:12px;cursor:pointer}
   #title .tTap{font-size:13px;opacity:.7;animation:tBlink 1.4s infinite}
   #title .tSub{display:flex;gap:18px;margin-top:6px;font-size:13px;animation:tIn .6s .6s both}
   #title .tSub a{color:rgba(255,255,255,.75);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.3);padding-bottom:2px}
@@ -132,6 +133,10 @@
   #result .big{font-size:110px;line-height:1;filter:drop-shadow(0 6px 16px rgba(242,212,61,.7));animation:pop .7s ease-out}
   #result h1{margin:0;font-size:32px}
   @keyframes pop{0%{transform:scale(.2) rotate(-20deg);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+  #rpBadge{position:absolute;left:14px;top:52px;z-index:14;display:flex;align-items:center;gap:8px;padding:6px 14px 6px 10px;background:rgba(10,10,10,.65);border-left:4px solid #e5483b;color:#fff;transform:skewX(-10deg);pointer-events:auto;cursor:pointer}
+  #rpBadge b{font:italic 900 20px system-ui;letter-spacing:.12em}
+  #rpBadge span{font:800 11px system-ui;opacity:.8;animation:tBlink 1s infinite}
+  #rpBadge.hidden{display:none}
   #gcard{position:absolute;inset:0;z-index:15;pointer-events:none;display:flex;align-items:center;justify-content:center;overflow:hidden;visibility:hidden}
   #gcard.show{visibility:visible}
   #gcard i{position:absolute;left:-10%;right:-10%;height:34%;top:33%;transform:skewY(-6deg) translateX(-110%)}
@@ -217,6 +222,7 @@
   #rankOv .rkHead button{margin-left:auto;background:none;border:none;color:#fff;font-size:20px;cursor:pointer}
   #rankOv .rkTabs{display:flex;gap:6px;margin:10px 0 6px}
   #rankOv .rkTabs button{flex:1;padding:8px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#eef5f0;font-weight:800;cursor:pointer}
+  #rankOv .rkTabs button.hidden{display:none}
   #rankOv .rkTabs button.on{background:#f2d43d;color:#10241a;border-color:#f2d43d}
   #rankOv .rkNote{font-size:11px;opacity:.65;margin:2px 0 6px}
   #rankOv #rkStatus{font-size:13px;opacity:.8}
@@ -279,10 +285,11 @@
     <div class="pbtn" id="bKick">キック</div>
     <div class="pbtn" id="bCut">スライス</div>
   </div>
+  <div id="rpBadge" class="hidden"><b>REPLAY</b><span>▶▶ SLOW</span></div>
   <div id="gcard"></div>
   <div id="rankOv" class="hidden"><div class="rkBox">
     <div class="rkHead"><b>RANKING</b><span>ランキング</span><button id="rkClose" aria-label="閉じる">✕</button></div>
-    <div class="rkTabs"><button data-rk="weekly" class="on">週間</button><button data-rk="all">総合</button><button data-rk="mine">自分</button></div>
+    <div class="rkTabs"><button data-rk="weekly" class="hidden">週間</button><button data-rk="all" class="on">総合</button><button data-rk="mine">自分</button></div>
     <p class="rkNote">1試合ごとに記録。弱い選手・強いCPU・長い試合ほど高得点。いろんな技を使い、点を取られないのがコツ。</p>
     <p id="rkStatus">読み込み中…</p><ol id="rkList"></ol>
   </div></div>
@@ -304,6 +311,7 @@
       <h1 class="tLogo"><span>TENNIS</span><b>テニス</b></h1>
       <button id="tPlay" class="tPlay">▶ プレイ</button>
       <div class="tTap">タップしてスタート</div>
+      <button id="tMusic" class="tMusic">♪ 音楽 ON</button>
       <nav class="tSub"><a href="#" id="tRank">ランキング</a><a href="#" id="tOnline">オンライン</a><a href="learn.html">動き方</a><a href="?viewer">モーション確認</a></nav>
     </div>
   </div>
@@ -493,6 +501,39 @@ function playHit(power = 1){
   const s1 = a.createOscillator(), gs = a.createGain(); s1.type = 'sine'; s1.frequency.value = 520 + Math.random() * 60;
   env(a, gs, t, 0.08 * v, 0.07); s1.connect(gs); gs.connect(o); s1.start(t); s1.stop(t + 0.08);
 }
+// タイトルとメニューで流す音楽：128BPM、Am-F-C-G の4小節ループ（キック・スネア・ハイハット・ベース・アルペジオ・パッド）
+const music = { on: false, timer: null, step: 0, next: 0, bus: null };
+function musicStart(){
+  const a = audio(); if (!a || music.on) return;
+  try { if (lsGet('tennis-music', '1') === '0') return; } catch (e) {}
+  music.on = true; music.bus = a.createGain(); music.bus.gain.setValueAtTime(0.0001, a.currentTime); music.bus.gain.exponentialRampToValueAtTime(0.22, a.currentTime + 0.8); music.bus.connect(a.destination);
+  music.step = 0; music.next = a.currentTime + 0.05;
+  const SPB = 60 / 128 / 4; // 16分音符
+  const CH = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]; // Am F C G
+  const hz = n => 440 * Math.pow(2, (n - 69) / 12);
+  const tone = (type, f, t, d, g, cut) => { const o = a.createOscillator(), e = a.createGain(); o.type = type; o.frequency.value = f; let node = o; if (cut) { const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(cut, t); lp.frequency.exponentialRampToValueAtTime(cut * 0.3, t + d); o.connect(lp); node = lp; } e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(g, t + 0.005); e.gain.exponentialRampToValueAtTime(0.0001, t + d); node.connect(e); e.connect(music.bus); o.start(t); o.stop(t + d + 0.02); };
+  const nz = (t, d, g, f, type) => { const n = noise(a), bp = a.createBiquadFilter(), e = a.createGain(); bp.type = type; bp.frequency.value = f; e.gain.setValueAtTime(g, t); e.gain.exponentialRampToValueAtTime(0.0001, t + d); n.connect(bp); bp.connect(e); e.connect(music.bus); n.start(t, Math.random() * 0.1); n.stop(t + d + 0.02); };
+  const kick = t => { const o = a.createOscillator(), e = a.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); e.gain.setValueAtTime(0.9, t); e.gain.exponentialRampToValueAtTime(0.0001, t + 0.28); o.connect(e); e.connect(music.bus); o.start(t); o.stop(t + 0.3); };
+  const sched = () => {
+    if (!music.on) return;
+    while (music.next < a.currentTime + 0.15) {
+      const st = music.step, t = music.next, bar = Math.floor(st / 16) % 4, k = st % 16, ch = CH[bar];
+      if (k % 4 === 0) kick(t);
+      if (k === 4 || k === 12) { nz(t, 0.16, 0.5, 1800, 'bandpass'); tone('triangle', 190, t, 0.08, 0.15); }
+      if (k % 2 === 0) nz(t, k % 4 === 2 ? 0.07 : 0.03, k % 4 === 2 ? 0.22 : 0.1, 8000, 'highpass');
+      if (k % 2 === 0) tone('sawtooth', hz(ch[0] - 24 + (k % 4 === 2 ? 12 : 0)), t, SPB * 1.8, 0.16, 900);
+      tone('square', hz(ch[[0, 1, 2, 1][k % 4]] + 12 + (k >= 8 ? 12 : 0)), t, SPB * 0.9, 0.045, 3200);
+      if (k === 0) ch.forEach(n => tone('sawtooth', hz(n), t, SPB * 15, 0.035, 1400));
+      if (bar === 3 && k >= 12) nz(t, 0.1, 0.25, 1200 + k * 200, 'bandpass'); // つなぎのフィル
+      music.step++; music.next += SPB;
+    }
+  };
+  sched(); music.timer = setInterval(sched, 40);
+}
+function musicStop(){
+  if (!music.on) return; music.on = false; clearInterval(music.timer);
+  const a = actx, b = music.bus; if (a && b) { b.gain.cancelScheduledValues(a.currentTime); b.gain.setValueAtTime(b.gain.value, a.currentTime); b.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.6); setTimeout(() => b.disconnect(), 800); }
+}
 function playCrowd(mine){ // 点が入ったとき：観客のざわめき（ノイズを重ねてふくらませる）
   const a = actx; if (!a || a.state !== 'running') return;
   const t = a.currentTime, dur = 1.6 + Math.random() * 0.4;
@@ -587,7 +628,7 @@ function mkPlayer(team, role, isHuman, color){
 }
 function startMatch(){
   if (document.activeElement) document.activeElement.blur();
-  menu.classList.add('hidden'); document.getElementById('bracket').classList.add('hidden'); document.getElementById('result').classList.add('hidden');
+  musicStop(); menu.classList.add('hidden'); document.getElementById('bracket').classList.add('hidden'); document.getElementById('result').classList.add('hidden');
   players = [];
   // 相手（と味方）は、あなた以外の選手からランダムに選ぶ（トーナメントでは決まった相手）
   const others = shuffle(CHARS.filter(c => c !== myChar && !c.jr));
@@ -634,16 +675,19 @@ function wipe(cb){
 }
 { const t = document.getElementById('title');
   if (VIEWER || /[?&](host|join|localsig|room)/.test(location.search)) t.classList.add('hidden');
-  const go = () => { audio(); wipe(() => { t.classList.add('hidden'); menu.classList.remove('hidden'); }); };
+  const go = () => { audio(); musicStart(); wipe(() => { t.classList.add('hidden'); menu.classList.remove('hidden'); }); };
   t.onclick = e => { if (e.target.closest('a') || e.target.closest('#rankOv')) return; go(); };
-  document.getElementById('tOnline').onclick = e => { e.preventDefault(); audio(); wipe(() => { t.classList.add('hidden'); menu.classList.remove('hidden'); setTimeout(() => document.getElementById('hostBtn').scrollIntoView({ block: 'center' }), 50); }); };
+  document.getElementById('tOnline').onclick = e => { e.preventDefault(); audio(); musicStart(); wipe(() => { t.classList.add('hidden'); menu.classList.remove('hidden'); setTimeout(() => document.getElementById('hostBtn').scrollIntoView({ block: 'center' }), 50); }); };
 }
+document.getElementById('rpBadge').onclick = () => { if (replay) replay.skip = true; };
+{ const b = document.getElementById('tMusic'), upd = () => { b.textContent = lsGet('tennis-music', '1') === '0' ? '♪ 音楽 OFF' : '♪ 音楽 ON'; }; upd();
+  b.onclick = e => { e.stopPropagation(); audio(); const on = lsGet('tennis-music', '1') === '0'; lsSet('tennis-music', on ? '1' : '0'); upd(); if (on) musicStart(); else musicStop(); }; }
 document.getElementById('tRank').onclick = e => { e.preventDefault(); e.stopPropagation(); showRanking(); };
 document.getElementById('rankOv').onclick = e => { if (e.target.id === 'rankOv') e.currentTarget.classList.add('hidden'); };
 document.getElementById('rkClose').onclick = () => document.getElementById('rankOv').classList.add('hidden');
 document.querySelectorAll('[data-rk]').forEach(b => b.onclick = () => { rkTab = b.dataset.rk; renderRanking(); });
 function toMenu(){ wipe(toMenu0); }
-function toMenu0(){ state = 'menu'; players = []; human = null; msgEl.textContent = ''; document.getElementById('result').classList.add('hidden'); menu.classList.remove('hidden'); }
+function toMenu0(){ musicStart(); state = 'menu'; players = []; human = null; msgEl.textContent = ''; document.getElementById('result').classList.add('hidden'); menu.classList.remove('hidden'); }
 // ゲーム／セットが終わるたびの切り替え画面（斜めの帯がすべり込み、大きな文字がたたきつけられる）
 function gameCard(big, line, score, mine){
   if (online && net.role !== 'host') return false;
@@ -664,21 +708,23 @@ function matchScore(won){
   const me = myTeam(), games = (score.hist || []).reduce((a, g) => a + g[me], 0) + score.games[me];
   const setsLost = score.sets ? score.sets[1 - me] : 0, r = rec || { won: 0, lost: 0, tech: new Set() };
   const rows = [];
-  if (won) rows.push(['勝利', 3000]);
-  if (won && setsLost === 0) rows.push(['ストレート勝ち', 1000]);
-  rows.push([`取ったゲーム ×${games}`, games * 200]);
-  rows.push([`取ったポイント ×${r.won}`, r.won * 30]);
-  rows.push([`取られたポイント ×${r.lost}`, -r.lost * 25]);
-  if (r.lost === 0 && r.won > 0) rows.push(['ノーミス（1点も取られない）', 1500]);
-  rows.push([`使った技 ${r.tech.size}種類`, r.tech.size * 250]);
+  if (won) rows.push(['勝利', 4000]);
+  if (won && setsLost === 0) rows.push(['セットを取られずに勝利', 2500]);
+  else if (setsLost) rows.push([`取られたセット ×${setsLost}`, -setsLost * 800]);
+  rows.push([`取ったゲーム ×${games}`, games * 150]);
+  rows.push([`取ったポイント ×${r.won}`, r.won * 20]);
+  rows.push([`取られたポイント ×${r.lost}`, -r.lost * 70]);
+  if (r.lost === 0 && r.won > 0) rows.push(['完封（1点も取られない）', 3000]);
+  rows.push([`使った技 ${r.tech.size}種類`, r.tech.size * 150]);
   const raw = Math.max(0, rows.reduce((a, x) => a + x[1], 0));
   const tot = Object.values(myChar.st).reduce((a, b) => a + b, 0);
   const mults = [
+    ['選手 ' + myChar.name, +(1 + Math.max(0, 23 - tot) * 0.12).toFixed(2)], // 弱い選手ほど大きい（キッズは×2.8）
     ['CPU ' + ['やさしい', 'ふつう', 'つよい'][level], [0.6, 1, 1.5][level]],
-    ['選手 ' + myChar.name, +(1 + Math.max(0, 23 - tot) * 0.08).toFixed(2)],
     [`1セット${gamesPerSet}ゲーム`, { 1: 1, 3: 1.6, 6: 2.5 }[gamesPerSet] || 1],
   ];
   if (mode === 'doubles') mults.push(['ダブルス', 0.9]);
+  if (!won) mults.push(['負け', 0.5]);
   const mul = mults.reduce((a, x) => a * x[1], 1);
   return { score: Math.round(raw * mul), raw, rows, mults, mul, tech: [...r.tech].map(k => TECH_NAME[k] || k) };
 }
@@ -727,10 +773,10 @@ function countUp(el, to, delay){
   const f = now => { const k = Math.max(0, Math.min(1, (now - t0) / dur)); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))).toLocaleString('ja-JP'); if (k < 1 && el.isConnected) requestAnimationFrame(f); else if (k >= 1) el.classList.add('done'); };
   requestAnimationFrame(f);
 }
-const RK = { name: 'tennis-name', mine: 'tennis-mine', col: 'tennisPlays', size: 100, weekMin: 5, anon: '名無しさん' };
-let rkTab = 'weekly', rkLast = null, rkLastId = null, rkCache = {};
-const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
-const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const RK = { name: 'tennis-name', mine: 'tennis-mine', col: 'tennisPlays', size: 100, weekMin: 10, anon: '名無しさん' };
+let rkTab = 'all', rkLast = null, rkLastId = null, rkCache = {};
+function lsGet(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }
+function lsSet(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
 function rkDayStart(){ const j = new Date(Date.now() + 9 * 3600e3); return new Date(Date.UTC(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate())); }
 function rkWeekSince(){ return new Date(rkDayStart().getTime() - 6 * 86400e3 - 9 * 3600e3); }
 async function rkWeekRows(){
@@ -775,7 +821,11 @@ function rankAfterMatch(e){
 }
 const CROWN = ['#f5c542', '#c9ced6', '#d08a4a'];
 async function showRanking(){
-  const ov = document.getElementById('rankOv'); ov.classList.remove('hidden'); renderRanking();
+  const ov = document.getElementById('rankOv'), wt = document.querySelector('[data-rk="weekly"]'); ov.classList.remove('hidden');
+  wt.classList.add('hidden'); if (rkTab === 'weekly') rkTab = 'all';
+  renderRanking();
+  try { const w = await rkWeekRows(); if (w.length >= RK.weekMin) { wt.classList.remove('hidden'); if (rkTab === 'all' && !ov.dataset.seen) { rkTab = 'weekly'; renderRanking(); } } } catch (e) {}
+  ov.dataset.seen = 1;
 }
 async function renderRanking(){
   const list = document.getElementById('rkList'), st = document.getElementById('rkStatus'), want = rkTab;
@@ -799,6 +849,18 @@ async function renderRanking(){
     else { const h = rkCache.all; if (h && Date.now() - h.at < 180000) rows = h.rows; else { const { F, db } = await fb(); const snap = await F.getDocs(F.query(F.collection(db, RK.col), F.orderBy('score', 'desc'), F.limit(RK.size))); rows = snap.docs.map(d => ({ id: d.id, v: d.data() })); rkCache.all = { at: Date.now(), rows }; } }
     if (want === rkTab) draw(rows, false);
   } catch (x) { console.error(x); if (want === rkTab) st.textContent = 'ランキングを読み込めませんでした（' + (x.code || x.name || 'error') + '）。'; }
+}
+// ラケットの先でなんとか当てる：フレームに当たって飛んでいく／ふんわり浮く／当たるけどコントロールしきれない
+function tipHit(p, reach){
+  hit(p, reach * 1.3);
+  const s = sideSign(p.team), W2 = mode === 'doubles' ? DW : SW, q = Math.random(), z = Math.max(ball.z, 0.4);
+  let tx, ty, t, tag;
+  if (q < 0.4) { tx = (Math.random() - .5) * 2 * (W2 + 4); ty = -s * (Math.random() < 0.5 ? 1 + Math.random() * 3 : 9 + Math.random() * 8); t = 0.7 + Math.random() * 0.4; tag = 'フレーム！'; }
+  else if (q < 0.75) { tx = (Math.random() - .5) * 2 * (W2 - 0.8); ty = -s * (2.5 + Math.random() * 5); t = 1.5 + Math.random() * 0.3; tag = 'ふんわり…'; }
+  else { tx = (Math.random() - .5) * 2 * (W2 + 1.6); ty = -s * (5 + Math.random() * 8); t = 0.8 + Math.random() * 0.3; tag = 'コントロールできない！'; }
+  const v = launch(ball.x, ball.y, z, tx, ty, t); Object.assign(ball, v); ball.z = z; ball.curve = 0; ball.spin = null; ball.approach = false;
+  p.lungeT = 0; p.lungeDir = Math.sign((ball.x - p.x) * s) || 1; p.tag = tag; p.label = 1.1;
+  const sd = sideOf(p, ball.x); p.shot = (bounces === 0 && Math.abs(p.y) < 8) ? (sd === 'f' ? 'fvs' : 'bvs') : p.shot;
 }
 function sideSign(team){ return team === 0 ? 1 : -1; }
 // フォア側かバック側か（左利きは逆）
@@ -1363,13 +1425,25 @@ function serve(p){
 
 // ---- point resolution ----
 const TECH_NAME = { stroke: 'ストローク', power: '強打', slice: 'スライス', lob: 'ロブ', drop: 'ドロップ', volley: 'ボレー', smash: 'スマッシュ', airk: 'エアK', approach: 'アプローチ', reach: 'ギリギリ返球', stretchV: 'ギリギリボレー', flatServe: 'フラットサーブ', sliceServe: 'スライスサーブ', kickServe: 'キックサーブ', ace: 'サービスエース' };
+let replay = null, rpBuf = []; // スロー再生：直前の様子を記録しておき、いい点が入ったらアップでゆっくり見せる
+const RP_KEYS = ['x', 'y', 'vxs', 'vys', 'walk', 'mv', 'st', 'shot', 'prep', 'prepType', 'jumpT', 'jumpAmp', 'serveSwing', 'lungeT', 'lungeDir', 'fallT', 'fromPose', 'label', 'tag'];
+function rpRecord(dt){
+  if (online || !ball || !(state === 'rally' || state === 'serve' || state === 'dead')) return;
+  rpBuf.push({ dt, b: [ball.x, ball.y, ball.z], ps: players.map(p => RP_KEYS.map(k => p[k])) }); if (rpBuf.length > 260) rpBuf.shift();
+}
+function rpStart(){
+  let tt = 0, i = rpBuf.length; while (i > 0 && tt < 2.2) { i--; tt += rpBuf[i].dt; }
+  const frames = rpBuf.slice(i); if (frames.length < 20) return;
+  replay = { frames, t: 0, wait: 0.9, len: tt, live: null }; rpBuf = [];
+}
 let rec = null; // { won: 自分の取った点, lost: 取られた点, tech: Set }
 function techAdd(p, k){ if (rec && p && p.isHuman && !online) rec.tech.add(k); }
 function pointTo(team, reason){
   if (state === 'dead') return;
+  const goodPt = !online && team === myTeam() && lastHitter && lastHitter.team === team && (reason === 'サービスエース' || /強打|スマッシュ|エアK|アプローチ|ボレー|ナイス/.test((lastHitter.tag || '') + (lastHitter.shot || '').replace(/^(fv|bv|fvs|bvs|bvc)$/, 'ボレー').replace(/^sm$/, 'スマッシュ').replace(/^(jk|bjk)$/, 'エアK')) || rallyHits >= 9);
   if (rec && !online) { if (team === myTeam()) { rec.won++; if (reason === 'サービスエース') rec.tech.add('ace'); } else rec.lost++; }
   state = 'dead'; timer = 1.6; ball.live = false;
-  playCrowd(team === myTeam()); showMsg(reason + '\n' + teamName(team) + 'のポイント' + (team === myTeam() ? '！' : ''), 1.6);
+  playCrowd(team === myTeam()); if (goodPt) setTimeout(() => { if (state === 'dead' && (score.pts[0] + score.pts[1]) > 0 && !replay) rpStart(); }, 0); showMsg(reason + '\n' + teamName(team) + 'のポイント' + (team === myTeam() ? '！' : ''), 1.6);
   score.pts[team]++;
   const [a, b] = score.pts;
   if ((a >= 4 || b >= 4) && Math.abs(a - b) >= 2) {
@@ -1491,6 +1565,7 @@ function update(dt){
     if (d < 0.5) { p.walk = (p.walk || 0) + d * 3.8; p.mv = (p.mv || 0) * 0.9 + (d / dt > 0.5 ? 1 : 0) * 0.1; }
   }
   for (const p of players) {
+    if ((p.fallT ?? 9) < FALL_T && (p.fallT ?? 9) + dt >= FALL_T) p.x += sideSign(p.team) * (p.lungeDir || 1) * 1.05 * Math.sin(0.85 * 1.3); // 立ち上がった場所へ
     p.cool -= dt; p.swing -= dt; p.label = (p.label || 0) - dt; p.st = (p.st ?? 9) + dt; p.jumpT = (p.jumpT ?? 9) + dt; p.lungeT = (p.lungeT ?? 9) + dt; p.fallT = (p.fallT ?? 9) + dt;
     { const fv = -(p.vys || 0) * sideSign(p.team); p.fwdRun = fv > 1.2 ? (p.fwdRun || 0) + fv * dt : Math.max(0, (p.fwdRun || 0) - dt * 4); } // 前に長く走った距離
     if (p.jumpT > 0.9) p.akPlanned = false;
@@ -1581,6 +1656,7 @@ function update(dt){
     if (bounces === 0) reach *= ball.z > 2.9 ? 0.65 : 0.75;
     const d = Math.hypot(ball.x - p.x, ball.y - p.y);
     if (d < reach * (ball.smash ? 0.85 : 1) && ball.z < 3.3) { hit(p, reach); break; }
+    if (p.tipTry !== rallyHits && d < reach * 1.2 && ball.z < 2.6 && !ball.smash) { p.tipTry = rallyHits; if (Math.random() < 0.6) { tipHit(p, reach); break; } }
     // ギリギリで届かなかった球にも、ラケットを振る（空振り）
     if (p.whiff !== rallyHits && d < reach * 1.9 && ball.z < 3.3 && sideSign(p.team) * (ball.y - p.y) > 0.15 && sideSign(p.team) * ball.vy > 0) {
       p.whiff = rallyHits;
@@ -2029,8 +2105,9 @@ function updateRig(R){
   // 転んだとき：体ごと横に倒れて、しばらくして起き上がる
   const ft = p.fallT ?? 9, fallK = ft < FALL_T ? (ft < 0.3 ? ft / 0.3 : ft < 0.9 ? 1 : Math.max(0, 1 - (ft - 0.9) / 0.45)) : 0, fallDir = p.lungeDir || 1;
   const W0 = (a, f, u, noBob) => { a *= hand; if (!noBob) u += LEG; if (!noBob && bendV) { const hgt = Math.max(0, u - 0.66 - LEG); f += bendV * 0.55 * hgt; u -= Math.abs(bendV) * 0.25 * hgt * Math.abs(bendV); } if (!noBob && lean) { a += lean * 0.32 * Math.max(0, u - 0.3); u -= Math.abs(lean) * 0.14 * Math.min(1, u); } const a2 = a * yc + f * ys, f2 = -a * ys + f * yc; return new V3(p.x + rx * a2 * hsc, (u + (noBob ? 0 : bob)) * hsc + jumpH, p.y + fz * f2 * hsc); };
-  const W = !fallK ? W0 : (a, f, u, noBob) => { const v = W0(a, f, u, noBob), h = v.y; const k = fallK * 0.85; // 足元を軸に倒す
-    v.x += rx * fallDir * h * Math.sin(k * 1.3) * (fz === -1 || fz === 1 ? 1 : 1); v.y = h * Math.cos(k * 1.3) + 0.08 * k; return v; };
+  const getUp = ft > 0.9 ? Math.sin(0.85 * 1.3) - Math.sin(fallK * 0.85 * 1.3) : 0; // 起き上がる間に、足を手をついた側へ寄せる
+  const W = !fallK && !getUp ? W0 : (a, f, u, noBob) => { const v = W0(a, f, u, noBob), h = v.y; const k = fallK * 0.85; // 足元を軸に倒す
+    v.x += rx * fallDir * (h * Math.sin(k * 1.3) + 1.05 * getUp); v.y = h * Math.cos(k * 1.3) + 0.08 * k; return v; };
   const heading = (T) => { const a2 = Math.cos(T + yaw), f2 = -Math.sin(T + yaw); return Math.atan2(-(fz * f2), rx * a2); }; // ローカル右軸の向き
   const twist = hand * (pose.tw || 0), twc = Math.cos(twist), tws = Math.sin(twist);
   // 胴体・腰・頭
@@ -2145,7 +2222,7 @@ function render3d(){
     ballBlob.position.set(ball.x, 0.05, ball.y);
     ballBlob.material.opacity = Math.max(0.08, 0.35 - ball.z * 0.05);
   }
-  placeCamera(human ? human.x * 0.45 * viewSign() : 0);
+  placeCamera(human ? human.x * 0.45 * viewSign() : 0); replayCamera();
   { const inGame = state !== 'menu' && !!human && !VIEWER; document.getElementById('joy').classList.toggle('hidden', !inGame); document.getElementById('pad').classList.toggle('hidden', !inGame); }
   { const sv = state === 'serve' && human && servingPlayer() === human;
     if (sv !== lastPadServe) { lastPadServe = sv;
@@ -2483,12 +2560,30 @@ function editorSetup(){
 if (VIEWER) viewerSetup();
 
 let last = performance.now();
+function replayFrame(dt){
+  const r = replay, el = document.getElementById('rpBadge');
+  if (!r.live) { r.live = { ps: players.map(p => RP_KEYS.map(k => p[k])), b: [ball.x, ball.y, ball.z], fov: camera.fov }; el.classList.remove('hidden'); msgEl.style.visibility = 'hidden'; }
+  r.t += dt * 0.38;
+  let acc = 0, i = 0; while (i < r.frames.length - 1 && acc + r.frames[i].dt < r.t) { acc += r.frames[i].dt; i++; }
+  const f = r.frames[i], apply = (fr) => { players.forEach((p, j) => { const a = fr.ps[j]; if (a) RP_KEYS.forEach((k, n) => { p[k] = a[n]; }); }); ball.x = fr.b[0]; ball.y = fr.b[1]; ball.z = fr.b[2]; };
+  apply(f);
+  if (r.t >= r.len || r.skip) { apply(r.live); camera.fov = r.live.fov; camera.updateProjectionMatrix(); replay = null; el.classList.add('hidden'); msgEl.style.visibility = ''; timer = 0.4; }
+}
+function replayCamera(){ // ボールの横からアップで追う
+  if (!replay || replay.wait > 0 || !replay.live || !ball) return;
+  const m = viewSign(), hp = human || players[0], bx = ball.x, by = ball.y, bz = Math.max(0.6, ball.z);
+  const cx = (bx + hp.x) / 2, cy = (by + hp.y) / 2;
+  camera.fov = 38; camera.updateProjectionMatrix();
+  camera.position.set(cx + 5.5 * m, 2.2 + bz * 0.3, cy + 3.5 * m);
+  camera.lookAt(bx * 0.6 + hp.x * 0.4, bz * 0.6 + 0.4, by * 0.6 + hp.y * 0.4);
+}
 function loop(now){
   let dt = Math.min(0.05, (now - last) / 1000); last = now; frameDt = dt;
   const steps = 4;
   if (VIEWER) viewerUpdate(dt);
   else if (net.role === 'guest' && online) guestFrame(dt, now);
-  else if (!window.__freeze) for (let i = 0; i < steps; i++) update(dt / steps);
+  else if (replay && replay.wait <= 0) replayFrame(dt);
+  else if (!window.__freeze) { for (let i = 0; i < steps; i++) update(dt / steps); rpRecord(dt); if (replay) { replay.wait -= dt; timer = Math.max(timer, 0.5); } }
   hostSendState(now);
   render3d();
   requestAnimationFrame(loop);

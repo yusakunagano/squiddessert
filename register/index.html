@@ -176,7 +176,7 @@ ul.tight{margin:4px 0;padding-left:20px}
   <section id="mainView" class="hidden">
     <header class="top">
       <h1>🏪 トレーニングマート</h1><span class="train">トレーニング中</span>
-      <div class="stat"><span>お客様 <b id="stIdx">1</b>/<b id="stTot">5</b></span><span>経過 <b id="stTime">0</b>秒</span><span>累計 <b id="stScore">-</b>点</span></div>
+      <div class="stat"><span>お客様 <b id="stIdx">1</b>/<b id="stTot">5</b></span><span>経過 <b id="stTime">0</b>秒</span><span>累計 <b id="stScore">-</b>点</span><button id="voiceBtn" style="border:1px solid var(--line);background:#fff;border-radius:14px;padding:2px 10px;font-size:12px">🔊 音声オン</button></div>
     </header>
     <div class="card phrTop">
           <h2>接客用語（タップで話しかける）</h2>
@@ -402,7 +402,26 @@ function totals(){
 function due(){return Math.max(0,totals().total-T.pointsUsed)}
 
 /* ========== 会話 ========== */
-function say(who,text){const d=document.createElement('div');d.className=who;d.textContent=text;$('talk').appendChild(d);$('talk').scrollTop=1e6}
+function say(who,text){const d=document.createElement('div');d.className=who;d.textContent=text;$('talk').appendChild(d);$('talk').scrollTop=1e6;if(who!=='sys')speak(text,who)}
+/* ---- 読み上げ ---- */
+let VOICE=true;try{VOICE=localStorage.getItem('regVoice')!=='0'}catch(e){}
+const TTS=window.speechSynthesis;
+function jaVoices(){return TTS?TTS.getVoices().filter(v=>/^ja/i.test(v.lang)):[]}
+const FEM=/kyoko|o-ren|haruka|ayumi|nanami|sayaka|mizuki|female|女性/i,MALE=/otoya|hattori|ichiro|keita|daichi|naoki|\bmale|男性/i;
+function speak(text,who){
+  if(!VOICE||!TTS)return;
+  const t=text.replace(/（[^）]*）/g,'').replace(/¥([\d,]+)/g,(m,n)=>n.replace(/,/g,'')+'円').trim();
+  if(!t)return;
+  const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';
+  const vs=jaVoices();let female,rate=1.05,pitch=1;
+  if(who==='s'){female=true;rate=1.12;pitch=1.15}
+  else{const b=(C&&C.body)||{};female=!!(b.skirt||b.style==='long'||b.style==='bun');
+    if(b.old){rate=.85;pitch=female?1.0:.8}else if(C&&C.young){rate=1.1;pitch=female?1.35:1.15}else pitch=female?1.1:.85}
+  const v=vs.find(v=>(female?FEM:MALE).test(v.name))||(who==='s'?vs[0]:vs[vs.length>1?1:0]);
+  if(v)u.voice=v;u.rate=rate;u.pitch=pitch;
+  TTS.speak(u);
+}
+function setVoice(on){VOICE=on;try{localStorage.setItem('regVoice',on?'1':'0')}catch(e){}$('voiceBtn').textContent=on?'🔊 音声オン':'🔇 音声オフ';if(!on&&TTS)TTS.cancel()}
 function cust(text,delay=350){setTimeout(()=>{say('c',text);Store3D.nod();render()},delay)}
 function posMsg(m,err){$('posMsg').textContent=m||'';if(err)SND.err()}
 function ded(pts,reason){T.ded.push({pts,reason})}
@@ -419,7 +438,7 @@ function startShift(){
 function nextCustomer(){
   closeOv();
   C=makeCustomer();newTx();
-  $('talk').innerHTML='';
+  $('talk').innerHTML='';if(TTS)TTS.cancel();
   $('cAv').textContent=C.em;$('cName').textContent=`お客様 ${G.idx+1}`;$('cLook').textContent=C.look;
   $('termScr').innerHTML='いらっしゃいませ';
   posMsg('');clearInterval(timer);$('stTime').textContent=0;
@@ -1096,6 +1115,7 @@ const Store3D=(()=>{
 
 /* ========== イベント ========== */
 $('startBtn').onclick=startShift;
+$('voiceBtn').onclick=()=>setVoice(!VOICE);setTimeout(()=>setVoice(VOICE),0);if(TTS)TTS.getVoices();
 $('keys').addEventListener('click',e=>{const b=e.target.closest('button');if(b)key(b.dataset.k)});
 $('phr').addEventListener('click',e=>{const b=e.target.closest('button');if(b)phrase(b.dataset.p)});
 $('giveChange').onclick=giveChange;

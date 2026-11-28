@@ -128,6 +128,19 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.host == request.auth.uid;
     }
 
+    // テニスのランキング（1試合1行）。誰でも読め、匿名ログインしたブラウザは自分の uid で新しい記録だけ追加できる
+    match /tennisPlays/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['name', 'score', 'char', 'won', 'level', 'gps', 'uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 12
+        && request.resource.data.score is int && request.resource.data.score > 0 && request.resource.data.score <= 1000000
+        && request.resource.data.char is string && request.resource.data.char.size() <= 20
+        && request.resource.data.won is bool && request.resource.data.level is int && request.resource.data.gps is int
+        && request.resource.data.createdAt == request.time;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
